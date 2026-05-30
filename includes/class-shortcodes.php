@@ -22,6 +22,10 @@ class ISFM_Shortcodes {
 	// -------------------------------------------------------------------------
 
 	public function enqueue_assets(): void {
+		if ( ! $this->page_needs_assets() ) {
+			return;
+		}
+
 		wp_enqueue_style(
 			'isfm-public',
 			ISFM_PLUGIN_URL . 'public/css/public-style.css',
@@ -33,7 +37,10 @@ class ISFM_Shortcodes {
 			ISFM_PLUGIN_URL . 'public/js/public-script.js',
 			array(),
 			ISFM_VERSION,
-			true
+			array(
+				'in_footer' => true,
+				'strategy'  => 'defer',
+			)
 		);
 		wp_localize_script(
 			'isfm-public',
@@ -47,6 +54,44 @@ class ISFM_Shortcodes {
 				),
 			)
 		);
+	}
+
+	/**
+	 * True when the current page renders any plugin content (shortcode,
+	 * block, single download, or download archive/taxonomy). Lets us
+	 * skip the public CSS/JS on every other page.
+	 */
+	private function page_needs_assets(): bool {
+		if ( is_singular( 'isfm_file' )
+			|| is_post_type_archive( 'isfm_file' )
+			|| is_tax( array( 'isfm_category', 'isfm_tag' ) ) ) {
+			return true;
+		}
+
+		if ( ! is_singular() ) {
+			return false;
+		}
+
+		$post = get_post();
+		if ( ! $post ) {
+			return false;
+		}
+
+		$shortcodes = array( 'isfm_list', 'isfm_categories', 'isfm_download', 'isfm_button', 'isfm_count', 'isfm_search', 'isfm_recent', 'isfm_popular' );
+		foreach ( $shortcodes as $tag ) {
+			if ( has_shortcode( $post->post_content, $tag ) ) {
+				return true;
+			}
+		}
+
+		$blocks = array( 'isoft-fm-foundation/download-list', 'isoft-fm-foundation/download-button', 'isoft-fm-foundation/category-grid' );
+		foreach ( $blocks as $block_name ) {
+			if ( has_block( $block_name, $post ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	// -------------------------------------------------------------------------
