@@ -1,16 +1,23 @@
 name: Plugin Check
 
 # Runs the official WordPress Plugin Check (https://wordpress.org/plugins/plugin-check/)
-# via the WordPress team's maintained action — the same tool the WP.org
-# plugin-review team runs against submissions.
+# via the WordPress team's maintained action.
 #
-# History: we previously hand-rolled this workflow (install wp-env globally,
-# drive wp-env start ourselves, docker cp the plugin into the container, run
-# wp plugin check) to bypass a wrapper bug. After WordPress 7, Plugin Check
-# 2.0, and the wp-env 11.7.0 regression all landed in late May 2026, the
-# upstream action (v1.1.6) is in a much better position than us to keep up
-# with those upstream changes. The custom workflow is preserved on the
-# branch `backup/pre-plugin-check-action-revival` for easy revival.
+# ⚠ ADVISORY ONLY (continue-on-error: true). As of late May 2026, wp-env 11.7.0
+# has a regression where 'wp-env start' generates docker-compose 'build:'
+# directives for the WordPress service but never invokes 'docker compose build'.
+# The log signature is 'wordpress Skipped - No image to be pulled' followed by
+# only MySQL containers coming up. Both the official action AND our previous
+# hand-rolled workflow hit this — wp-env is broken for everyone.
+#
+# We keep the workflow running so we'll see it go green automatically when
+# upstream fixes itself, but failures don't block the merge gate. Plugin Check
+# is validated locally (Local Sites + plugin-check plugin) before tagging a
+# release.
+#
+# Custom workflow preserved on branch `backup/pre-plugin-check-action-revival`
+# in case we want to revive a non-wp-env approach (docker-compose with
+# wordpress:php8.4-apache directly).
 
 on:
   push:
@@ -21,6 +28,7 @@ on:
 jobs:
   plugin-check:
     runs-on: ubuntu-latest
+    continue-on-error: true  # see header comment
 
     steps:
       - uses: actions/checkout@v4
