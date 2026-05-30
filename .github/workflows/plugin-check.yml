@@ -60,11 +60,13 @@ jobs:
 
       - name: Generate .wp-env.json
         # No URL plugins (would trigger the wp-env download-path bug).
-        # Mappings mounts the staged copy (not the workspace) at the
-        # slug path inside the container.
+        # phpVersion 8.4 matches the plugin's `Requires PHP` so we can
+        # activate and Plugin Check's runtime checks (enqueued asset
+        # size/scope/loading-strategy) actually fire.
         run: |
           cat > .wp-env.json <<'EOF'
           {
+            "phpVersion": "8.4",
             "mappings": {
               "wp-content/plugins/isoft-fm-foundation": "/tmp/staging/isoft-fm-foundation"
             }
@@ -85,10 +87,13 @@ jobs:
         # the upstream wp-env bug.
         run: wp-env run cli wp plugin install plugin-check --activate
 
+      - name: Activate isoft-fm-foundation
+        # phpVersion 8.4 in .wp-env.json above lets this pass the
+        # 'Requires PHP: 8.4' guard. Activation enables Plugin Check's
+        # runtime checks (enqueued asset size/scope/etc.).
+        run: wp-env run cli wp plugin activate isoft-fm-foundation
+
       - name: Run Plugin Check
-        # No `wp plugin activate isoft-fm-foundation` — Plugin Check
-        # runs against the inactive source on disk, which avoids the
-        # PHP 8.4 'Requires PHP' activation guard.
         run: |
           wp-env run cli wp plugin check isoft-fm-foundation \
             --format=table \
