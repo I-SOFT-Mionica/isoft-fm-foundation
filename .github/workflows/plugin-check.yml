@@ -1,38 +1,26 @@
 name: Plugin Check
 
 # Runs the official WordPress Plugin Check (https://wordpress.org/plugins/plugin-check/)
-# via the WordPress team's maintained action.
+# via wp-env directly — bypasses the wordpress/plugin-check-action wrapper
+# because it hardcodes "core": null in its generated .wp-env.json and
+# exposes no phpVersion input.
 #
-# ADVISORY ONLY (continue-on-error: true). Investigation findings against
-# wordpress/plugin-check-action@v1.1.6 action.yml — three upstream barriers
-# that together prevent the inner job from going green:
+# Key insight from the latest reviewer iteration: Plugin Check can run
+# against an INACTIVE plugin (no `wp plugin activate` call needed). That
+# sidesteps the PHP 8.4 activation barrier — wp-env can boot with the
+# default PHP 8.3 image and we still get the static check coverage.
 #
-# 1. wp-env 11.7.0 generates docker-compose `build:` directives for the
-#    WordPress service but never invokes `docker compose build`. Log
-#    signature: `wordpress Skipped - No image to be pulled` followed by
-#    only the MySQL containers coming up.
+# Plugin installed via .wp-env.json `mappings` (not `plugins`) so wp-env
+# mounts our source straight into wp-content/plugins/isoft-fm-foundation/
+# without a copy step.
 #
-# 2. The action's `wp-version` input is silently dropped for any value
-#    except 'trunk'. Action's Setup wp-env step:
-#      env:
-#        WP_VERSION: ${{ inputs.wp-version == 'trunk' && '...' || 'null' }}
-#    Tried overriding via the calling step's `env: WP_VERSION: latest` —
-#    step-level env inside the action wins over the caller's step env.
-#    Tried pre-creating .wp-env.json — the action unconditionally
-#    truncates and rewrites it (touch + > + echo).
+# continue-on-error remains because the wp-env 11.7.0 `docker compose
+# build` regression may still bite us — log signature
+# `wordpress Skipped - No image to be pulled` then only MySQL comes up.
+# If this run goes green the flag can be dropped in a follow-up.
 #
-# 3. The action exposes no way to set PHP version. Its generated
-#    .wp-env.json has no phpVersion field, so wp-env defaults to PHP
-#    8.3, and our `Requires PHP: 8.4` then blocks `wp plugin activate`.
-#
-# Net: we cannot fix this from the caller side without forking the
-# action. Plugin Check is validated locally against PHP 8.4 in Local
-# Sites before each release. When upstream fixes any of these (notably
-# (1) — the wp-env regression), the workflow will start going green on
-# its own and we can drop continue-on-error.
-#
-# Custom (non-action) workflow preserved on branch
-# `backup/pre-plugin-check-action-revival` for revival if needed.
+# Custom hand-rolled-with-docker-cp workflow still preserved on branch
+# `backup/pre-plugin-check-action-revival` if both approaches fail.
 
 on:
   push:
@@ -48,22 +36,51 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run Plugin Check
-        # Pinned to a specific release rather than @v1 so an upstream
-        # regression can't silently change our gate.
-        uses: wordpress/plugin-check-action@v1.1.6
+      - uses: actions/setup-node@v4
         with:
-          build-dir: ${{ github.workspace }}
-          slug: isoft-fm-foundation
-          categories: |
-            general
-            plugin_repo
-            security
-            performance
-            accessibility
-          include-experimental: true
-          exclude-directories: |
-            vendor
-            node_modules
-            tests
-            languages
+          node-version: 24
+
+      - name: Install wp-env
+        run: npm install -g @wordpress/env
+
+      - name: Generate .wp-env.json
+        # "core": "latest" (explicit string) instead of null — the action's
+        # hardcoded null has caused wp-env to skip the WordPress build.
+        # Plugin source mounted via mappings so it appears at
+        # wp-content/plugins/isoft-fm-foundation/ inside the container.
+        # plugin-check itself is installed via the plugins array.
+        run: |
+          cat > .wp-env.json <<EOF
+          {
+            "core": "latest",
+            "plugins": [
+              "https://downloads.wordpress.org/plugin/plugin-check.zip"
+            ],
+            "mappings": {
+              "wp-content/plugins/isoft-fm-foundation": "${GITHUB_WORKSPACE}"
+            }
+          }
+          EOF
+          cat .wp-env.json
+
+      - name: Start wp-env
+        run: wp-env start --update
+
+      - name: Verify plugin is mounted
+        # No `wp plugin activate` call — Plugin Check works on inactive
+        # plugins, which lets us run without forcing PHP 8.4.
+        run: |
+          wp-env run cli wp plugin list
+
+      - name: Run Plugin Check
+        run: |
+          wp-env run cli wp plugin check isoft-fm-foundation \
+            --format=table \
+            --categories=general,plugin_repo,security,performance,accessibility \
+            --include-experimental \
+            --exclude-directories=vendor,node_modules,tests,languages \
+            --require=./wp-content/plugins/plugin-check/cli.php
+
+      - name: Stop wp-env
+        if: always()
+        run: wp-env stop || true
