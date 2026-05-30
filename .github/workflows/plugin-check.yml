@@ -33,11 +33,15 @@ jobs:
         run: npm install -g @wordpress/env
 
       - name: Configure wp-env
+        # testsEnvironment: false disables the tests env (we don't use it and
+        # wp-env 11.7.0 has a regression where starting both envs hangs
+        # WordPress container creation).
         run: |
           cat > .wp-env.json <<'EOF'
           {
             "core": null,
             "phpVersion": "8.4",
+            "testsEnvironment": false,
             "plugins": [
               "https://downloads.wordpress.org/plugin/plugin-check.zip"
             ]
@@ -46,14 +50,12 @@ jobs:
           cat .wp-env.json
 
       - name: Start wp-env
-        # Recent wp-env releases swallow stdout once the spinner starts, so the
-        # success messages never make it to the log. Disable color/spinner via
-        # CI=true (already set on GH Actions) and force-print all containers
-        # afterwards so we can see what actually came up.
+        # --debug surfaces wp-env's internal docker-compose calls so we can
+        # see why WordPress containers aren't being created.
         run: |
           set -x
           wp-env --version
-          wp-env start 2>&1
+          wp-env start --debug 2>&1
           echo "--- docker ps -a (all containers, including exited) ---"
           docker ps -a
 
