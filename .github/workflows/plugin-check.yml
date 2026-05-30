@@ -46,7 +46,16 @@ jobs:
           cat .wp-env.json
 
       - name: Start wp-env
-        run: wp-env start
+        # Recent wp-env releases swallow stdout once the spinner starts, so the
+        # success messages never make it to the log. Disable color/spinner via
+        # CI=true (already set on GH Actions) and force-print all containers
+        # afterwards so we can see what actually came up.
+        run: |
+          set -x
+          wp-env --version
+          wp-env start 2>&1
+          echo "--- docker ps -a (all containers, including exited) ---"
+          docker ps -a
 
       - name: Stage plugin
         # Stage the same files that build.py / `wp dist-archive` would ship to
