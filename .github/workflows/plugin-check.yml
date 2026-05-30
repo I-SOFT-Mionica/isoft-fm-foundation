@@ -3,21 +3,20 @@ name: Plugin Check
 # Runs the official WordPress Plugin Check (https://wordpress.org/plugins/plugin-check/)
 # via the WordPress team's maintained action.
 #
-# ⚠ ADVISORY ONLY (continue-on-error: true). As of late May 2026, wp-env 11.7.0
-# has a regression where 'wp-env start' generates docker-compose 'build:'
-# directives for the WordPress service but never invokes 'docker compose build'.
-# The log signature is 'wordpress Skipped - No image to be pulled' followed by
-# only MySQL containers coming up. Both the official action AND our previous
-# hand-rolled workflow hit this — wp-env is broken for everyone.
+# Pre-creating .wp-env.json with our own config is load-bearing:
+# the action auto-generates one with `"core": null` (and no phpVersion)
+# when none exists, which has caused wp-env to skip the WordPress
+# container build in our environment. With WP_ENV_JSON_EXISTS=true the
+# action respects our config.
 #
-# We keep the workflow running so we'll see it go green automatically when
-# upstream fixes itself, but failures don't block the merge gate. Plugin Check
-# is validated locally (Local Sites + plugin-check plugin) before tagging a
-# release.
+# `php-version` is NOT a valid input on the action — PHP version is
+# controlled exclusively through .wp-env.json's phpVersion field.
 #
-# Custom workflow preserved on branch `backup/pre-plugin-check-action-revival`
-# in case we want to revive a non-wp-env approach (docker-compose with
-# wordpress:php8.4-apache directly).
+# continue-on-error stays for one cycle as a safety net while we verify
+# the fix; remove once the inner job is consistently green.
+#
+# Custom (non-action) workflow preserved on branch
+# `backup/pre-plugin-check-action-revival` for revival if needed.
 
 on:
   push:
@@ -28,10 +27,25 @@ on:
 jobs:
   plugin-check:
     runs-on: ubuntu-latest
-    continue-on-error: true  # see header comment
+    continue-on-error: true  # see header comment — remove once stable
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Pre-create .wp-env.json
+        # Forces the action's WP_ENV_JSON_EXISTS=true branch; our config
+        # is used instead of the action generating one with "core": null.
+        run: |
+          cat > .wp-env.json <<'EOF'
+          {
+            "phpVersion": "8.4",
+            "testsEnvironment": false,
+            "plugins": [
+              "https://downloads.wordpress.org/plugin/plugin-check.zip"
+            ]
+          }
+          EOF
+          cat .wp-env.json
 
       - name: Run Plugin Check
         # Pinned to a specific release rather than @v1 so an upstream
@@ -40,7 +54,7 @@ jobs:
         with:
           build-dir: ${{ github.workspace }}
           slug: isoft-fm-foundation
-          php-version: '8.4'
+          wp-version: latest
           categories: |
             general
             plugin_repo
