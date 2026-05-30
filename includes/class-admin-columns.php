@@ -42,7 +42,7 @@ class ISFM_Admin_Columns {
 							esc_url(
 								add_query_arg(
 									array(
-										'post_type'    => 'isfm_file',
+										'post_type'     => 'isfm_file',
 										'isfm_category' => $t->slug,
 									),
 									admin_url( 'edit.php' )

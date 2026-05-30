@@ -130,8 +130,8 @@ class ISFM_Access_Control {
 	 * Downloads without the meta key (pre-v0.5.1) inherit the global default.
 	 */
 	public function add_access_clauses( array $clauses, WP_Query $query ): array {
-		$post_type = $query->get( 'post_type' );
-		$is_isfm_file    = 'isfm_file' === $post_type
+		$post_type    = $query->get( 'post_type' );
+		$is_isfm_file = 'isfm_file' === $post_type
 			|| ( is_array( $post_type ) && in_array( 'isfm_file', $post_type, true ) )
 			|| $query->is_tax( array( 'isfm_category', 'isfm_tag' ) )
 			|| $query->is_post_type_archive( 'isfm_file' );
