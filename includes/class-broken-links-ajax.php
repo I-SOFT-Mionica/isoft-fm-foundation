@@ -136,6 +136,7 @@ class ISFM_Broken_Links_Ajax {
 
 	public function handle_probe(): void {
 		$this->guard();
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified inside $this->guard() above via check_ajax_referer().
 		$file_id = isset( $_POST['file_id'] ) ? absint( $_POST['file_id'] ) : 0;
 		$file    = $this->get_file_or_die( $file_id );
 
@@ -178,6 +179,7 @@ class ISFM_Broken_Links_Ajax {
 
 	public function handle_move_back(): void {
 		$this->guard();
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified inside $this->guard() above via check_ajax_referer().
 		$file_id = isset( $_POST['file_id'] ) ? absint( $_POST['file_id'] ) : 0;
 		$file    = $this->get_file_or_die( $file_id );
 
@@ -233,6 +235,7 @@ class ISFM_Broken_Links_Ajax {
 
 	public function handle_reassign(): void {
 		$this->guard();
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified inside $this->guard() above via check_ajax_referer().
 		$file_id = isset( $_POST['file_id'] ) ? absint( $_POST['file_id'] ) : 0;
 		$file    = $this->get_file_or_die( $file_id );
 
@@ -394,6 +397,7 @@ class ISFM_Broken_Links_Ajax {
 
 	public function handle_split(): void {
 		$this->guard();
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified inside $this->guard() above via check_ajax_referer().
 		$file_id = isset( $_POST['file_id'] ) ? absint( $_POST['file_id'] ) : 0;
 		$file    = $this->get_file_or_die( $file_id );
 
@@ -473,6 +477,7 @@ class ISFM_Broken_Links_Ajax {
 
 	public function handle_reupload(): void {
 		$this->guard();
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified inside $this->guard() above via check_ajax_referer().
 		$file_id = isset( $_POST['file_id'] ) ? absint( $_POST['file_id'] ) : 0;
 		$file    = $this->get_file_or_die( $file_id );
 
@@ -539,6 +544,7 @@ class ISFM_Broken_Links_Ajax {
 
 	public function handle_detach(): void {
 		$this->guard();
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified inside $this->guard() above via check_ajax_referer().
 		$file_id = isset( $_POST['file_id'] ) ? absint( $_POST['file_id'] ) : 0;
 		$file    = $this->get_file_or_die( $file_id );
 
