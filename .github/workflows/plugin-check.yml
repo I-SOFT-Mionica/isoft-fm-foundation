@@ -49,15 +49,28 @@ jobs:
       - name: Install wp-env
         run: npm install -g @wordpress/env
 
+      - name: Stage plugin (.distignore-filtered)
+        # Plugin Check scans whatever's mounted. If we mount the whole
+        # workspace directly, it sees .wp-env.json, phpcs.xml.dist,
+        # .gitignore, .github/, etc. and flags them. Stage a clean copy
+        # in /tmp first using .distignore (same as the release zip).
+        run: |
+          mkdir -p /tmp/staging/isoft-fm-foundation
+          rsync -a \
+            --exclude='.wp-env.json' \
+            --exclude-from="${GITHUB_WORKSPACE}/.distignore" \
+            "${GITHUB_WORKSPACE}/" /tmp/staging/isoft-fm-foundation/
+          ls -la /tmp/staging/isoft-fm-foundation/
+
       - name: Generate .wp-env.json
         # No URL plugins (would trigger the wp-env download-path bug).
-        # Mappings mounts our source directly at the slug path inside
-        # the container.
+        # Mappings mounts the staged copy (not the workspace) at the
+        # slug path inside the container.
         run: |
-          cat > .wp-env.json <<EOF
+          cat > .wp-env.json <<'EOF'
           {
             "mappings": {
-              "wp-content/plugins/isoft-fm-foundation": "${GITHUB_WORKSPACE}"
+              "wp-content/plugins/isoft-fm-foundation": "/tmp/staging/isoft-fm-foundation"
             }
           }
           EOF
