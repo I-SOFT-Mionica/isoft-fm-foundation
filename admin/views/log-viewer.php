@@ -6,6 +6,8 @@
  */
 defined( 'ABSPATH' ) || exit;
 
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Locals passed in by the including class; not actual globals.
+
 // Process bulk actions before output.
 $table->process_bulk_action();
 

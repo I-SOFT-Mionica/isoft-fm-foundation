@@ -2,6 +2,18 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.8.1] — 2026-05-30
+
+Local Plugin Check fixes — three errors WP.org's tool flagged after WordPress 7.0 released and reviewer-strict variable-prefix warnings.
+
+### Fixed
+- **`outdated_tested_upto_header` (ERROR)** — bumped `Tested up to: 7.0` in `readme.txt`. WordPress 7.0 shipped between the rename PR and now.
+- **`wp_function_not_compatible_with_requires_wp` (ERROR)** — bumped `Requires at least: 6.7` in both `readme.txt` and the main plugin header. `ISFM_Blocks::register_block_template()` calls `register_block_template()`, a WP 6.7+ function. The `function_exists()` guard prevents fatal errors on older WP but Plugin Check still flags the mismatch.
+- **`plugin_header_nonexistent_domain_path` (ERROR)** — recreated `languages/` directory (with a `.gitkeep`) so the `Domain Path: /languages` header in the main file points to an existing folder. Was deleted alongside the stale POT file in 0.8.0.
+
+### Changed
+- Added a single `// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Locals passed in by the including class; not actual globals.` line to every view (`admin/views/*.php`), template (`templates/*.php`, `public/views/*.php`), block render (`blocks/*/render.php`), and `uninstall.php`. Plugin Check ignores our `phpcs.xml.dist` exclude patterns for these files, so the suppression has to live in source.
+
 ## [0.8.0] — 2026-05-16
 
 Plugin renamed end-to-end. The WordPress.org plugin-review team accepted the new name "I-Soft File Manager: Foundation" with slug `isoft-fm-foundation`. Since the plugin had not yet shipped publicly, no migration path is needed — every identifier moves in lockstep.

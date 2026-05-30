@@ -4,6 +4,8 @@
  */
 defined( 'ABSPATH' ) || exit;
 
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Locals passed in by the including class; not actual globals.
+
 $enabled    = (bool) get_option( 'isfm_integrity_check_enabled', 0 );
 $time       = (string) get_option( 'isfm_integrity_check_time', '02:30' );
 $autorelink = (bool) get_option( 'isfm_integrity_autorelink', 1 );

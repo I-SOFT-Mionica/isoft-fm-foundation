@@ -5,6 +5,8 @@
  * Expected variables: $terms WP_Term[], $settings array
  */
 defined( 'ABSPATH' ) || exit;
+
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Locals passed in by the including class; not actual globals.
 ?>
 <?php if ( empty( $terms ) ) : ?>
 	<p class="isfm-no-categories"><?php esc_html_e( 'No categories found.', 'isoft-fm-foundation' ); ?></p>

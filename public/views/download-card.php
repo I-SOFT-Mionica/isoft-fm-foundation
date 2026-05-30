@@ -10,6 +10,8 @@
  */
 defined( 'ABSPATH' ) || exit;
 
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Locals passed in by the including class; not actual globals.
+
 $access        = new ISFM_Access_Control();
 $can_access    = $access->can_access_download( $post->ID );
 $files         = ( new ISFM_File_Manager() )->get_files( $post->ID );

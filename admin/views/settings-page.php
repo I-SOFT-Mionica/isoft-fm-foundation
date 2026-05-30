@@ -1,4 +1,6 @@
-<?php defined( 'ABSPATH' ) || exit; ?>
+<?php defined( 'ABSPATH' ) || exit;
+
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Locals passed in by the including class; not actual globals. ?>
 <div class="wrap">
 	<h1><?php esc_html_e( 'I-Soft File Manager: Foundation Settings', 'isoft-fm-foundation' ); ?></h1>
 

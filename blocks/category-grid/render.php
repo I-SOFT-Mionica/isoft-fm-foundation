@@ -4,6 +4,8 @@
  */
 defined( 'ABSPATH' ) || exit;
 
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Locals passed in by the including class; not actual globals.
+
 $atts = array(
 	'parent'           => absint( $attributes['parent'] ?? 0 ),
 	'columns'          => absint( $attributes['columns'] ?? 3 ),

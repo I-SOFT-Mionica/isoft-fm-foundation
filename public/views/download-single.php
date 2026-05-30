@@ -7,6 +7,8 @@
  */
 defined( 'ABSPATH' ) || exit;
 
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Locals passed in by the including class; not actual globals.
+
 $version     = get_post_meta( $post->ID, '_isfm_version', true );
 $changelog   = get_post_meta( $post->ID, '_isfm_changelog', true );
 $author_name = get_post_meta( $post->ID, '_isfm_author_name', true );

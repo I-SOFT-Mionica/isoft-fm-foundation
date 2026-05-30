@@ -1,4 +1,6 @@
-<?php defined( 'ABSPATH' ) || exit; ?>
+<?php defined( 'ABSPATH' ) || exit;
+
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Locals passed in by the including class; not actual globals. ?>
 <div class="isfm-extensions-tab" style="margin-top:1.5em;">
 	<h2><?php esc_html_e( 'Installed Extensions', 'isoft-fm-foundation' ); ?></h2>
 

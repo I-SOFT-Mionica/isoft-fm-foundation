@@ -1,4 +1,6 @@
-<?php defined( 'ABSPATH' ) || exit; ?>
+<?php defined( 'ABSPATH' ) || exit;
+
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Locals passed in by the including class; not actual globals. ?>
 <table class="form-table">
 	<tr>
 		<th><label for="isfm-version"><?php esc_html_e( 'Version', 'isoft-fm-foundation' ); ?></label></th>

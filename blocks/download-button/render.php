@@ -7,6 +7,8 @@
  */
 defined( 'ABSPATH' ) || exit;
 
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Locals passed in by the including class; not actual globals.
+
 $download_id = absint( $attributes['downloadId'] ?? 0 );
 
 if ( ! $download_id ) {

@@ -1,10 +1,10 @@
 === I-Soft File Manager: Foundation ===
 Contributors: chillic, isoftmionica
 Tags: downloads, file manager, document management, categories, download counter
-Requires at least: 6.6
-Tested up to: 6.9
+Requires at least: 6.7
+Tested up to: 7.0
 Requires PHP: 8.4
-Stable tag: 0.8.0
+Stable tag: 0.8.1
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -147,6 +147,10 @@ For deeper changes (layout, spacing, typography), all public classes use the `.i
 5. Download handler settings — security, logging, and serve method.
 
 == Changelog ==
+
+= 0.8.1 =
+* **Compatibility fixes flagged by Plugin Check after WordPress 7.0 release.** Bumped "Tested up to" to 7.0 and "Requires at least" to 6.7 (the version that introduced `register_block_template()`, which the single-download block template uses). Recreated the empty `languages/` directory the `Domain Path` header points to.
+* Suppressed `WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound` warnings in view, template, block-render, and uninstall files — these "globals" are actually local variables passed by the including class. Added a single `phpcs:disable` line per file with a `--` reason.
 
 = 0.8.0 =
 * **Plugin renamed to "I-Soft File Manager: Foundation"** (slug `isoft-fm-foundation`), per the WordPress.org plugin-review team's accepted name. Internal identifiers (classes `ISFM_*`, functions `isfm_*`, post type `isfm_file`, taxonomies `isfm_category`/`isfm_tag`, database tables `wp_isfm_*`, options/meta/capabilities `isfm_*`, CSS classes `.isfm-*` and `--isfm-*` custom properties, block namespace `isoft-fm-foundation/*`, REST namespace `isoft-fm-foundation/v1`, file storage dir `isfm-files/`) all renamed to match. Since the plugin had not yet shipped publicly, no migration path is needed.

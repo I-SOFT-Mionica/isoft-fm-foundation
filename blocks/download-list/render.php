@@ -9,6 +9,8 @@
  */
 defined( 'ABSPATH' ) || exit;
 
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Locals passed in by the including class; not actual globals.
+
 $atts = array(
 	'category'              => absint( $attributes['category'] ?? 0 ) ?: '',
 	'include_subcategories' => array_key_exists( 'includeSubcategories', $attributes )

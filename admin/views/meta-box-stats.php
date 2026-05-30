@@ -1,4 +1,6 @@
-<?php defined( 'ABSPATH' ) || exit; ?>
+<?php defined( 'ABSPATH' ) || exit;
+
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Locals passed in by the including class; not actual globals. ?>
 <p>
 	<strong><?php esc_html_e( 'Total Downloads:', 'isoft-fm-foundation' ); ?></strong>
 	<?php echo esc_html( number_format_i18n( $total_downloads ) ); ?>

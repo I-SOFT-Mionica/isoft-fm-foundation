@@ -8,6 +8,8 @@
  */
 defined( 'ABSPATH' ) || exit;
 
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Locals passed in by the including class; not actual globals.
+
 $post_id = isset( $isfm_unavailable_post_id ) ? (int) $isfm_unavailable_post_id : 0;
 $mode    = isset( $isfm_unavailable_mode ) ? (string) $isfm_unavailable_mode : 'partial';
 

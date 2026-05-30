@@ -8,6 +8,8 @@
 
 defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
 
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Uninstall script: locals are bounded to this one-shot teardown; never globals.
+
 if ( ! get_option( 'isfm_delete_data_on_uninstall' ) ) {
 	return;
 }

@@ -4,6 +4,8 @@
  */
 defined( 'ABSPATH' ) || exit;
 
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Locals passed in by the including class; not actual globals.
+
 $stats             = isfm_get_stats_overview();
 $total_downloads   = $stats['total_downloads'];
 $total_files       = $stats['total_files'];

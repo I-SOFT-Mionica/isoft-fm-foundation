@@ -11,6 +11,8 @@
  *   $category_path   string   relative category folder path
  */
 defined( 'ABSPATH' ) || exit;
+
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Locals passed in by the including class; not actual globals.
 ?>
 <div class="isfm-files-wrap">
 
