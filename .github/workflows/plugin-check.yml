@@ -30,7 +30,10 @@ jobs:
           node-version: 24
 
       - name: Install wp-env
-        run: npm install -g @wordpress/env
+        # Pinned to a version that builds the PHP-8.4 WordPress image
+        # properly. wp-env 11.7.0 reports 'wordpress Skipped - No image
+        # to be pulled' for phpVersion configs, so only MySQL comes up.
+        run: npm install -g @wordpress/env@^10.0.0
 
       - name: Configure wp-env
         # testsEnvironment: false disables the tests env (we don't use it and
