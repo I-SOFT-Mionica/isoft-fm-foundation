@@ -30,7 +30,13 @@ jobs:
           node-version: 24
 
       - name: Install wp-env
-        run: npm install -g @wordpress/env
+        # Pinned to 10.x: wp-env 11.7.0 has a regression where 'wp-env start'
+        # generates docker-compose 'build:' directives for the WordPress
+        # service but never invokes 'docker compose build' — log shows
+        # 'wordpress Skipped - No image to be pulled' and then only MySQL
+        # containers get created. 10.x doesn't recognize 'testsEnvironment'
+        # so we omit that field (currently it's not in our config anyway).
+        run: npm install -g @wordpress/env@^10.0.0
 
       - name: Configure wp-env
         # Pin WordPress core to 6.9 (last 6.x — matches our "Tested up to"
