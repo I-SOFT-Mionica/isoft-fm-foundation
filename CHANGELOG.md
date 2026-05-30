@@ -2,6 +2,16 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.8.2] — 2026-05-30
+
+Plugin Check round-2 cleanup.
+
+### Changed
+- **`uninstall.php`** — replaced the wildcard `DELETE FROM {$wpdb->options} WHERE option_name LIKE 'isfm_%'` with explicit `delete_option()` calls over an enumerated list (40-ish keys spanning settings, internal state, and legacy entries). Drops the `WordPress.DB.DirectDatabaseQuery.DirectQuery` + `NoCaching` warnings without needing the previous phpcs:ignore. Added matching `delete_transient()` for `isfm_missing_count` and `isfm_stats_overview`, plus `delete_metadata( 'user', 0, '_isfm_allowed_categories', '', true )` to clean per-user ACL meta the wildcard never touched. Per-IP rate-limit transients (`isfm_rl_*`) are dynamic and not enumerated — they self-expire via TTL.
+
+### Fixed
+- **`languages/.gitkeep` → `languages/index.php`** with the standard WordPress `// Silence is golden.` content. Plugin Check's `hidden_files` rule flagged the dotfile. The folder still exists for the `Domain Path` header to resolve to.
+
 ## [0.8.1] — 2026-05-30
 
 Local Plugin Check fixes — three errors WP.org's tool flagged after WordPress 7.0 released and reviewer-strict variable-prefix warnings.

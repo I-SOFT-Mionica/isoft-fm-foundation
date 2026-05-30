@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.0
 Requires PHP: 8.4
-Stable tag: 0.8.1
+Stable tag: 0.8.2
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -147,6 +147,10 @@ For deeper changes (layout, spacing, typography), all public classes use the `.i
 5. Download handler settings — security, logging, and serve method.
 
 == Changelog ==
+
+= 0.8.2 =
+* **Uninstall cleanup uses the WP API** instead of a wildcard `DELETE` query. Plugin Check no longer flags the direct DB query, and `_isfm_allowed_categories` user meta now gets removed too (the old wildcard only hit the options table).
+* **`languages/.gitkeep` renamed to `languages/index.php`** with the WordPress "Silence is golden" convention — Plugin Check flagged the dotfile as a hidden file. The folder still exists for the `Domain Path` header to point at.
 
 = 0.8.1 =
 * **Compatibility fixes flagged by Plugin Check after WordPress 7.0 release.** Bumped "Tested up to" to 7.0 and "Requires at least" to 6.7 (the version that introduced `register_block_template()`, which the single-download block template uses). Recreated the empty `languages/` directory the `Domain Path` header points to.
