@@ -30,21 +30,17 @@ jobs:
           node-version: 24
 
       - name: Install wp-env
-        # Pinned to a version that builds the PHP-8.4 WordPress image
-        # properly. wp-env 11.7.0 reports 'wordpress Skipped - No image
-        # to be pulled' for phpVersion configs, so only MySQL comes up.
-        run: npm install -g @wordpress/env@^10.0.0
+        run: npm install -g @wordpress/env
 
       - name: Configure wp-env
-        # testsEnvironment: false disables the tests env (we don't use it and
-        # wp-env 11.7.0 has a regression where starting both envs hangs
-        # WordPress container creation).
+        # Minimal config. wp-env 10.x rejects "testsEnvironment" (added in
+        # 11.x). "core" is omitted — null means "latest stable WP" per the
+        # schema, but a reviewer suggested explicit null may trigger a
+        # different code path in some versions, so we leave it out.
         run: |
           cat > .wp-env.json <<'EOF'
           {
-            "core": null,
             "phpVersion": "8.4",
-            "testsEnvironment": false,
             "plugins": [
               "https://downloads.wordpress.org/plugin/plugin-check.zip"
             ]
