@@ -1,17 +1,17 @@
-/* i-Downloads — Public JS */
+/* I-Soft File Manager: Foundation — Public JS */
 ( function () {
 	'use strict';
 
-	var overlay = document.getElementById( 'idl-agree-overlay' );
+	var overlay = document.getElementById( 'isfm-agree-overlay' );
 	if ( ! overlay ) {
 		return;
 	}
 
-	var title       = document.getElementById( 'idl-agree-title' );
-	var body        = document.getElementById( 'idl-agree-body' );
-	var checkbox    = document.getElementById( 'idl-agree-checkbox' );
-	var proceed     = document.getElementById( 'idl-agree-proceed' );
-	var cancel      = document.getElementById( 'idl-agree-cancel' );
+	var title       = document.getElementById( 'isfm-agree-title' );
+	var body        = document.getElementById( 'isfm-agree-body' );
+	var checkbox    = document.getElementById( 'isfm-agree-checkbox' );
+	var proceed     = document.getElementById( 'isfm-agree-proceed' );
+	var cancel      = document.getElementById( 'isfm-agree-cancel' );
 	var pendingHref = '';
 
 	// -------------------------------------------------------------------------
@@ -20,7 +20,7 @@
 	document.addEventListener(
 		'click',
 		function ( e ) {
-			var btn = e.target.closest( '.idl-requires-agree' );
+			var btn = e.target.closest( '.isfm-requires-agree' );
 			if ( ! btn ) {
 				return;
 			}

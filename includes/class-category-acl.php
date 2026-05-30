@@ -4,7 +4,7 @@
  *
  * Rules:
  *   - Admins (`manage_options`) are unrestricted.
- *   - Other users are assigned one or more explicit idl_category term ids.
+ *   - Other users are assigned one or more explicit isfm_category term ids.
  *   - Assignments inherit downwards: user allowed on "Skupština Opštine"
  *     can write anywhere in its subtree.
  *   - Read-side is unchanged for PUBLISHED downloads — anyone can see them.
@@ -12,13 +12,13 @@
  *     covers the download's category (enforced separately; this class only
  *     exposes the check).
  *
- * Storage: user meta `_idl_allowed_categories` = array<int> of explicit ids.
+ * Storage: user meta `_isfm_allowed_categories` = array<int> of explicit ids.
  */
 defined( 'ABSPATH' ) || exit;
 
-class IDL_Category_ACL {
+class ISFM_Category_ACL {
 
-	private const string USER_META_KEY = '_idl_allowed_categories';
+	private const string USER_META_KEY = '_isfm_allowed_categories';
 
 	/** In-request memoization of effective (expanded) allowed sets per user. */
 	private static array $effective_cache = array();
@@ -32,7 +32,7 @@ class IDL_Category_ACL {
 		add_filter( 'map_meta_cap', array( $this, 'map_meta_cap' ), 10, 4 );
 
 		// Reject category-change saves when the target is outside the user's reach.
-		add_action( 'save_post_idl', array( $this, 'enforce_category_on_save' ), 1, 3 );
+		add_action( 'save_post_isfm_file', array( $this, 'enforce_category_on_save' ), 1, 3 );
 
 		// Admin list filter — hide downloads the user can't write.
 		add_action( 'pre_get_posts', array( $this, 'filter_admin_list' ) );
@@ -88,7 +88,7 @@ class IDL_Category_ACL {
 		$set      = array();
 		foreach ( $explicit as $term_id ) {
 			$set[ $term_id ] = true;
-			$children        = get_term_children( $term_id, 'idl_category' );
+			$children        = get_term_children( $term_id, 'isfm_category' );
 			if ( ! is_wp_error( $children ) ) {
 				foreach ( $children as $child_id ) {
 					$set[ (int) $child_id ] = true;
@@ -116,7 +116,7 @@ class IDL_Category_ACL {
 		if ( self::is_unrestricted( $user_id ) ) {
 			return true;
 		}
-		$terms = wp_get_object_terms( $download_id, 'idl_category', array( 'fields' => 'ids' ) );
+		$terms = wp_get_object_terms( $download_id, 'isfm_category', array( 'fields' => 'ids' ) );
 		if ( is_wp_error( $terms ) || empty( $terms ) ) {
 			// No category assigned yet (new draft / auto-draft). Allow access
 			// so the edit screen opens; save-time enforcement will reject any
@@ -141,7 +141,7 @@ class IDL_Category_ACL {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Gate edit_post / delete_post / publish_post on idl posts by category ACL.
+	 * Gate edit_post / delete_post / publish_post on isfm_file posts by category ACL.
 	 * We *add* to the required caps list — so anyone who already failed the
 	 * base check still fails. This only restricts further, never loosens.
 	 */
@@ -154,7 +154,7 @@ class IDL_Category_ACL {
 			return $caps;
 		}
 		$post_id = (int) $args[0];
-		if ( 'idl' !== get_post_type( $post_id ) ) {
+		if ( 'isfm_file' !== get_post_type( $post_id ) ) {
 			return $caps;
 		}
 		if ( self::is_unrestricted( $user_id ) ) {
@@ -174,7 +174,7 @@ class IDL_Category_ACL {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * On save_post_idl: reject the save if the posted idl_category assignment
+	 * On save_post_isfm_file: reject the save if the posted isfm_category assignment
 	 * contains a category the user has no write access to.
 	 *
 	 * Source (pre-save category) enforcement is handled entirely by
@@ -200,14 +200,14 @@ class IDL_Category_ACL {
 		// Only act when the classic editor actually posted a category choice.
 		// Nonce verified by WP core (edit_post) before save_post fires.
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing
-		if ( ! isset( $_POST['tax_input']['idl_category'] ) ) {
+		if ( ! isset( $_POST['tax_input']['isfm_category'] ) ) {
 			return;
 		}
 
 		// Target: the posted category. Empty strings / zero values mean
 		// "no change" in WP's terms UI.
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Term IDs cast to int below.
-		$posted = (array) $_POST['tax_input']['idl_category'];
+		$posted = (array) $_POST['tax_input']['isfm_category'];
 		foreach ( $posted as $term_id ) {
 			$term_id = (int) $term_id;
 			if ( $term_id <= 0 ) {
@@ -215,8 +215,8 @@ class IDL_Category_ACL {
 			}
 			if ( ! self::can_write_category( $user_id, $term_id ) ) {
 				wp_die(
-					esc_html__( 'You do not have permission to save downloads in the target category.', 'i-downloads' ),
-					esc_html__( 'Permission Denied', 'i-downloads' ),
+					esc_html__( 'You do not have permission to save downloads in the target category.', 'isoft-fm-foundation' ),
+					esc_html__( 'Permission Denied', 'isoft-fm-foundation' ),
 					array(
 						'back_link' => true,
 						'response'  => 403,
@@ -237,7 +237,7 @@ class IDL_Category_ACL {
 		if ( ! is_admin() || ! $query->is_main_query() ) {
 			return;
 		}
-		if ( 'idl' !== $query->get( 'post_type' ) ) {
+		if ( 'isfm_file' !== $query->get( 'post_type' ) ) {
 			return;
 		}
 
@@ -255,7 +255,7 @@ class IDL_Category_ACL {
 
 		$tax_query   = (array) $query->get( 'tax_query' );
 		$tax_query[] = array(
-			'taxonomy' => 'idl_category',
+			'taxonomy' => 'isfm_category',
 			'field'    => 'term_id',
 			'terms'    => $effective,
 			'operator' => 'IN',
@@ -268,7 +268,7 @@ class IDL_Category_ACL {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Remove unpublished `idl` downloads from frontend queries unless the
+	 * Remove unpublished `isfm_file` downloads from frontend queries unless the
 	 * current user's allowed-category set covers them.
 	 *
 	 * Published downloads are untouched — they remain world-readable. This
@@ -281,11 +281,11 @@ class IDL_Category_ACL {
 			return; // Handled by filter_admin_list().
 		}
 
-		// Only care about idl queries.
+		// Only care about isfm_file queries.
 		$post_type = $query->get( 'post_type' );
-		if ( 'idl' !== $post_type && ! ( is_array( $post_type ) && in_array( 'idl', $post_type, true ) ) ) {
+		if ( 'isfm_file' !== $post_type && ! ( is_array( $post_type ) && in_array( 'isfm_file', $post_type, true ) ) ) {
 			// Untyped query on a taxonomy archive also counts.
-			if ( ! $query->is_tax( array( 'idl_category', 'idl_tag' ) ) && ! $query->is_post_type_archive( 'idl' ) ) {
+			if ( ! $query->is_tax( array( 'isfm_category', 'isfm_tag' ) ) && ! $query->is_post_type_archive( 'isfm_file' ) ) {
 				return;
 			}
 		}
@@ -307,7 +307,7 @@ class IDL_Category_ACL {
 		 * a single pass, so we drop to a SQL posts_where/posts_join filter
 		 * scoped to this one query.
 		 */
-		$query->set( 'idl_acl_effective_categories', $effective );
+		$query->set( 'isfm_acl_effective_categories', $effective );
 		add_filter( 'posts_clauses', array( $this, 'filter_posts_clauses' ), 10, 2 );
 	}
 
@@ -317,7 +317,7 @@ class IDL_Category_ACL {
 	 */
 	public function filter_posts_clauses( array $clauses, WP_Query $query ): array {
 		// Only act on the query we flagged.
-		$effective = $query->get( 'idl_acl_effective_categories' );
+		$effective = $query->get( 'isfm_acl_effective_categories' );
 		if ( null === $effective || '' === $effective ) {
 			return $clauses;
 		}
@@ -338,7 +338,7 @@ class IDL_Category_ACL {
 			SELECT tr.object_id
 			  FROM {$wpdb->term_relationships} tr
 			  JOIN {$wpdb->term_taxonomy} tt ON tr.term_taxonomy_id = tt.term_taxonomy_id
-			 WHERE tt.taxonomy = 'idl_category'
+			 WHERE tt.taxonomy = 'isfm_category'
 			   AND tt.term_id IN ({$ids_sql})
 		";
 
@@ -355,31 +355,31 @@ class IDL_Category_ACL {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Filter get_terms() results to hide idl_category terms the user can't
+	 * Filter get_terms() results to hide isfm_category terms the user can't
 	 * write. This makes the classic editor's Categories metabox only show
 	 * terms the user is actually allowed to pick.
 	 *
 	 * Scope is intentionally narrow:
-	 *   - Only fires in admin on post.php / post-new.php for idl posts.
-	 *   - Only idl_category queries.
+	 *   - Only fires in admin on post.php / post-new.php for isfm_file posts.
+	 *   - Only isfm_category queries.
 	 *   - Only for restricted users (admins bypass).
 	 *
 	 * We do NOT filter taxonomy term admin pages (edit-tags.php) because
-	 * term-management uses a separate capability (idl_manage_categories)
+	 * term-management uses a separate capability (isfm_manage_categories)
 	 * and should remain full-view for anyone who has it.
 	 */
 	public function filter_category_metabox_terms( array $args, array $taxonomies ): array {
 		if ( ! is_admin() ) {
 			return $args;
 		}
-		if ( ! in_array( 'idl_category', $taxonomies, true ) ) {
+		if ( ! in_array( 'isfm_category', $taxonomies, true ) ) {
 			return $args;
 		}
 
 		// Only apply on the download edit screen — not on edit-tags.php or
 		// on AJAX calls from other contexts.
 		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
-		if ( ! $screen || 'idl' !== $screen->post_type || 'post' !== $screen->base ) {
+		if ( ! $screen || 'isfm_file' !== $screen->post_type || 'post' !== $screen->base ) {
 			return $args;
 		}
 
@@ -413,7 +413,7 @@ class IDL_Category_ACL {
 		if ( ! in_array( $hook, array( 'profile.php', 'user-edit.php' ), true ) ) {
 			return;
 		}
-		wp_enqueue_style( 'idl-admin', IDL_PLUGIN_URL . 'admin/css/admin-style.css', array(), IDL_VERSION );
+		wp_enqueue_style( 'isfm-admin', ISFM_PLUGIN_URL . 'admin/css/admin-style.css', array(), ISFM_VERSION );
 	}
 
 	public function render_profile_field( WP_User $user ): void {
@@ -426,11 +426,11 @@ class IDL_Category_ACL {
 		$tree     = $this->build_category_tree();
 
 		?>
-		<h2><?php esc_html_e( 'i-Downloads — Allowed Categories', 'i-downloads' ); ?></h2>
+		<h2><?php esc_html_e( 'I-Soft File Manager: Foundation — Allowed Categories', 'isoft-fm-foundation' ); ?></h2>
 		<p class="description">
-			<?php esc_html_e( 'This user can create, edit and delete downloads in the selected categories and all their descendants. Leave empty to restrict them completely (admins are always unrestricted).', 'i-downloads' ); ?>
+			<?php esc_html_e( 'This user can create, edit and delete downloads in the selected categories and all their descendants. Leave empty to restrict them completely (admins are always unrestricted).', 'isoft-fm-foundation' ); ?>
 		</p>
-		<div class="idl-acl-tree">
+		<div class="isfm-acl-tree">
 			<?php $this->render_tree_nodes( $tree, $selected ); ?>
 		</div>
 		<?php
@@ -442,9 +442,9 @@ class IDL_Category_ACL {
 		}
 		// Nonce verified by WP core personal_options_update / edit_user_profile_update actions.
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing
-		$ids = isset( $_POST['idl_allowed_categories'] )
+		$ids = isset( $_POST['isfm_allowed_categories'] )
 			// phpcs:ignore WordPress.Security.NonceVerification.Missing
-			? array_map( 'intval', (array) $_POST['idl_allowed_categories'] )
+			? array_map( 'intval', (array) $_POST['isfm_allowed_categories'] )
 			: array();
 		$ids = array_values( array_filter( $ids, fn( int $i ): bool => $i > 0 ) );
 		update_user_meta( $user_id, self::USER_META_KEY, $ids );
@@ -458,14 +458,14 @@ class IDL_Category_ACL {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Build a parent→children adjacency list for idl_category.
+	 * Build a parent→children adjacency list for isfm_category.
 	 *
 	 * @return array<int,array{term:WP_Term, children:int[]}>
 	 */
 	private function build_category_tree(): array {
 		$terms = get_terms(
 			array(
-				'taxonomy'   => 'idl_category',
+				'taxonomy'   => 'isfm_category',
 				'hide_empty' => false,
 				'orderby'    => 'name',
 			)
@@ -502,14 +502,14 @@ class IDL_Category_ACL {
 			return;
 		}
 
-		echo '<ul class="idl-acl-tree__list">';
+		echo '<ul class="isfm-acl-tree__list">';
 		foreach ( $roots as $node ) {
 			$term       = $node['term'];
 			$has_kids   = ! empty( $node['children'] );
 			$is_checked = isset( $selected[ (int) $term->term_id ] );
-			$field_id   = 'idl-acl-' . (int) $term->term_id;
+			$field_id   = 'isfm-acl-' . (int) $term->term_id;
 
-			echo '<li class="idl-acl-tree__item">';
+			echo '<li class="isfm-acl-tree__item">';
 
 			if ( $has_kids ) {
 				// <details open> when this branch (or a descendant) is selected.
@@ -517,7 +517,7 @@ class IDL_Category_ACL {
 				echo '<details' . ( $open ? ' open' : '' ) . '>';
 				echo '<summary>';
 				printf(
-					'<label for="%1$s"><input type="checkbox" id="%1$s" name="idl_allowed_categories[]" value="%2$d"%3$s /> %4$s</label>',
+					'<label for="%1$s"><input type="checkbox" id="%1$s" name="isfm_allowed_categories[]" value="%2$d"%3$s /> %4$s</label>',
 					esc_attr( $field_id ),
 					(int) $term->term_id,
 					checked( $is_checked, true, false ),
@@ -528,7 +528,7 @@ class IDL_Category_ACL {
 				echo '</details>';
 			} else {
 				printf(
-					'<label for="%1$s"><input type="checkbox" id="%1$s" name="idl_allowed_categories[]" value="%2$d"%3$s /> %4$s</label>',
+					'<label for="%1$s"><input type="checkbox" id="%1$s" name="isfm_allowed_categories[]" value="%2$d"%3$s /> %4$s</label>',
 					esc_attr( $field_id ),
 					(int) $term->term_id,
 					checked( $is_checked, true, false ),

@@ -3,11 +3,11 @@
  * TinyMCE / Classic Editor integration.
  *
  * Adds a "Insert Download [iD]" toolbar button that opens a search modal
- * and inserts [idl_download id=X] into the post content.
+ * and inserts [isfm_download id=X] into the post content.
  */
 defined( 'ABSPATH' ) || exit;
 
-class IDL_Tinymce {
+class ISFM_Tinymce {
 
 	public function register_hooks(): void {
 		// Only load in the admin for users who can edit posts.
@@ -18,16 +18,16 @@ class IDL_Tinymce {
 		add_filter( 'mce_buttons', array( $this, 'add_button' ) );
 		add_action( 'admin_footer', array( $this, 'render_modal' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
-		add_action( 'wp_ajax_idl_tmce_search', array( $this, 'ajax_search' ) );
+		add_action( 'wp_ajax_isfm_tmce_search', array( $this, 'ajax_search' ) );
 	}
 
 	public function add_plugin( array $plugins ): array {
-		$plugins['idl_insert'] = IDL_PLUGIN_URL . 'admin/js/tinymce-plugin.js?v=' . IDL_VERSION;
+		$plugins['isfm_insert'] = ISFM_PLUGIN_URL . 'admin/js/tinymce-plugin.js?v=' . ISFM_VERSION;
 		return $plugins;
 	}
 
 	public function add_button( array $buttons ): array {
-		$buttons[] = 'idl_insert';
+		$buttons[] = 'isfm_insert';
 		return $buttons;
 	}
 
@@ -38,28 +38,28 @@ class IDL_Tinymce {
 			return;
 		}
 		wp_enqueue_style(
-			'idl-tinymce-modal',
-			IDL_PLUGIN_URL . 'admin/css/tinymce-modal.css',
+			'isfm-tinymce-modal',
+			ISFM_PLUGIN_URL . 'admin/css/tinymce-modal.css',
 			array(),
-			IDL_VERSION
+			ISFM_VERSION
 		);
 
 		// Data-only script handle: src=false tells WP this is a placeholder we
 		// only use to attach wp_localize_script() data — no JS file fetched.
-		// The TinyMCE plugin (loaded via mce_external_plugins) reads window.IDLTmce
+		// The TinyMCE plugin (loaded via mce_external_plugins) reads window.ISFMTmce
 		// at init time.
-		wp_register_script( 'idl-tinymce-config', false, array(), IDL_VERSION, true );
-		wp_enqueue_script( 'idl-tinymce-config' );
+		wp_register_script( 'isfm-tinymce-config', false, array(), ISFM_VERSION, true );
+		wp_enqueue_script( 'isfm-tinymce-config' );
 		wp_localize_script(
-			'idl-tinymce-config',
-			'IDLTmce',
+			'isfm-tinymce-config',
+			'ISFMTmce',
 			array(
-				'nonce'   => wp_create_nonce( 'idl_tmce_search' ),
+				'nonce'   => wp_create_nonce( 'isfm_tmce_search' ),
 				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
 				'i18n'    => array(
-					'insertDownload' => __( 'Insert Download [iD]', 'i-downloads' ),
-					'loading'        => __( 'Loading…', 'i-downloads' ),
-					'loadError'      => __( 'Error loading results.', 'i-downloads' ),
+					'insertDownload' => __( 'Insert Download [iD]', 'isoft-fm-foundation' ),
+					'loading'        => __( 'Loading…', 'isoft-fm-foundation' ),
+					'loadError'      => __( 'Error loading results.', 'isoft-fm-foundation' ),
 				),
 			)
 		);
@@ -77,7 +77,7 @@ class IDL_Tinymce {
 
 		$categories = get_terms(
 			array(
-				'taxonomy'   => 'idl_category',
+				'taxonomy'   => 'isfm_category',
 				'hide_empty' => false,
 				'orderby'    => 'name',
 				'fields'     => 'id=>name',
@@ -87,42 +87,42 @@ class IDL_Tinymce {
 			$categories = array();
 		}
 		?>
-		<div id="idl-tmce-modal" class="idl-tmce-modal" hidden>
-			<div class="idl-tmce-modal__backdrop"></div>
-			<div class="idl-tmce-modal__dialog" role="dialog" aria-modal="true" aria-label="<?php esc_attr_e( 'Insert Download', 'i-downloads' ); ?>">
+		<div id="isfm-tmce-modal" class="isfm-tmce-modal" hidden>
+			<div class="isfm-tmce-modal__backdrop"></div>
+			<div class="isfm-tmce-modal__dialog" role="dialog" aria-modal="true" aria-label="<?php esc_attr_e( 'Insert Download', 'isoft-fm-foundation' ); ?>">
 
-				<div class="idl-tmce-modal__header">
-					<h2 class="idl-tmce-modal__title">
+				<div class="isfm-tmce-modal__header">
+					<h2 class="isfm-tmce-modal__title">
 						<span class="dashicons dashicons-download"></span>
-						<?php esc_html_e( 'Insert Download [iD]', 'i-downloads' ); ?>
+						<?php esc_html_e( 'Insert Download [iD]', 'isoft-fm-foundation' ); ?>
 					</h2>
-					<button type="button" class="idl-tmce-modal__close" aria-label="<?php esc_attr_e( 'Close', 'i-downloads' ); ?>">&#x2715;</button>
+					<button type="button" class="isfm-tmce-modal__close" aria-label="<?php esc_attr_e( 'Close', 'isoft-fm-foundation' ); ?>">&#x2715;</button>
 				</div>
 
-				<div class="idl-tmce-modal__filters">
+				<div class="isfm-tmce-modal__filters">
 					<input
 						type="search"
-						id="idl-tmce-search"
-						class="idl-tmce-modal__search"
-						placeholder="<?php esc_attr_e( 'Search downloads…', 'i-downloads' ); ?>"
+						id="isfm-tmce-search"
+						class="isfm-tmce-modal__search"
+						placeholder="<?php esc_attr_e( 'Search downloads…', 'isoft-fm-foundation' ); ?>"
 						autocomplete="off"
 					/>
-					<select id="idl-tmce-category" class="idl-tmce-modal__category">
-						<option value="0"><?php esc_html_e( 'All categories', 'i-downloads' ); ?></option>
+					<select id="isfm-tmce-category" class="isfm-tmce-modal__category">
+						<option value="0"><?php esc_html_e( 'All categories', 'isoft-fm-foundation' ); ?></option>
 						<?php foreach ( $categories as $id => $name ) : ?>
 							<option value="<?php echo esc_attr( $id ); ?>"><?php echo esc_html( $name ); ?></option>
 						<?php endforeach; ?>
 					</select>
 				</div>
 
-				<div id="idl-tmce-results" class="idl-tmce-modal__results">
-					<p class="idl-tmce-modal__hint"><?php esc_html_e( 'Loading…', 'i-downloads' ); ?></p>
+				<div id="isfm-tmce-results" class="isfm-tmce-modal__results">
+					<p class="isfm-tmce-modal__hint"><?php esc_html_e( 'Loading…', 'isoft-fm-foundation' ); ?></p>
 				</div>
 
-				<div class="idl-tmce-modal__footer">
-					<span class="idl-tmce-modal__hint"><?php esc_html_e( 'Click a download to insert it as a card.', 'i-downloads' ); ?></span>
-					<button type="button" class="button idl-tmce-modal__cancel">
-						<?php esc_html_e( 'Cancel', 'i-downloads' ); ?>
+				<div class="isfm-tmce-modal__footer">
+					<span class="isfm-tmce-modal__hint"><?php esc_html_e( 'Click a download to insert it as a card.', 'isoft-fm-foundation' ); ?></span>
+					<button type="button" class="button isfm-tmce-modal__cancel">
+						<?php esc_html_e( 'Cancel', 'isoft-fm-foundation' ); ?>
 					</button>
 				</div>
 
@@ -135,7 +135,7 @@ class IDL_Tinymce {
 	 * AJAX handler: search downloads and return HTML rows.
 	 */
 	public function ajax_search(): void {
-		check_ajax_referer( 'idl_tmce_search', 'nonce' );
+		check_ajax_referer( 'isfm_tmce_search', 'nonce' );
 
 		if ( ! current_user_can( 'edit_posts' ) ) {
 			wp_die( '', 403 );
@@ -145,7 +145,7 @@ class IDL_Tinymce {
 		$category = isset( $_POST['category'] ) ? absint( $_POST['category'] ) : 0;
 
 		$args = array(
-			'post_type'      => 'idl',
+			'post_type'      => 'isfm_file',
 			'post_status'    => 'publish',
 			'posts_per_page' => 30,
 			'no_found_rows'  => true,
@@ -162,7 +162,7 @@ class IDL_Tinymce {
 			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query -- Required for category filtering; term_relationships index covers this access pattern.
 			$args['tax_query'] = array(
 				array(
-					'taxonomy' => 'idl_category',
+					'taxonomy' => 'isfm_category',
 					'field'    => 'term_id',
 					'terms'    => $category,
 				),
@@ -172,20 +172,20 @@ class IDL_Tinymce {
 		$posts = get_posts( $args );
 
 		if ( empty( $posts ) ) {
-			wp_send_json_success( array( 'html' => '<p class="idl-tmce-modal__empty">' . esc_html__( 'No downloads found.', 'i-downloads' ) . '</p>' ) );
+			wp_send_json_success( array( 'html' => '<p class="isfm-tmce-modal__empty">' . esc_html__( 'No downloads found.', 'isoft-fm-foundation' ) . '</p>' ) );
 		}
 
 		ob_start();
-		echo '<ul class="idl-tmce-modal__list">';
+		echo '<ul class="isfm-tmce-modal__list">';
 		foreach ( $posts as $post ) {
-			$cats = wp_get_post_terms( $post->ID, 'idl_category', array( 'fields' => 'names' ) );
+			$cats = wp_get_post_terms( $post->ID, 'isfm_category', array( 'fields' => 'names' ) );
 			$cat  = ! is_wp_error( $cats ) && ! empty( $cats ) ? $cats[0] : '';
 			echo '<li>';
-			echo '<button type="button" class="idl-tmce-modal__item" data-id="' . esc_attr( $post->ID ) . '" data-title="' . esc_attr( $post->post_title ) . '">';
+			echo '<button type="button" class="isfm-tmce-modal__item" data-id="' . esc_attr( $post->ID ) . '" data-title="' . esc_attr( $post->post_title ) . '">';
 			echo '<span class="dashicons dashicons-media-default"></span>';
-			echo '<span class="idl-tmce-modal__item-title">' . esc_html( $post->post_title ) . '</span>';
+			echo '<span class="isfm-tmce-modal__item-title">' . esc_html( $post->post_title ) . '</span>';
 			if ( $cat ) {
-				echo '<span class="idl-tmce-modal__item-cat">' . esc_html( $cat ) . '</span>';
+				echo '<span class="isfm-tmce-modal__item-cat">' . esc_html( $cat ) . '</span>';
 			}
 			echo '</button>';
 			echo '</li>';

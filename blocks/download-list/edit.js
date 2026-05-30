@@ -1,5 +1,5 @@
 /**
- * i-downloads/download-list — Block editor component.
+ * isoft-fm-foundation/download-list — Block editor component.
  */
 import { __ } from '@wordpress/i18n';
 import { useBlockProps, InspectorControls } from '@wordpress/block-editor';
@@ -18,10 +18,10 @@ export default function Edit( { attributes, setAttributes } ) {
 	const { category, includeSubcategories, tag, limit, orderby, order, layout, showSearch } = attributes;
 	const blockProps = useBlockProps();
 
-	// Fetch categories from the WP data store (hits /wp/v2/idl_category)
+	// Fetch categories from the WP data store (hits /wp/v2/isfm_category)
 	const categories = useSelect(
 		( select ) =>
-			select( coreStore ).getEntityRecords( 'taxonomy', 'idl_category', {
+			select( coreStore ).getEntityRecords( 'taxonomy', 'isfm_category', {
 				per_page: -1,
 				orderby: 'name',
 				order: 'asc',
@@ -33,7 +33,7 @@ export default function Edit( { attributes, setAttributes } ) {
 	// Fetch tags
 	const tags = useSelect(
 		( select ) =>
-			select( coreStore ).getEntityRecords( 'taxonomy', 'idl_tag', {
+			select( coreStore ).getEntityRecords( 'taxonomy', 'isfm_tag', {
 				per_page: 100,
 				orderby: 'name',
 				order: 'asc',
@@ -43,7 +43,7 @@ export default function Edit( { attributes, setAttributes } ) {
 	);
 
 	const categoryOptions = [
-		{ label: __( '— All categories —', 'i-downloads' ), value: 0 },
+		{ label: __( '— All categories —', 'isoft-fm-foundation' ), value: 0 },
 		...( categories ?? [] ).map( ( cat ) => ( {
 			label: ( cat.parent ? '— ' : '' ) + cat.name,
 			value: cat.id,
@@ -51,7 +51,7 @@ export default function Edit( { attributes, setAttributes } ) {
 	];
 
 	const tagOptions = [
-		{ label: __( '— All tags —', 'i-downloads' ), value: 0 },
+		{ label: __( '— All tags —', 'isoft-fm-foundation' ), value: 0 },
 		...( tags ?? [] ).map( ( t ) => ( { label: t.name, value: t.id } ) ),
 	];
 
@@ -60,26 +60,26 @@ export default function Edit( { attributes, setAttributes } ) {
 	return (
 		<>
 			<InspectorControls>
-				<PanelBody title={ __( 'Filter', 'i-downloads' ) }>
+				<PanelBody title={ __( 'Filter', 'isoft-fm-foundation' ) }>
 					{ isLoading ? (
 						<Spinner />
 					) : (
 						<>
 							<SelectControl
-								label={ __( 'Category', 'i-downloads' ) }
+								label={ __( 'Category', 'isoft-fm-foundation' ) }
 								value={ category }
 								options={ categoryOptions }
 								onChange={ ( val ) => setAttributes( { category: Number( val ) } ) }
 							/>
 							<ToggleControl
-								label={ __( 'Include subcategories', 'i-downloads' ) }
-								help={ __( 'When on, downloads from every descendant category are listed too.', 'i-downloads' ) }
+								label={ __( 'Include subcategories', 'isoft-fm-foundation' ) }
+								help={ __( 'When on, downloads from every descendant category are listed too.', 'isoft-fm-foundation' ) }
 								checked={ includeSubcategories }
 								onChange={ ( val ) => setAttributes( { includeSubcategories: val } ) }
 								disabled={ ! category }
 							/>
 							<SelectControl
-								label={ __( 'Tag', 'i-downloads' ) }
+								label={ __( 'Tag', 'isoft-fm-foundation' ) }
 								value={ tag }
 								options={ tagOptions }
 								onChange={ ( val ) => setAttributes( { tag: Number( val ) } ) }
@@ -88,45 +88,45 @@ export default function Edit( { attributes, setAttributes } ) {
 					) }
 				</PanelBody>
 
-				<PanelBody title={ __( 'Display', 'i-downloads' ) }>
+				<PanelBody title={ __( 'Display', 'isoft-fm-foundation' ) }>
 					<RangeControl
-						label={ __( 'Number of items', 'i-downloads' ) }
+						label={ __( 'Number of items', 'isoft-fm-foundation' ) }
 						value={ limit }
 						onChange={ ( val ) => setAttributes( { limit: val } ) }
 						min={ 1 }
 						max={ 50 }
 					/>
 					<SelectControl
-						label={ __( 'Layout', 'i-downloads' ) }
+						label={ __( 'Layout', 'isoft-fm-foundation' ) }
 						value={ layout }
 						options={ [
-							{ label: __( 'List', 'i-downloads' ),  value: 'list' },
-							{ label: __( 'Grid', 'i-downloads' ),  value: 'grid' },
-							{ label: __( 'Table', 'i-downloads' ), value: 'table' },
+							{ label: __( 'List', 'isoft-fm-foundation' ),  value: 'list' },
+							{ label: __( 'Grid', 'isoft-fm-foundation' ),  value: 'grid' },
+							{ label: __( 'Table', 'isoft-fm-foundation' ), value: 'table' },
 						] }
 						onChange={ ( val ) => setAttributes( { layout: val } ) }
 					/>
 					<SelectControl
-						label={ __( 'Order by', 'i-downloads' ) }
+						label={ __( 'Order by', 'isoft-fm-foundation' ) }
 						value={ orderby }
 						options={ [
-							{ label: __( 'Date', 'i-downloads' ),           value: 'date' },
-							{ label: __( 'Title', 'i-downloads' ),          value: 'title' },
-							{ label: __( 'Download count', 'i-downloads' ), value: 'download_count' },
+							{ label: __( 'Date', 'isoft-fm-foundation' ),           value: 'date' },
+							{ label: __( 'Title', 'isoft-fm-foundation' ),          value: 'title' },
+							{ label: __( 'Download count', 'isoft-fm-foundation' ), value: 'download_count' },
 						] }
 						onChange={ ( val ) => setAttributes( { orderby: val } ) }
 					/>
 					<SelectControl
-						label={ __( 'Order', 'i-downloads' ) }
+						label={ __( 'Order', 'isoft-fm-foundation' ) }
 						value={ order }
 						options={ [
-							{ label: __( 'Newest first', 'i-downloads' ),  value: 'DESC' },
-							{ label: __( 'Oldest first', 'i-downloads' ), value: 'ASC' },
+							{ label: __( 'Newest first', 'isoft-fm-foundation' ),  value: 'DESC' },
+							{ label: __( 'Oldest first', 'isoft-fm-foundation' ), value: 'ASC' },
 						] }
 						onChange={ ( val ) => setAttributes( { order: val } ) }
 					/>
 					<ToggleControl
-						label={ __( 'Show search bar', 'i-downloads' ) }
+						label={ __( 'Show search bar', 'isoft-fm-foundation' ) }
 						checked={ showSearch }
 						onChange={ ( val ) => setAttributes( { showSearch: val } ) }
 					/>
@@ -136,10 +136,10 @@ export default function Edit( { attributes, setAttributes } ) {
 			<div { ...blockProps }>
 				<Placeholder
 					icon="download"
-					label={ __( 'Download List', 'i-downloads' ) }
+					label={ __( 'Download List', 'isoft-fm-foundation' ) }
 					instructions={ __(
 						'Displays a live list of downloads. Configure filters and layout in the sidebar. The preview renders on the frontend.',
-						'i-downloads'
+						'isoft-fm-foundation'
 					) }
 				>
 					{ category > 0 && (

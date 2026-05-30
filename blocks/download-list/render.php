@@ -1,6 +1,6 @@
 <?php
 /**
- * Server-side render for i-downloads/download-list block.
+ * Server-side render for isoft-fm-foundation/download-list block.
  *
  * Available variables (injected by WordPress):
  *   $attributes  array   Block attributes.
@@ -26,4 +26,4 @@ $atts = array(
 // HTML is built by our own shortcode handler (each variable is escaped at the
 // template level); wp_kses() here is the explicit boundary escape the WP.org
 // reviewers expect at block-callback level.
-echo wp_kses( do_shortcode( '[idl_list' . idl_atts_to_string( $atts ) . ']' ), idl_allowed_html() );
+echo wp_kses( do_shortcode( '[isfm_list' . isfm_atts_to_string( $atts ) . ']' ), isfm_allowed_html() );

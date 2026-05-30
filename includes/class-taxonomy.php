@@ -1,88 +1,88 @@
 <?php
 defined( 'ABSPATH' ) || exit;
 
-class IDL_Taxonomy {
+class ISFM_Taxonomy {
 
 	public function register_hooks(): void {
 		add_action( 'init', array( $this, 'register' ) );
-		add_action( 'idl_category_add_form_fields', array( $this, 'add_term_fields' ) );
-		add_action( 'idl_category_edit_form_fields', array( $this, 'edit_term_fields' ) );
-		add_action( 'created_idl_category', array( $this, 'save_term_fields' ) );
-		add_action( 'edited_idl_category', array( $this, 'save_term_fields' ) );
+		add_action( 'isfm_category_add_form_fields', array( $this, 'add_term_fields' ) );
+		add_action( 'isfm_category_edit_form_fields', array( $this, 'edit_term_fields' ) );
+		add_action( 'created_isfm_category', array( $this, 'save_term_fields' ) );
+		add_action( 'edited_isfm_category', array( $this, 'save_term_fields' ) );
 	}
 
 	public function register(): void {
 		register_taxonomy(
-			'idl_category',
-			'idl',
+			'isfm_category',
+			'isfm_file',
 			array(
 				'labels'            => array(
-					'name'              => _x( 'Download Categories', 'taxonomy general name', 'i-downloads' ),
-					'singular_name'     => _x( 'Download Category', 'taxonomy singular name', 'i-downloads' ),
-					'search_items'      => __( 'Search Categories', 'i-downloads' ),
-					'all_items'         => __( 'All Categories', 'i-downloads' ),
-					'parent_item'       => __( 'Parent Category', 'i-downloads' ),
-					'parent_item_colon' => __( 'Parent Category:', 'i-downloads' ),
-					'edit_item'         => __( 'Edit Category', 'i-downloads' ),
-					'update_item'       => __( 'Update Category', 'i-downloads' ),
-					'add_new_item'      => __( 'Add New Category', 'i-downloads' ),
-					'new_item_name'     => __( 'New Category Name', 'i-downloads' ),
-					'menu_name'         => __( 'Categories', 'i-downloads' ),
+					'name'              => _x( 'Download Categories', 'taxonomy general name', 'isoft-fm-foundation' ),
+					'singular_name'     => _x( 'Download Category', 'taxonomy singular name', 'isoft-fm-foundation' ),
+					'search_items'      => __( 'Search Categories', 'isoft-fm-foundation' ),
+					'all_items'         => __( 'All Categories', 'isoft-fm-foundation' ),
+					'parent_item'       => __( 'Parent Category', 'isoft-fm-foundation' ),
+					'parent_item_colon' => __( 'Parent Category:', 'isoft-fm-foundation' ),
+					'edit_item'         => __( 'Edit Category', 'isoft-fm-foundation' ),
+					'update_item'       => __( 'Update Category', 'isoft-fm-foundation' ),
+					'add_new_item'      => __( 'Add New Category', 'isoft-fm-foundation' ),
+					'new_item_name'     => __( 'New Category Name', 'isoft-fm-foundation' ),
+					'menu_name'         => __( 'Categories', 'isoft-fm-foundation' ),
 				),
 				'hierarchical'      => true,
 				'public'            => true,
 				'show_ui'           => true,
 				'show_admin_column' => true,
 				'show_in_rest'      => true,
-				'rewrite'           => array( 'slug' => get_option( 'idl_category_slug', 'download-category' ) ),
+				'rewrite'           => array( 'slug' => get_option( 'isfm_category_slug', 'download-category' ) ),
 				'capabilities'      => array(
-					'manage_terms' => 'idl_manage_categories',
-					'edit_terms'   => 'idl_manage_categories',
-					'delete_terms' => 'idl_manage_categories',
-					'assign_terms' => 'idl_create_downloads',
+					'manage_terms' => 'isfm_manage_categories',
+					'edit_terms'   => 'isfm_manage_categories',
+					'delete_terms' => 'isfm_manage_categories',
+					'assign_terms' => 'isfm_create_downloads',
 				),
 			)
 		);
 
 		// Tags — non-hierarchical, multiple per download
 		register_taxonomy(
-			'idl_tag',
-			'idl',
+			'isfm_tag',
+			'isfm_file',
 			array(
 				'labels'            => array(
-					'name'                       => _x( 'Download Tags', 'taxonomy general name', 'i-downloads' ),
-					'singular_name'              => _x( 'Download Tag', 'taxonomy singular name', 'i-downloads' ),
-					'search_items'               => __( 'Search Tags', 'i-downloads' ),
-					'all_items'                  => __( 'All Tags', 'i-downloads' ),
-					'edit_item'                  => __( 'Edit Tag', 'i-downloads' ),
-					'update_item'                => __( 'Update Tag', 'i-downloads' ),
-					'add_new_item'               => __( 'Add New Tag', 'i-downloads' ),
-					'new_item_name'              => __( 'New Tag Name', 'i-downloads' ),
-					'popular_items'              => __( 'Popular Tags', 'i-downloads' ),
-					'separate_items_with_commas' => __( 'Separate tags with commas', 'i-downloads' ),
-					'add_or_remove_items'        => __( 'Add or remove tags', 'i-downloads' ),
-					'choose_from_most_used'      => __( 'Choose from the most used tags', 'i-downloads' ),
-					'not_found'                  => __( 'No tags found.', 'i-downloads' ),
-					'menu_name'                  => __( 'Tags', 'i-downloads' ),
+					'name'                       => _x( 'Download Tags', 'taxonomy general name', 'isoft-fm-foundation' ),
+					'singular_name'              => _x( 'Download Tag', 'taxonomy singular name', 'isoft-fm-foundation' ),
+					'search_items'               => __( 'Search Tags', 'isoft-fm-foundation' ),
+					'all_items'                  => __( 'All Tags', 'isoft-fm-foundation' ),
+					'edit_item'                  => __( 'Edit Tag', 'isoft-fm-foundation' ),
+					'update_item'                => __( 'Update Tag', 'isoft-fm-foundation' ),
+					'add_new_item'               => __( 'Add New Tag', 'isoft-fm-foundation' ),
+					'new_item_name'              => __( 'New Tag Name', 'isoft-fm-foundation' ),
+					'popular_items'              => __( 'Popular Tags', 'isoft-fm-foundation' ),
+					'separate_items_with_commas' => __( 'Separate tags with commas', 'isoft-fm-foundation' ),
+					'add_or_remove_items'        => __( 'Add or remove tags', 'isoft-fm-foundation' ),
+					'choose_from_most_used'      => __( 'Choose from the most used tags', 'isoft-fm-foundation' ),
+					'not_found'                  => __( 'No tags found.', 'isoft-fm-foundation' ),
+					'menu_name'                  => __( 'Tags', 'isoft-fm-foundation' ),
 				),
 				'hierarchical'      => false,
 				'public'            => true,
 				'show_ui'           => true,
 				'show_admin_column' => true,
 				'show_in_rest'      => true,
-				'rewrite'           => array( 'slug' => get_option( 'idl_tag_slug', 'download-tag' ) ),
+				'rewrite'           => array( 'slug' => get_option( 'isfm_tag_slug', 'download-tag' ) ),
 				'capabilities'      => array(
-					'manage_terms' => 'idl_manage_categories',
-					'edit_terms'   => 'idl_manage_categories',
-					'delete_terms' => 'idl_manage_categories',
-					'assign_terms' => 'idl_create_downloads',
+					'manage_terms' => 'isfm_manage_categories',
+					'edit_terms'   => 'isfm_manage_categories',
+					'delete_terms' => 'isfm_manage_categories',
+					'assign_terms' => 'isfm_create_downloads',
 				),
 			)
 		);
 
 		register_term_meta(
-			'idl_category',
-			'_idl_cat_icon',
+			'isfm_category',
+			'_isfm_cat_icon',
 			array(
 				'type'              => 'string',
 				'single'            => true,
@@ -90,10 +90,10 @@ class IDL_Taxonomy {
 				'show_in_rest'      => true,
 			)
 		);
-		// TODO v1.0: Category-level access role — enforce in IDL_Access_Control.
+		// TODO v1.0: Category-level access role — enforce in ISFM_Access_Control.
 		// register_term_meta(
-		// 'idl_category',
-		// '_idl_cat_access_role',
+		// 'isfm_category',
+		// '_isfm_cat_access_role',
 		// [
 		// 'type'              => 'string',
 		// 'single'            => true,
@@ -101,8 +101,8 @@ class IDL_Taxonomy {
 		// ]
 		// );
 		register_term_meta(
-			'idl_category',
-			'_idl_cat_sort_order',
+			'isfm_category',
+			'_isfm_cat_sort_order',
 			array(
 				'type'              => 'integer',
 				'single'            => true,
@@ -114,51 +114,51 @@ class IDL_Taxonomy {
 	public function add_term_fields(): void {
 		?>
 		<div class="form-field">
-			<label for="idl-cat-icon"><?php esc_html_e( 'Icon', 'i-downloads' ); ?></label>
-			<input type="text" name="idl_cat_icon" id="idl-cat-icon" value="" />
-			<p class="description"><?php esc_html_e( 'Dashicon name (e.g. dashicons-folder) or image URL.', 'i-downloads' ); ?></p>
+			<label for="isfm-cat-icon"><?php esc_html_e( 'Icon', 'isoft-fm-foundation' ); ?></label>
+			<input type="text" name="isfm_cat_icon" id="isfm-cat-icon" value="" />
+			<p class="description"><?php esc_html_e( 'Dashicon name (e.g. dashicons-folder) or image URL.', 'isoft-fm-foundation' ); ?></p>
 		</div>
-		<?php // TODO v1.0: Category-level access role — enforce in IDL_Access_Control. ?>
+		<?php // TODO v1.0: Category-level access role — enforce in ISFM_Access_Control. ?>
 		<?php
 		/*
 		<div class="form-field">
-			<label for="idl-cat-access-role"><?php esc_html_e( 'Access Role', 'i-downloads' ); ?></label>
-			<?php $this->render_access_role_select( '', 'idl_cat_access_role', 'idl-cat-access-role' ); ?>
+			<label for="isfm-cat-access-role"><?php esc_html_e( 'Access Role', 'isoft-fm-foundation' ); ?></label>
+			<?php $this->render_access_role_select( '', 'isfm_cat_access_role', 'isfm-cat-access-role' ); ?>
 		</div>
 		*/
 		?>
 		<div class="form-field">
-			<label for="idl-cat-sort-order"><?php esc_html_e( 'Sort Order', 'i-downloads' ); ?></label>
-			<input type="number" name="idl_cat_sort_order" id="idl-cat-sort-order" value="0" min="0" />
+			<label for="isfm-cat-sort-order"><?php esc_html_e( 'Sort Order', 'isoft-fm-foundation' ); ?></label>
+			<input type="number" name="isfm_cat_sort_order" id="isfm-cat-sort-order" value="0" min="0" />
 		</div>
 		<?php
 	}
 
 	public function edit_term_fields( WP_Term $term ): void {
-		$icon = get_term_meta( $term->term_id, '_idl_cat_icon', true );
-		// TODO v1.0: Category-level access role — enforce in IDL_Access_Control.
-		// $role = get_term_meta( $term->term_id, '_idl_cat_access_role', true );
-		$sort_order = (int) get_term_meta( $term->term_id, '_idl_cat_sort_order', true );
+		$icon = get_term_meta( $term->term_id, '_isfm_cat_icon', true );
+		// TODO v1.0: Category-level access role — enforce in ISFM_Access_Control.
+		// $role = get_term_meta( $term->term_id, '_isfm_cat_access_role', true );
+		$sort_order = (int) get_term_meta( $term->term_id, '_isfm_cat_sort_order', true );
 		?>
 		<tr class="form-field">
-			<th><label for="idl-cat-icon"><?php esc_html_e( 'Icon', 'i-downloads' ); ?></label></th>
+			<th><label for="isfm-cat-icon"><?php esc_html_e( 'Icon', 'isoft-fm-foundation' ); ?></label></th>
 			<td>
-				<input type="text" name="idl_cat_icon" id="idl-cat-icon" value="<?php echo esc_attr( $icon ); ?>" />
-				<p class="description"><?php esc_html_e( 'Dashicon name or image URL.', 'i-downloads' ); ?></p>
+				<input type="text" name="isfm_cat_icon" id="isfm-cat-icon" value="<?php echo esc_attr( $icon ); ?>" />
+				<p class="description"><?php esc_html_e( 'Dashicon name or image URL.', 'isoft-fm-foundation' ); ?></p>
 			</td>
 		</tr>
-		<?php // TODO v1.0: Category-level access role — enforce in IDL_Access_Control. ?>
+		<?php // TODO v1.0: Category-level access role — enforce in ISFM_Access_Control. ?>
 		<?php
 		/*
 		<tr class="form-field">
-			<th><label for="idl-cat-access-role"><?php esc_html_e( 'Access Role', 'i-downloads' ); ?></label></th>
-			<td><?php $this->render_access_role_select( $role, 'idl_cat_access_role', 'idl-cat-access-role' ); ?></td>
+			<th><label for="isfm-cat-access-role"><?php esc_html_e( 'Access Role', 'isoft-fm-foundation' ); ?></label></th>
+			<td><?php $this->render_access_role_select( $role, 'isfm_cat_access_role', 'isfm-cat-access-role' ); ?></td>
 		</tr>
 		*/
 		?>
 		<tr class="form-field">
-			<th><label for="idl-cat-sort-order"><?php esc_html_e( 'Sort Order', 'i-downloads' ); ?></label></th>
-			<td><input type="number" name="idl_cat_sort_order" id="idl-cat-sort-order" value="<?php echo esc_attr( $sort_order ); ?>" min="0" /></td>
+			<th><label for="isfm-cat-sort-order"><?php esc_html_e( 'Sort Order', 'isoft-fm-foundation' ); ?></label></th>
+			<td><input type="number" name="isfm_cat_sort_order" id="isfm-cat-sort-order" value="<?php echo esc_attr( $sort_order ); ?>" min="0" /></td>
 		</tr>
 		<?php
 	}
@@ -166,28 +166,28 @@ class IDL_Taxonomy {
 	public function save_term_fields( int $term_id ): void {
 		// Nonce verified by WP core term edit form.
 		// phpcs:disable WordPress.Security.NonceVerification.Missing
-		if ( isset( $_POST['idl_cat_icon'] ) ) {
-			update_term_meta( $term_id, '_idl_cat_icon', sanitize_text_field( wp_unslash( $_POST['idl_cat_icon'] ) ) );
+		if ( isset( $_POST['isfm_cat_icon'] ) ) {
+			update_term_meta( $term_id, '_isfm_cat_icon', sanitize_text_field( wp_unslash( $_POST['isfm_cat_icon'] ) ) );
 		}
-		// TODO v1.0: Category-level access role — enforce in IDL_Access_Control.
-		// if ( isset( $_POST['idl_cat_access_role'] ) ) {
-		// update_term_meta( $term_id, '_idl_cat_access_role', sanitize_text_field( wp_unslash( $_POST['idl_cat_access_role'] ) ) );
+		// TODO v1.0: Category-level access role — enforce in ISFM_Access_Control.
+		// if ( isset( $_POST['isfm_cat_access_role'] ) ) {
+		// update_term_meta( $term_id, '_isfm_cat_access_role', sanitize_text_field( wp_unslash( $_POST['isfm_cat_access_role'] ) ) );
 		// }
-		if ( isset( $_POST['idl_cat_sort_order'] ) ) {
-			update_term_meta( $term_id, '_idl_cat_sort_order', absint( $_POST['idl_cat_sort_order'] ) );
+		if ( isset( $_POST['isfm_cat_sort_order'] ) ) {
+			update_term_meta( $term_id, '_isfm_cat_sort_order', absint( $_POST['isfm_cat_sort_order'] ) );
 		}
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
 	}
 
-	// TODO v1.0: Category-level access role — enforce in IDL_Access_Control.
+	// TODO v1.0: Category-level access role — enforce in ISFM_Access_Control.
 	// private function render_access_role_select( string $selected, string $name, string $id ): void {
 	// $roles = [
-	// 'public'        => __( 'Public (everyone)', 'i-downloads' ),
-	// 'subscriber'    => __( 'Subscriber+', 'i-downloads' ),
-	// 'contributor'   => __( 'Contributor+', 'i-downloads' ),
-	// 'author'        => __( 'Author+', 'i-downloads' ),
-	// 'editor'        => __( 'Editor+', 'i-downloads' ),
-	// 'administrator' => __( 'Administrator only', 'i-downloads' ),
+	// 'public'        => __( 'Public (everyone)', 'isoft-fm-foundation' ),
+	// 'subscriber'    => __( 'Subscriber+', 'isoft-fm-foundation' ),
+	// 'contributor'   => __( 'Contributor+', 'isoft-fm-foundation' ),
+	// 'author'        => __( 'Author+', 'isoft-fm-foundation' ),
+	// 'editor'        => __( 'Editor+', 'isoft-fm-foundation' ),
+	// 'administrator' => __( 'Administrator only', 'isoft-fm-foundation' ),
 	// ];
 	// echo '<select name="' . esc_attr( $name ) . '" id="' . esc_attr( $id ) . '">';
 	// foreach ( $roles as $value => $label ) {

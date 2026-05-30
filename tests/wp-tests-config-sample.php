@@ -25,7 +25,7 @@ $table_prefix = 'wptests_';
 
 define( 'WP_TESTS_DOMAIN', 'example.org' );
 define( 'WP_TESTS_EMAIL', 'admin@example.org' );
-define( 'WP_TESTS_TITLE', 'i-Downloads Test Suite' );
+define( 'WP_TESTS_TITLE', 'I-Soft File Manager: Foundation Test Suite' );
 
 define( 'WP_PHP_BINARY', 'php' );
 define( 'WPLANG', '' );

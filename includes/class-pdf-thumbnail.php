@@ -1,20 +1,20 @@
 <?php
 defined( 'ABSPATH' ) || exit;
 
-class IDL_Pdf_Thumbnail {
+class ISFM_Pdf_Thumbnail {
 
 	public function register_hooks(): void {
-		add_action( 'idl_file_uploaded', array( $this, 'maybe_generate' ), 10, 2 );
+		add_action( 'isfm_file_uploaded', array( $this, 'maybe_generate' ), 10, 2 );
 		add_action( 'admin_notices', array( $this, 'maybe_show_notice' ) );
 	}
 
 	public function maybe_generate( int $file_id, int $download_id ): void {
-		$settings = idl_get_settings();
+		$settings = isfm_get_settings();
 		if ( ! $settings['enable_pdf_thumbnails'] ) {
 			return;
 		}
 
-		$file = ( new IDL_File_Manager() )->get_file( $file_id );
+		$file = ( new ISFM_File_Manager() )->get_file( $file_id );
 		if ( ! $file || 'application/pdf' !== $file->file_mime || empty( $file->file_path ) ) {
 			return;
 		}
@@ -22,18 +22,18 @@ class IDL_Pdf_Thumbnail {
 			return;
 		}
 
-		$pdf_path = idl_files_dir() . '/' . $file->file_path;
+		$pdf_path = isfm_files_dir() . '/' . $file->file_path;
 		if ( ! file_exists( $pdf_path ) ) {
 			return;
 		}
 
-		$backend = apply_filters( 'idl_pdf_thumbnail_backend', $this->detect_backend() );
+		$backend = apply_filters( 'isfm_pdf_thumbnail_backend', $this->detect_backend() );
 		if ( ! $backend ) {
 			return;
 		}
 
 		$args = apply_filters(
-			'idl_pdf_thumbnail_args',
+			'isfm_pdf_thumbnail_args',
 			array(
 				'width'   => $settings['pdf_thumb_width'],
 				'height'  => $settings['pdf_thumb_height'],
@@ -49,7 +49,7 @@ class IDL_Pdf_Thumbnail {
 		$attachment_id = $this->save_as_attachment( $thumb_path, $download_id );
 		if ( $attachment_id ) {
 			set_post_thumbnail( $download_id, $attachment_id );
-			do_action( 'idl_pdf_thumbnail_generated', $download_id, $file_id, $attachment_id );
+			do_action( 'isfm_pdf_thumbnail_generated', $download_id, $file_id, $attachment_id );
 		}
 	}
 
@@ -61,7 +61,7 @@ class IDL_Pdf_Thumbnail {
 	}
 
 	private function render( string $pdf_path, array $args ): ?string {
-		$out = sys_get_temp_dir() . '/idl_thumb_' . md5( $pdf_path . microtime() ) . '.jpg';
+		$out = sys_get_temp_dir() . '/isfm_thumb_' . md5( $pdf_path . microtime() ) . '.jpg';
 
 		try {
 			$im = new \Imagick();
@@ -118,12 +118,12 @@ class IDL_Pdf_Thumbnail {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
-		if ( get_option( 'idl_pdf_notice_dismissed' ) ) {
+		if ( get_option( 'isfm_pdf_notice_dismissed' ) ) {
 			return;
 		}
 		if ( ! $this->detect_backend() ) {
 			echo '<div class="notice notice-warning is-dismissible"><p>';
-			esc_html_e( 'i-Downloads: PDF thumbnail generation is disabled — the Imagick PHP extension is not available on this server.', 'i-downloads' );
+			esc_html_e( 'I-Soft File Manager: Foundation: PDF thumbnail generation is disabled — the Imagick PHP extension is not available on this server.', 'isoft-fm-foundation' );
 			echo '</p></div>';
 		}
 	}

@@ -1,7 +1,7 @@
 {
-    "name": "i-downloads",
+    "name": "isoft-fm-foundation",
     "version": "0.1.0",
-    "description": "Gutenberg blocks for i-Downloads WordPress plugin",
+    "description": "Gutenberg blocks for I-Soft File Manager: Foundation WordPress plugin",
     "private": true,
     "scripts": {
         "build": "wp-scripts build --config webpack.config.js",

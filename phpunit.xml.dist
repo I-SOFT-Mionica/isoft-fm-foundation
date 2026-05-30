@@ -8,7 +8,7 @@
 	cacheResultFile=".phpunit.cache/test-results"
 >
 	<testsuites>
-		<testsuite name="i-downloads">
+		<testsuite name="isoft-fm-foundation">
 			<directory suffix="Test.php">tests</directory>
 		</testsuite>
 	</testsuites>

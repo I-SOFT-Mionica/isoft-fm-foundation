@@ -1,6 +1,6 @@
 <?php
 /**
- * Server-side render for i-downloads/category-grid block.
+ * Server-side render for isoft-fm-foundation/category-grid block.
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -11,4 +11,4 @@ $atts = array(
 	'show_description' => ! empty( $attributes['showDescription'] ) ? '1' : '0',
 );
 
-echo wp_kses( do_shortcode( '[idl_categories' . idl_atts_to_string( $atts ) . ']' ), idl_allowed_html() );
+echo wp_kses( do_shortcode( '[isfm_categories' . isfm_atts_to_string( $atts ) . ']' ), isfm_allowed_html() );

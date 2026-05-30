@@ -9,12 +9,12 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Register an extension with Core. Called by Sentinel, Orbit, or third-party plugins
- * inside the 'idl_extensions_init' action.
+ * inside the 'isfm_extensions_init' action.
  *
  * @param array{slug:string, name:string, version:string, description?:string, author?:string, url?:string, settings_cb?:callable, admin_menu?:callable} $args
  */
-function idl_register_extension( array $args ): bool {
-	return IDL_Extension_Api::register( $args );
+function isfm_register_extension( array $args ): bool {
+	return ISFM_Extension_Api::register( $args );
 }
 
 /**
@@ -23,7 +23,7 @@ function idl_register_extension( array $args ): bool {
  * @param array{title:string, description?:string, category_id?:int, access_role?:string, license_id?:int} $args
  * @return int|false  New post ID, or false on failure.
  */
-function idl_create_draft_download( array $args ): int|false {
+function isfm_create_draft_download( array $args ): int|false {
 	$title = sanitize_text_field( $args['title'] ?? '' );
 	if ( ! $title ) {
 		return false;
@@ -33,7 +33,7 @@ function idl_create_draft_download( array $args ): int|false {
 		array(
 			'post_title'   => $title,
 			'post_status'  => 'draft',
-			'post_type'    => 'idl',
+			'post_type'    => 'isfm_file',
 			'post_content' => wp_kses_post( $args['description'] ?? '' ),
 		)
 	);
@@ -43,13 +43,13 @@ function idl_create_draft_download( array $args ): int|false {
 	}
 
 	if ( ! empty( $args['category_id'] ) ) {
-		wp_set_object_terms( $post_id, (int) $args['category_id'], 'idl_category' );
+		wp_set_object_terms( $post_id, (int) $args['category_id'], 'isfm_category' );
 	}
 	if ( ! empty( $args['access_role'] ) ) {
-		update_post_meta( $post_id, '_idl_access_role', sanitize_text_field( $args['access_role'] ) );
+		update_post_meta( $post_id, '_isfm_access_role', sanitize_text_field( $args['access_role'] ) );
 	}
 	if ( ! empty( $args['license_id'] ) ) {
-		update_post_meta( $post_id, '_idl_license_id', absint( $args['license_id'] ) );
+		update_post_meta( $post_id, '_isfm_license_id', absint( $args['license_id'] ) );
 	}
 
 	return $post_id;
@@ -60,38 +60,38 @@ function idl_create_draft_download( array $args ): int|false {
  *
  * @return array<string,mixed>
  */
-function idl_get_settings(): array {
+function isfm_get_settings(): array {
 	static $cached = null;
 	if ( null !== $cached ) {
 		return $cached;
 	}
 	$cached = array(
-		'default_access_role'      => get_option( 'idl_default_access_role', 'public' ),
-		'enable_counting'          => (bool) get_option( 'idl_enable_counting', true ),
-		'enable_logging'           => (bool) get_option( 'idl_enable_logging', true ),
-		'enable_detailed_logging'  => (bool) get_option( 'idl_enable_detailed_logging', false ),
-		'log_retention_days'       => (int) get_option( 'idl_log_retention_days', 365 ),
-		'enable_pdf_thumbnails'    => (bool) get_option( 'idl_enable_pdf_thumbnails', true ),
-		'pdf_thumb_width'          => (int) get_option( 'idl_pdf_thumb_width', 300 ),
-		'pdf_thumb_height'         => (int) get_option( 'idl_pdf_thumb_height', 424 ),
-		'pdf_thumb_quality'        => (int) get_option( 'idl_pdf_thumb_quality', 85 ),
-		'overwrite_pdf_thumbnail'  => (bool) get_option( 'idl_overwrite_pdf_thumbnail', false ),
-		'default_button_text'      => get_option( 'idl_default_button_text', '' ),
-		'allowed_extensions'       => array_values( array_filter( array_map( 'trim', explode( ',', get_option( 'idl_allowed_extensions', 'pdf,doc,docx,xls,xlsx,ppt,pptx,odt,ods,odp,txt,csv,zip,rar,7z,jpg,jpeg,png,gif,webp,mp4,mp3,wav' ) ) ) ) ),
-		'cyrillic_titles'          => (bool) get_option( 'idl_cyrillic_titles', false ),
-		'listing_layout'           => get_option( 'idl_listing_layout', 'list' ),
-		'items_per_page'           => (int) get_option( 'idl_items_per_page', 10 ),
-		'show_file_size'           => (bool) get_option( 'idl_show_file_size', true ),
-		'show_download_count'      => (bool) get_option( 'idl_show_download_count', true ),
-		'show_date'                => (bool) get_option( 'idl_show_date', true ),
-		'date_format'              => get_option( 'idl_date_format', get_option( 'date_format' ) ),
-		'serve_method'             => get_option( 'idl_serve_method', 'auto' ),
-		'rate_limit_per_hour'      => (int) get_option( 'idl_rate_limit_per_hour', 0 ),
-		'hotlink_protection'       => (bool) get_option( 'idl_hotlink_protection', false ),
-		'archive_slug'             => get_option( 'idl_archive_slug', 'downloads' ),
-		'category_slug'            => get_option( 'idl_category_slug', 'download-category' ),
-		'tag_slug'                 => get_option( 'idl_tag_slug', 'download-tag' ),
-		'delete_data_on_uninstall' => (bool) get_option( 'idl_delete_data_on_uninstall', false ),
+		'default_access_role'      => get_option( 'isfm_default_access_role', 'public' ),
+		'enable_counting'          => (bool) get_option( 'isfm_enable_counting', true ),
+		'enable_logging'           => (bool) get_option( 'isfm_enable_logging', true ),
+		'enable_detailed_logging'  => (bool) get_option( 'isfm_enable_detailed_logging', false ),
+		'log_retention_days'       => (int) get_option( 'isfm_log_retention_days', 365 ),
+		'enable_pdf_thumbnails'    => (bool) get_option( 'isfm_enable_pdf_thumbnails', true ),
+		'pdf_thumb_width'          => (int) get_option( 'isfm_pdf_thumb_width', 300 ),
+		'pdf_thumb_height'         => (int) get_option( 'isfm_pdf_thumb_height', 424 ),
+		'pdf_thumb_quality'        => (int) get_option( 'isfm_pdf_thumb_quality', 85 ),
+		'overwrite_pdf_thumbnail'  => (bool) get_option( 'isfm_overwrite_pdf_thumbnail', false ),
+		'default_button_text'      => get_option( 'isfm_default_button_text', '' ),
+		'allowed_extensions'       => array_values( array_filter( array_map( 'trim', explode( ',', get_option( 'isfm_allowed_extensions', 'pdf,doc,docx,xls,xlsx,ppt,pptx,odt,ods,odp,txt,csv,zip,rar,7z,jpg,jpeg,png,gif,webp,mp4,mp3,wav' ) ) ) ) ),
+		'cyrillic_titles'          => (bool) get_option( 'isfm_cyrillic_titles', false ),
+		'listing_layout'           => get_option( 'isfm_listing_layout', 'list' ),
+		'items_per_page'           => (int) get_option( 'isfm_items_per_page', 10 ),
+		'show_file_size'           => (bool) get_option( 'isfm_show_file_size', true ),
+		'show_download_count'      => (bool) get_option( 'isfm_show_download_count', true ),
+		'show_date'                => (bool) get_option( 'isfm_show_date', true ),
+		'date_format'              => get_option( 'isfm_date_format', get_option( 'date_format' ) ),
+		'serve_method'             => get_option( 'isfm_serve_method', 'auto' ),
+		'rate_limit_per_hour'      => (int) get_option( 'isfm_rate_limit_per_hour', 0 ),
+		'hotlink_protection'       => (bool) get_option( 'isfm_hotlink_protection', false ),
+		'archive_slug'             => get_option( 'isfm_archive_slug', 'downloads' ),
+		'category_slug'            => get_option( 'isfm_category_slug', 'download-category' ),
+		'tag_slug'                 => get_option( 'isfm_tag_slug', 'download-tag' ),
+		'delete_data_on_uninstall' => (bool) get_option( 'isfm_delete_data_on_uninstall', false ),
 	);
 	return $cached;
 }
@@ -102,14 +102,14 @@ function idl_get_settings(): array {
  * @param string $message  Plain text message.
  * @param string $type     'info' | 'success' | 'warning' | 'error'
  */
-function idl_notify_admin( string $message, string $type = 'info' ): void {
-	$notices   = get_option( 'idl_admin_notices', array() );
+function isfm_notify_admin( string $message, string $type = 'info' ): void {
+	$notices   = get_option( 'isfm_admin_notices', array() );
 	$notices[] = array(
 		'message' => $message,
 		'type'    => in_array( $type, array( 'info', 'success', 'warning', 'error' ), true ) ? $type : 'info',
 		'time'    => time(),
 	);
-	update_option( 'idl_admin_notices', $notices );
+	update_option( 'isfm_admin_notices', $notices );
 }
 
 /**
@@ -118,7 +118,7 @@ function idl_notify_admin( string $message, string $type = 'info' ): void {
  *
  * @param array<string,scalar> $atts
  */
-function idl_atts_to_string( array $atts ): string {
+function isfm_atts_to_string( array $atts ): string {
 	$parts = array();
 	foreach ( $atts as $key => $value ) {
 		if ( '' === $value || null === $value ) {
@@ -134,12 +134,12 @@ function idl_atts_to_string( array $atts ): string {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Absolute filesystem path to the idl-files/ storage root.
+ * Absolute filesystem path to the isfm-files/ storage root.
  */
-function idl_files_dir(): string {
+function isfm_files_dir(): string {
 	static $dir = null;
 	if ( null === $dir ) {
-		$dir = wp_upload_dir()['basedir'] . '/idl-files';
+		$dir = wp_upload_dir()['basedir'] . '/isfm-files';
 	}
 	return $dir;
 }
@@ -148,11 +148,11 @@ function idl_files_dir(): string {
  * Build the relative folder path for a category by walking its ancestor chain.
  * e.g. "skupstina-opstine/saziv-2025-2029/iv-sednica"
  */
-function idl_category_folder_path( int $term_id ): string {
+function isfm_category_folder_path( int $term_id ): string {
 	$parts = array();
 	$id    = $term_id;
 	while ( $id ) {
-		$term = get_term( $id, 'idl_category' );
+		$term = get_term( $id, 'isfm_category' );
 		if ( ! $term || is_wp_error( $term ) ) {
 			break;
 		}
@@ -165,8 +165,8 @@ function idl_category_folder_path( int $term_id ): string {
 /**
  * Absolute filesystem path for a category's storage folder.
  */
-function idl_category_fs_path( int $term_id ): string {
-	return idl_files_dir() . '/' . idl_category_folder_path( $term_id );
+function isfm_category_fs_path( int $term_id ): string {
+	return isfm_files_dir() . '/' . isfm_category_folder_path( $term_id );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -191,16 +191,16 @@ function idl_category_fs_path( int $term_id ): string {
  *   original_title — original stem kept for title autofill
  *   error          — human-readable error string, or null on success
  */
-function idl_sanitize_filename( string $original_name ): array {
+function isfm_sanitize_filename( string $original_name ): array {
 	// 1. Strip duplicate extension
-	$name = idl_strip_double_extension( $original_name );
+	$name = isfm_strip_double_extension( $original_name );
 
 	// 2. Split
 	$ext           = strtolower( pathinfo( $name, PATHINFO_EXTENSION ) );
 	$original_stem = pathinfo( $name, PATHINFO_FILENAME );
 
 	// 3. Extension allow-list
-	$allowed = idl_get_settings()['allowed_extensions'];
+	$allowed = isfm_get_settings()['allowed_extensions'];
 	if ( ! empty( $allowed ) && ! in_array( $ext, $allowed, true ) ) {
 		return array(
 			'slug'           => '',
@@ -208,7 +208,7 @@ function idl_sanitize_filename( string $original_name ): array {
 			'original_title' => $original_stem,
 			'error'          => sprintf(
 				/* translators: 1: extension, 2: comma-separated allowed list */
-				__( 'File type ".%1$s" is not allowed. Permitted types: %2$s', 'i-downloads' ),
+				__( 'File type ".%1$s" is not allowed. Permitted types: %2$s', 'isoft-fm-foundation' ),
 				$ext,
 				implode( ', ', array_map( fn( $e ) => ".{$e}", $allowed ) )
 			),
@@ -216,7 +216,7 @@ function idl_sanitize_filename( string $original_name ): array {
 	}
 
 	// 4–6. Transliterate + diacritics + slugify
-	$slug_stem = idl_cyrillic_to_latin( $original_stem );
+	$slug_stem = isfm_cyrillic_to_latin( $original_stem );
 	$slug_stem = remove_accents( $slug_stem );
 	$slug_stem = strtolower( $slug_stem );
 	$slug_stem = preg_replace( '/[^a-z0-9]+/', '-', $slug_stem );
@@ -234,7 +234,7 @@ function idl_sanitize_filename( string $original_name ): array {
 			'original_title' => $original_stem,
 			'error'          => sprintf(
 				/* translators: %d: character count */
-				__( 'Filename is too long (%d characters after sanitization). Please shorten it to 80 characters or fewer before uploading.', 'i-downloads' ),
+				__( 'Filename is too long (%d characters after sanitization). Please shorten it to 80 characters or fewer before uploading.', 'isoft-fm-foundation' ),
 				mb_strlen( $slug_stem )
 			),
 		);
@@ -252,7 +252,7 @@ function idl_sanitize_filename( string $original_name ): array {
  * Strip a duplicate final extension.
  * "file.pdf.pdf" → "file.pdf"   Only fires when the two trailing extensions match.
  */
-function idl_strip_double_extension( string $filename ): string {
+function isfm_strip_double_extension( string $filename ): string {
 	$ext  = strtolower( pathinfo( $filename, PATHINFO_EXTENSION ) );
 	$stem = pathinfo( $filename, PATHINFO_FILENAME );
 	if ( $ext !== '' && strtolower( pathinfo( $stem, PATHINFO_EXTENSION ) ) === $ext ) {
@@ -265,8 +265,8 @@ function idl_strip_double_extension( string $filename ): string {
  * Check whether a slug already exists in a category's folder on disk.
  * Used to give a blocking error before writing the file.
  */
-function idl_filename_collision( string $slug, int $category_id ): bool {
-	$path = idl_category_fs_path( $category_id ) . '/' . $slug;
+function isfm_filename_collision( string $slug, int $category_id ): bool {
+	$path = isfm_category_fs_path( $category_id ) . '/' . $slug;
 	return file_exists( $path );
 }
 
@@ -279,7 +279,7 @@ function idl_filename_collision( string $slug, int $category_id ): bool {
  * Digraphs (Љ Њ Џ) are in the map as multi-char keys; PHP's strtr() tries
  * longer keys first, so they are matched before their component characters.
  */
-function idl_cyrillic_to_latin( string $text ): string {
+function isfm_cyrillic_to_latin( string $text ): string {
 	static $map = null;
 	if ( null === $map ) {
 		$map = array(
@@ -358,7 +358,7 @@ function idl_cyrillic_to_latin( string $text ): string {
  * Handles both plain-ASCII Latin and pre-diacritic forms (š, ž, ć, č, đ, dž).
  * Result is always editable — this is a best-effort autofill, not a translation.
  */
-function idl_latin_to_cyrillic( string $text ): string {
+function isfm_latin_to_cyrillic( string $text ): string {
 	static $map = null;
 	if ( null === $map ) {
 		$map = array(
@@ -442,10 +442,10 @@ function idl_latin_to_cyrillic( string $text ): string {
  * If the "Cyrillic titles" setting is on, attempts Latin → Cyrillic conversion.
  * Numbers, parentheses, hyphens, and non-Latin characters pass through unchanged.
  */
-function idl_autofill_title( string $original_stem ): string {
+function isfm_autofill_title( string $original_stem ): string {
 	$title = trim( $original_stem );
-	if ( idl_get_settings()['cyrillic_titles'] ) {
-		$title = idl_latin_to_cyrillic( $title );
+	if ( isfm_get_settings()['cyrillic_titles'] ) {
+		$title = isfm_latin_to_cyrillic( $title );
 	}
 	return $title;
 }
@@ -457,7 +457,7 @@ function idl_autofill_title( string $original_stem ): string {
 /**
  * Map a file extension to a CSS icon class used by the download card.
  */
-function idl_mime_icon_class( string $ext ): string {
+function isfm_mime_icon_class( string $ext ): string {
 	$map = array(
 		'pdf'  => 'pdf',
 		'doc'  => 'doc',
@@ -497,33 +497,33 @@ function idl_mime_icon_class( string $ext ): string {
  *     daily_30d:array<object>
  * }
  */
-function idl_get_stats_overview(): array {
-	$cached = get_transient( 'idl_stats_overview' );
+function isfm_get_stats_overview(): array {
+	$cached = get_transient( 'isfm_stats_overview' );
 	if ( false !== $cached ) {
 		return $cached;
 	}
 
 	global $wpdb;
 
-	// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Aggregate dashboard query; result cached as 'idl_stats_overview' transient for 5 minutes (acceptable freshness for stats).
+	// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Aggregate dashboard query; result cached as 'isfm_stats_overview' transient for 5 minutes (acceptable freshness for stats).
 	$data = array(
 		'total_downloads'   => (int) $wpdb->get_var(
-			"SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'idl' AND post_status = 'publish'"
+			"SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'isfm_file' AND post_status = 'publish'"
 		),
 		'total_files'       => (int) $wpdb->get_var(
-			"SELECT COUNT(*) FROM {$wpdb->prefix}idl_files"
+			"SELECT COUNT(*) FROM {$wpdb->prefix}isfm_files"
 		),
 		'total_size_bytes'  => (int) $wpdb->get_var(
-			"SELECT COALESCE(SUM(file_size),0) FROM {$wpdb->prefix}idl_files"
+			"SELECT COALESCE(SUM(file_size),0) FROM {$wpdb->prefix}isfm_files"
 		),
 		'total_log_entries' => (int) $wpdb->get_var(
-			"SELECT COUNT(*) FROM {$wpdb->prefix}idl_download_log"
+			"SELECT COUNT(*) FROM {$wpdb->prefix}isfm_download_log"
 		),
 		'top_alltime'       => $wpdb->get_results(
 			"SELECT p.ID, p.post_title, COALESCE(SUM(f.download_count),0) AS total_count
 			   FROM {$wpdb->posts} p
-			   LEFT JOIN {$wpdb->prefix}idl_files f ON f.download_id = p.ID
-			  WHERE p.post_type = 'idl' AND p.post_status = 'publish'
+			   LEFT JOIN {$wpdb->prefix}isfm_files f ON f.download_id = p.ID
+			  WHERE p.post_type = 'isfm_file' AND p.post_status = 'publish'
 			  GROUP BY p.ID, p.post_title
 			  ORDER BY total_count DESC
 			  LIMIT 10"
@@ -531,7 +531,7 @@ function idl_get_stats_overview(): array {
 		'top_30d'           => $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT l.download_id, p.post_title, COUNT(*) AS count
-				   FROM {$wpdb->prefix}idl_download_log l
+				   FROM {$wpdb->prefix}isfm_download_log l
 				   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
 				  WHERE l.downloaded_at >= DATE_SUB(CURDATE(), INTERVAL %d DAY)
 				  GROUP BY l.download_id, p.post_title
@@ -543,7 +543,7 @@ function idl_get_stats_overview(): array {
 		'daily_30d'         => $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT DATE(downloaded_at) AS day, COUNT(*) AS count
-				   FROM {$wpdb->prefix}idl_download_log
+				   FROM {$wpdb->prefix}isfm_download_log
 				  WHERE downloaded_at >= DATE_SUB(CURDATE(), INTERVAL %d DAY)
 				  GROUP BY DATE(downloaded_at)
 				  ORDER BY day ASC",
@@ -553,7 +553,7 @@ function idl_get_stats_overview(): array {
 	);
 	// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 
-	set_transient( 'idl_stats_overview', $data, 5 * MINUTE_IN_SECONDS );
+	set_transient( 'isfm_stats_overview', $data, 5 * MINUTE_IN_SECONDS );
 	return $data;
 }
 
@@ -564,7 +564,7 @@ function idl_get_stats_overview(): array {
  *
  * @return array<string,array<string,bool>>
  */
-function idl_allowed_html(): array {
+function isfm_allowed_html(): array {
 	static $allowed = null;
 	if ( null !== $allowed ) {
 		return $allowed;
@@ -617,11 +617,11 @@ function idl_allowed_html(): array {
 /**
  * Build a secure, nonce-protected download URL for a file.
  */
-function idl_get_download_url( int $file_id ): string {
+function isfm_get_download_url( int $file_id ): string {
 	return add_query_arg(
 		array(
-			'idl_download' => $file_id,
-			'nonce'        => wp_create_nonce( 'idl_download_' . $file_id ),
+			'isfm_download' => $file_id,
+			'nonce'        => wp_create_nonce( 'isfm_download_' . $file_id ),
 		),
 		home_url( '/' )
 	);

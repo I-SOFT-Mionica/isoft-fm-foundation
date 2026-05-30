@@ -1,19 +1,19 @@
 <?php defined( 'ABSPATH' ) || exit; ?>
-<div class="idl-extensions-tab" style="margin-top:1.5em;">
-	<h2><?php esc_html_e( 'Installed Extensions', 'i-downloads' ); ?></h2>
+<div class="isfm-extensions-tab" style="margin-top:1.5em;">
+	<h2><?php esc_html_e( 'Installed Extensions', 'isoft-fm-foundation' ); ?></h2>
 
-	<?php $extensions = IDL_Extension_Api::get_all(); ?>
+	<?php $extensions = ISFM_Extension_Api::get_all(); ?>
 
 	<?php if ( empty( $extensions ) ) : ?>
-		<p><?php esc_html_e( 'No extensions are currently active.', 'i-downloads' ); ?></p>
+		<p><?php esc_html_e( 'No extensions are currently active.', 'isoft-fm-foundation' ); ?></p>
 	<?php else : ?>
 		<table class="widefat">
 			<thead>
 				<tr>
-					<th><?php esc_html_e( 'Extension', 'i-downloads' ); ?></th>
-					<th><?php esc_html_e( 'Version', 'i-downloads' ); ?></th>
-					<th><?php esc_html_e( 'Author', 'i-downloads' ); ?></th>
-					<th><?php esc_html_e( 'Description', 'i-downloads' ); ?></th>
+					<th><?php esc_html_e( 'Extension', 'isoft-fm-foundation' ); ?></th>
+					<th><?php esc_html_e( 'Version', 'isoft-fm-foundation' ); ?></th>
+					<th><?php esc_html_e( 'Author', 'isoft-fm-foundation' ); ?></th>
+					<th><?php esc_html_e( 'Description', 'isoft-fm-foundation' ); ?></th>
 				</tr>
 			</thead>
 			<tbody>
@@ -35,23 +35,23 @@
 		</table>
 	<?php endif; ?>
 
-	<h2 style="margin-top:2em;"><?php esc_html_e( 'Available Extensions', 'i-downloads' ); ?></h2>
-	<div class="idl-extension-cards" style="display:flex;gap:1.5em;flex-wrap:wrap;margin-top:1em;">
+	<h2 style="margin-top:2em;"><?php esc_html_e( 'Available Extensions', 'isoft-fm-foundation' ); ?></h2>
+	<div class="isfm-extension-cards" style="display:flex;gap:1.5em;flex-wrap:wrap;margin-top:1em;">
 		<div class="card" style="max-width:360px;">
 			<h3>
-				i-Downloads Sentinel
-				<span class="idl-soon-badge"><?php esc_html_e( 'Coming soon', 'i-downloads' ); ?></span>
+				I-Soft File Manager: Foundation Sentinel
+				<span class="isfm-soon-badge"><?php esc_html_e( 'Coming soon', 'isoft-fm-foundation' ); ?></span>
 			</h3>
-			<p><?php esc_html_e( 'Monitor local server folders for new files via rclone mirroring, SFTP drops, or scheduled folder scans. Automatically creates draft download entries when files appear in a category folder — no manual uploads needed.', 'i-downloads' ); ?></p>
-			<p><a href="https://isoft.rs/sentinel" target="_blank" rel="noopener" class="button" aria-disabled="true"><?php esc_html_e( 'Learn More', 'i-downloads' ); ?></a></p>
+			<p><?php esc_html_e( 'Monitor local server folders for new files via rclone mirroring, SFTP drops, or scheduled folder scans. Automatically creates draft download entries when files appear in a category folder — no manual uploads needed.', 'isoft-fm-foundation' ); ?></p>
+			<p><a href="https://isoft.rs/sentinel" target="_blank" rel="noopener" class="button" aria-disabled="true"><?php esc_html_e( 'Learn More', 'isoft-fm-foundation' ); ?></a></p>
 		</div>
 		<div class="card" style="max-width:360px;">
 			<h3>
-				i-Downloads Orbit
-				<span class="idl-soon-badge"><?php esc_html_e( 'Coming soon', 'i-downloads' ); ?></span>
+				I-Soft File Manager: Foundation Orbit
+				<span class="isfm-soon-badge"><?php esc_html_e( 'Coming soon', 'isoft-fm-foundation' ); ?></span>
 			</h3>
-			<p><?php esc_html_e( 'Sync files from Google Shared Drives. Departments drop files into a shared folder — Orbit picks them up and creates draft downloads for review.', 'i-downloads' ); ?></p>
-			<p><a href="https://isoft.rs/orbit" target="_blank" rel="noopener" class="button" aria-disabled="true"><?php esc_html_e( 'Learn More', 'i-downloads' ); ?></a></p>
+			<p><?php esc_html_e( 'Sync files from Google Shared Drives. Departments drop files into a shared folder — Orbit picks them up and creates draft downloads for review.', 'isoft-fm-foundation' ); ?></p>
+			<p><a href="https://isoft.rs/orbit" target="_blank" rel="noopener" class="button" aria-disabled="true"><?php esc_html_e( 'Learn More', 'isoft-fm-foundation' ); ?></a></p>
 		</div>
 	</div>
 </div>

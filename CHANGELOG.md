@@ -1,6 +1,39 @@
 # Changelog
 
-All notable changes to **i-Downloads**. Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
+All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
+
+## [0.8.0] — 2026-05-16
+
+Plugin renamed end-to-end. The WordPress.org plugin-review team accepted the new name "I-Soft File Manager: Foundation" with slug `isoft-fm-foundation`. Since the plugin had not yet shipped publicly, no migration path is needed — every identifier moves in lockstep.
+
+### Changed
+- **Plugin slug:** `i-downloads` → `isoft-fm-foundation`.
+- **Display name:** `i-Downloads` → `I-Soft File Manager: Foundation`.
+- **Main file:** `i-downloads.php` → `isoft-fm-foundation.php`.
+- **Text domain:** `'i-downloads'` → `'isoft-fm-foundation'` (~440 strings).
+- **Classes:** `IDL_*` → `ISFM_*` (28 classes — `ISFM_Settings`, `ISFM_File_Manager`, `ISFM_Post_Type`, `ISFM_Activator`, etc.).
+- **Constants:** `IDL_VERSION` → `ISFM_VERSION`, `IDL_PLUGIN_DIR`/`URL`/`FILE`/`BASENAME` → `ISFM_PLUGIN_DIR`/`URL`/`FILE`/`BASENAME`.
+- **Function prefix:** `idl_*` → `isfm_*` (e.g. `idl_get_settings()` → `isfm_get_settings()`, `idl_files_dir()` → `isfm_files_dir()`, `idl_sanitize_filename()` → `isfm_sanitize_filename()`).
+- **Post type:** `idl` → `isfm_file`. WP-core hooks that derive from it (`save_post_idl` → `save_post_isfm_file`, `manage_idl_posts_columns` → `manage_isfm_file_posts_columns`, etc.) and template-hierarchy files (`templates/archive-idl.php` → `templates/archive-isfm_file.php`, `templates/single-idl.php` → `templates/single-isfm_file.php`, `templates/taxonomy-idl_category.php` → `templates/taxonomy-isfm_category.php`, `templates/taxonomy-idl_tag.php` → `templates/taxonomy-isfm_tag.php`) renamed accordingly.
+- **Taxonomies:** `idl_category` → `isfm_category`, `idl_tag` → `isfm_tag`. Taxonomy hooks like `created_idl_category` → `created_isfm_category` follow.
+- **Database tables:** `wp_idl_files` → `wp_isfm_files`, `wp_idl_download_log` → `wp_isfm_download_log`, `wp_idl_download_daily` → `wp_isfm_download_daily`, `wp_idl_licenses` → `wp_isfm_licenses`.
+- **Options:** `idl_*` option keys → `isfm_*` (e.g. `idl_default_access_role` → `isfm_default_access_role`).
+- **Post meta:** `_idl_*` → `_isfm_*` (e.g. `_idl_access_role` → `_isfm_access_role`).
+- **User meta:** `_idl_allowed_categories` → `_isfm_allowed_categories`.
+- **Capabilities:** `idl_*` → `isfm_*` (e.g. `idl_view_logs` → `isfm_view_logs`).
+- **Hooks (ours):** every `wp_ajax_idl_*`, `admin_post_idl_*`, `update_option_idl_*`, transient prefix `_transient_idl_` → corresponding `isfm_` form. Public action/filter names (`idl_after_download`, `idl_listing_query_args`, etc.) → `isfm_*`.
+- **JS globals:** `IDL` → `ISFM`, `IDLTmce` → `ISFMTmce`, `IDLPublic` → `ISFMPublic`, `idlBrokenLinks` → `isfmBrokenLinks`.
+- **CSS:** every `.idl-*` class → `.isfm-*`, every `--idl-*` custom property → `--isfm-*` (Theming docs in `readme.txt` and Display settings tab updated accordingly).
+- **Block namespace:** `i-downloads/download-list` → `isoft-fm-foundation/download-list` (same for `/download-button` and `/category-grid`). The demo-page generator emits the new namespace.
+- **REST namespace:** `i-downloads/v1` → `isoft-fm-foundation/v1`.
+- **File storage directory:** `wp-content/uploads/idl-files/` → `wp-content/uploads/isfm-files/`.
+- **POT file:** `languages/i-downloads.pot` → `languages/isoft-fm-foundation.pot` (regeneration with `wp i18n make-pot` recommended after merge).
+- **Build script (`build.py`):** main-file reference, output zip filename pattern, and zip-root folder all updated to use the new slug. Local clone folder name (`i-downloads/`) stays unchanged — the rename is plugin-identity, not repo-rename.
+- **PHPCS config (`phpcs.xml.dist`):** allowed prefix list now `ISFM_` / `isfm_` / `ISFM`.
+
+### Internal-only
+
+- 28 class files renamed in content (autoloader still computes filenames via `str_replace( array( 'ISFM_', '_' ), array( '', '-' ), $class )` so disk filenames stay `class-foo.php` form).
 
 ## [0.7.2] — 2026-05-16
 

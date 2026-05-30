@@ -1,7 +1,7 @@
 <?php
 defined( 'ABSPATH' ) || exit;
 
-class IDL_Blocks {
+class ISFM_Blocks {
 
 	public function register_hooks(): void {
 		add_action( 'init', array( $this, 'register' ) );
@@ -14,8 +14,8 @@ class IDL_Blocks {
 		array_unshift(
 			$categories,
 			array(
-				'slug'  => 'i-downloads',
-				'title' => 'i-Downloads',
+				'slug'  => 'isoft-fm-foundation',
+				'title' => 'I-Soft File Manager: Foundation',
 				'icon'  => 'download',
 			)
 		);
@@ -24,7 +24,7 @@ class IDL_Blocks {
 
 	public function register(): void {
 		foreach ( array( 'download-list', 'download-button', 'category-grid' ) as $block ) {
-			$result = register_block_type( IDL_PLUGIN_DIR . 'blocks/' . $block );
+			$result = register_block_type( ISFM_PLUGIN_DIR . 'blocks/' . $block );
 
 			// Make @wordpress/i18n __() calls in the block's editor script
 			// consume translations from our /languages/ directory. WP serves
@@ -34,8 +34,8 @@ class IDL_Blocks {
 				foreach ( $result->editor_script_handles as $handle ) {
 					wp_set_script_translations(
 						$handle,
-						'i-downloads',
-						IDL_PLUGIN_DIR . 'languages'
+						'isoft-fm-foundation',
+						ISFM_PLUGIN_DIR . 'languages'
 					);
 				}
 			}
@@ -50,10 +50,10 @@ class IDL_Blocks {
 	public function register_block_template(): void {
 		if ( function_exists( 'register_block_template' ) ) {
 			register_block_template(
-				'i-downloads//single-idl',
+				'isoft-fm-foundation//single-isfm_file',
 				array(
-					'title'       => __( 'Single Download', 'i-downloads' ),
-					'description' => __( 'Template for individual download entries.', 'i-downloads' ),
+					'title'       => __( 'Single Download', 'isoft-fm-foundation' ),
+					'description' => __( 'Template for individual download entries.', 'isoft-fm-foundation' ),
 					'content'     =>
 						'<!-- wp:template-part {"slug":"header","tagName":"header"} /-->' .
 						'<!-- wp:group {"tagName":"main","layout":{"type":"constrained"}} -->' .

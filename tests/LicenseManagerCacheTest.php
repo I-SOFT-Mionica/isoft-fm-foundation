@@ -1,6 +1,6 @@
 <?php
 /**
- * IDL_License_Manager object-cache behavior.
+ * ISFM_License_Manager object-cache behavior.
  *
  * save() and delete() are private and read $_POST; we test the public cache
  * surface: get_all / get prime the cache, bust_cache() invalidates.
@@ -8,18 +8,18 @@
 
 class LicenseManagerCacheTest extends WP_UnitTestCase {
 
-	private IDL_License_Manager $manager;
+	private ISFM_License_Manager $manager;
 
 	public function set_up(): void {
 		parent::set_up();
 		wp_cache_flush();
-		$this->manager = new IDL_License_Manager();
+		$this->manager = new ISFM_License_Manager();
 	}
 
 	private function seed( string $title = 'Test License' ): int {
 		global $wpdb;
 		$wpdb->insert(
-			$wpdb->prefix . 'idl_licenses',
+			$wpdb->prefix . 'isfm_licenses',
 			array(
 				'title'       => $title,
 				'slug'        => sanitize_title( $title ),
@@ -35,11 +35,11 @@ class LicenseManagerCacheTest extends WP_UnitTestCase {
 	}
 
 	private function cache_has_all(): bool {
-		return false !== wp_cache_get( 'all_licenses', IDL_License_Manager::CACHE_GROUP );
+		return false !== wp_cache_get( 'all_licenses', ISFM_License_Manager::CACHE_GROUP );
 	}
 
 	private function cache_has( int $id ): bool {
-		return false !== wp_cache_get( "license_{$id}", IDL_License_Manager::CACHE_GROUP );
+		return false !== wp_cache_get( "license_{$id}", ISFM_License_Manager::CACHE_GROUP );
 	}
 
 	public function test_get_all_primes_cache(): void {
@@ -63,7 +63,7 @@ class LicenseManagerCacheTest extends WP_UnitTestCase {
 		$this->assertTrue( $this->cache_has_all() );
 		$this->assertTrue( $this->cache_has( $id ) );
 
-		IDL_License_Manager::bust_cache( $id );
+		ISFM_License_Manager::bust_cache( $id );
 
 		$this->assertFalse( $this->cache_has_all() );
 		$this->assertFalse( $this->cache_has( $id ) );
@@ -74,7 +74,7 @@ class LicenseManagerCacheTest extends WP_UnitTestCase {
 		$this->manager->get_all();
 		$this->manager->get( $id );
 
-		IDL_License_Manager::bust_cache();
+		ISFM_License_Manager::bust_cache();
 
 		$this->assertFalse( $this->cache_has_all() );
 		$this->assertTrue( $this->cache_has( $id ) );

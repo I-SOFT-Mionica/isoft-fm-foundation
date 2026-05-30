@@ -1,6 +1,6 @@
 /* ── TinyMCE Insert Download modal ─────────────────────────────────────── */
 
-.idl-tmce-modal {
+.isfm-tmce-modal {
 	position: fixed;
 	inset: 0;
 	z-index: 100001;
@@ -9,17 +9,17 @@
 	justify-content: center;
 }
 
-.idl-tmce-modal[hidden] {
+.isfm-tmce-modal[hidden] {
 	display: none;
 }
 
-.idl-tmce-modal__backdrop {
+.isfm-tmce-modal__backdrop {
 	position: absolute;
 	inset: 0;
 	background: rgba(0, 0, 0, .6);
 }
 
-.idl-tmce-modal__dialog {
+.isfm-tmce-modal__dialog {
 	position: relative;
 	background: #fff;
 	border-radius: 4px;
@@ -33,7 +33,7 @@
 }
 
 /* Header */
-.idl-tmce-modal__header {
+.isfm-tmce-modal__header {
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -42,7 +42,7 @@
 	border-bottom: 1px solid #ddd;
 }
 
-.idl-tmce-modal__title {
+.isfm-tmce-modal__title {
 	flex: 1;
 	margin: 0;
 	font-size: 14px;
@@ -52,11 +52,11 @@
 	gap: 8px;
 }
 
-.idl-tmce-modal__title .dashicons {
+.isfm-tmce-modal__title .dashicons {
 	color: #0a7ee3;
 }
 
-.idl-tmce-modal__close {
+.isfm-tmce-modal__close {
 	background: transparent;
 	border: 0;
 	cursor: pointer;
@@ -66,19 +66,19 @@
 	padding: 4px;
 }
 
-.idl-tmce-modal__close:hover {
+.isfm-tmce-modal__close:hover {
 	color: #1e1e1e;
 }
 
 /* Filters */
-.idl-tmce-modal__filters {
+.isfm-tmce-modal__filters {
 	display: flex;
 	gap: 8px;
 	padding: 10px 12px;
 	border-bottom: 1px solid #eee;
 }
 
-.idl-tmce-modal__search {
+.isfm-tmce-modal__search {
 	flex: 2;
 	padding: 6px 8px;
 	border: 1px solid #ccd0d4;
@@ -86,7 +86,7 @@
 	font-size: 13px;
 }
 
-.idl-tmce-modal__category {
+.isfm-tmce-modal__category {
 	flex: 1;
 	padding: 6px 8px;
 	border: 1px solid #ccd0d4;
@@ -95,20 +95,20 @@
 }
 
 /* Results */
-.idl-tmce-modal__results {
+.isfm-tmce-modal__results {
 	flex: 1;
 	overflow-y: auto;
 	min-height: 120px;
 	max-height: 300px;
 }
 
-.idl-tmce-modal__list {
+.isfm-tmce-modal__list {
 	list-style: none;
 	margin: 0;
 	padding: 0;
 }
 
-.idl-tmce-modal__item {
+.isfm-tmce-modal__item {
 	display: flex;
 	align-items: center;
 	gap: 10px;
@@ -122,23 +122,23 @@
 	font-size: 13px;
 }
 
-.idl-tmce-modal__item:hover {
+.isfm-tmce-modal__item:hover {
 	background: #f0f6fc;
 }
 
-.idl-tmce-modal__item .dashicons {
+.isfm-tmce-modal__item .dashicons {
 	color: #0a7ee3;
 	flex-shrink: 0;
 }
 
-.idl-tmce-modal__item-title {
+.isfm-tmce-modal__item-title {
 	flex: 1;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-.idl-tmce-modal__item-cat {
+.isfm-tmce-modal__item-cat {
 	font-size: 11px;
 	color: #888;
 	flex-shrink: 0;
@@ -148,9 +148,9 @@
 	white-space: nowrap;
 }
 
-.idl-tmce-modal__loading,
-.idl-tmce-modal__empty,
-.idl-tmce-modal__hint {
+.isfm-tmce-modal__loading,
+.isfm-tmce-modal__empty,
+.isfm-tmce-modal__hint {
 	padding: 12px;
 	margin: 0;
 	font-size: 13px;
@@ -158,7 +158,7 @@
 }
 
 /* Footer */
-.idl-tmce-modal__footer {
+.isfm-tmce-modal__footer {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
@@ -167,7 +167,7 @@
 	background: #f6f7f7;
 }
 
-.idl-tmce-modal__footer .idl-tmce-modal__hint {
+.isfm-tmce-modal__footer .isfm-tmce-modal__hint {
 	padding: 0;
 	font-size: 11px;
 }

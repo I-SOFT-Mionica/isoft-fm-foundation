@@ -8,7 +8,7 @@ if ( ! class_exists( 'WP_List_Table' ) ) {
 	require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
 }
 
-class IDL_Log_Table extends WP_List_Table {
+class ISFM_Log_Table extends WP_List_Table {
 
 	/** @var bool Whether detailed logging (IP / user-agent) is on. */
 	private bool $detailed;
@@ -21,7 +21,7 @@ class IDL_Log_Table extends WP_List_Table {
 				'ajax'     => false,
 			)
 		);
-		$this->detailed = (bool) get_option( 'idl_enable_detailed_logging', false );
+		$this->detailed = (bool) get_option( 'isfm_enable_detailed_logging', false );
 	}
 
 	// -------------------------------------------------------------------------
@@ -31,16 +31,16 @@ class IDL_Log_Table extends WP_List_Table {
 	public function get_columns(): array {
 		$cols = array(
 			'cb'             => '<input type="checkbox" />',
-			'download_title' => __( 'Download', 'i-downloads' ),
-			'file_name'      => __( 'File', 'i-downloads' ),
-			'user_login'     => __( 'User', 'i-downloads' ),
+			'download_title' => __( 'Download', 'isoft-fm-foundation' ),
+			'file_name'      => __( 'File', 'isoft-fm-foundation' ),
+			'user_login'     => __( 'User', 'isoft-fm-foundation' ),
 		);
 
 		if ( $this->detailed ) {
-			$cols['ip_address'] = __( 'IP Address', 'i-downloads' );
+			$cols['ip_address'] = __( 'IP Address', 'isoft-fm-foundation' );
 		}
 
-		$cols['downloaded_at'] = __( 'Date', 'i-downloads' );
+		$cols['downloaded_at'] = __( 'Date', 'isoft-fm-foundation' );
 
 		return $cols;
 	}
@@ -53,10 +53,10 @@ class IDL_Log_Table extends WP_List_Table {
 	}
 
 	protected function get_bulk_actions(): array {
-		if ( ! current_user_can( 'idl_manage_settings' ) ) {
+		if ( ! current_user_can( 'isfm_manage_settings' ) ) {
 			return array();
 		}
-		return array( 'delete' => __( 'Delete', 'i-downloads' ) );
+		return array( 'delete' => __( 'Delete', 'isoft-fm-foundation' ) );
 	}
 
 	// -------------------------------------------------------------------------
@@ -70,7 +70,7 @@ class IDL_Log_Table extends WP_List_Table {
 	protected function column_download_title( object $item ): string {
 		$title = $item->download_title
 			? esc_html( $item->download_title )
-			: '<em>' . esc_html__( '(deleted)', 'i-downloads' ) . '</em>';
+			: '<em>' . esc_html__( '(deleted)', 'isoft-fm-foundation' ) . '</em>';
 
 		if ( $item->download_id && get_post( $item->download_id ) ) {
 			$title = '<a href="' . esc_url( get_edit_post_link( $item->download_id ) ) . '">' . $title . '</a>';
@@ -82,16 +82,16 @@ class IDL_Log_Table extends WP_List_Table {
 	protected function column_file_name( object $item ): string {
 		return $item->file_name
 			? esc_html( $item->file_name )
-			: '<em>' . esc_html__( '(deleted)', 'i-downloads' ) . '</em>';
+			: '<em>' . esc_html__( '(deleted)', 'isoft-fm-foundation' ) . '</em>';
 	}
 
 	protected function column_user_login( object $item ): string {
 		if ( ! $item->user_id ) {
-			return '<em>' . esc_html__( 'Guest', 'i-downloads' ) . '</em>';
+			return '<em>' . esc_html__( 'Guest', 'isoft-fm-foundation' ) . '</em>';
 		}
 		$user = get_userdata( (int) $item->user_id );
 		if ( ! $user ) {
-			return esc_html( $item->user_login ?: __( '(deleted user)', 'i-downloads' ) );
+			return esc_html( $item->user_login ?: __( '(deleted user)', 'isoft-fm-foundation' ) );
 		}
 		return '<a href="' . esc_url( get_edit_user_link( $user->ID ) ) . '">' . esc_html( $user->user_login ) . '</a>';
 	}
@@ -151,9 +151,9 @@ class IDL_Log_Table extends WP_List_Table {
 			$total       = (int) $wpdb->get_var(
 				$wpdb->prepare(
 					"SELECT COUNT(*)
-					   FROM {$wpdb->prefix}idl_download_log l
+					   FROM {$wpdb->prefix}isfm_download_log l
 					   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
-					   LEFT JOIN {$wpdb->prefix}idl_files f ON f.id = l.file_id
+					   LEFT JOIN {$wpdb->prefix}isfm_files f ON f.id = l.file_id
 					  WHERE ( p.post_title LIKE %s OR l.user_login LIKE %s OR l.ip_address LIKE %s )
 					    AND l.download_id = %d",
 					$like,
@@ -167,9 +167,9 @@ class IDL_Log_Table extends WP_List_Table {
 					"SELECT l.id, l.download_id, p.post_title AS download_title,
 					        l.file_id, f.file_name, l.user_id, l.user_login,
 					        l.ip_address, l.user_agent, l.referer, l.downloaded_at
-					   FROM {$wpdb->prefix}idl_download_log l
+					   FROM {$wpdb->prefix}isfm_download_log l
 					   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
-					   LEFT JOIN {$wpdb->prefix}idl_files f ON f.id = l.file_id
+					   LEFT JOIN {$wpdb->prefix}isfm_files f ON f.id = l.file_id
 					  WHERE ( p.post_title LIKE %s OR l.user_login LIKE %s OR l.ip_address LIKE %s )
 					    AND l.download_id = %d
 					  ORDER BY %i {$order}
@@ -187,9 +187,9 @@ class IDL_Log_Table extends WP_List_Table {
 			$total       = (int) $wpdb->get_var(
 				$wpdb->prepare(
 					"SELECT COUNT(*)
-					   FROM {$wpdb->prefix}idl_download_log l
+					   FROM {$wpdb->prefix}isfm_download_log l
 					   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
-					   LEFT JOIN {$wpdb->prefix}idl_files f ON f.id = l.file_id
+					   LEFT JOIN {$wpdb->prefix}isfm_files f ON f.id = l.file_id
 					  WHERE ( p.post_title LIKE %s OR l.user_login LIKE %s OR l.ip_address LIKE %s )",
 					$like,
 					$like,
@@ -201,9 +201,9 @@ class IDL_Log_Table extends WP_List_Table {
 					"SELECT l.id, l.download_id, p.post_title AS download_title,
 					        l.file_id, f.file_name, l.user_id, l.user_login,
 					        l.ip_address, l.user_agent, l.referer, l.downloaded_at
-					   FROM {$wpdb->prefix}idl_download_log l
+					   FROM {$wpdb->prefix}isfm_download_log l
 					   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
-					   LEFT JOIN {$wpdb->prefix}idl_files f ON f.id = l.file_id
+					   LEFT JOIN {$wpdb->prefix}isfm_files f ON f.id = l.file_id
 					  WHERE ( p.post_title LIKE %s OR l.user_login LIKE %s OR l.ip_address LIKE %s )
 					  ORDER BY %i {$order}
 					  LIMIT %d OFFSET %d",
@@ -219,9 +219,9 @@ class IDL_Log_Table extends WP_List_Table {
 			$total       = (int) $wpdb->get_var(
 				$wpdb->prepare(
 					"SELECT COUNT(*)
-					   FROM {$wpdb->prefix}idl_download_log l
+					   FROM {$wpdb->prefix}isfm_download_log l
 					   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
-					   LEFT JOIN {$wpdb->prefix}idl_files f ON f.id = l.file_id
+					   LEFT JOIN {$wpdb->prefix}isfm_files f ON f.id = l.file_id
 					  WHERE l.download_id = %d",
 					$filter_download
 				)
@@ -231,9 +231,9 @@ class IDL_Log_Table extends WP_List_Table {
 					"SELECT l.id, l.download_id, p.post_title AS download_title,
 					        l.file_id, f.file_name, l.user_id, l.user_login,
 					        l.ip_address, l.user_agent, l.referer, l.downloaded_at
-					   FROM {$wpdb->prefix}idl_download_log l
+					   FROM {$wpdb->prefix}isfm_download_log l
 					   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
-					   LEFT JOIN {$wpdb->prefix}idl_files f ON f.id = l.file_id
+					   LEFT JOIN {$wpdb->prefix}isfm_files f ON f.id = l.file_id
 					  WHERE l.download_id = %d
 					  ORDER BY %i {$order}
 					  LIMIT %d OFFSET %d",
@@ -246,18 +246,18 @@ class IDL_Log_Table extends WP_List_Table {
 		} else {
 			$total       = (int) $wpdb->get_var(
 				"SELECT COUNT(*)
-				   FROM {$wpdb->prefix}idl_download_log l
+				   FROM {$wpdb->prefix}isfm_download_log l
 				   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
-				   LEFT JOIN {$wpdb->prefix}idl_files f ON f.id = l.file_id"
+				   LEFT JOIN {$wpdb->prefix}isfm_files f ON f.id = l.file_id"
 			);
 			$this->items = $wpdb->get_results(
 				$wpdb->prepare(
 					"SELECT l.id, l.download_id, p.post_title AS download_title,
 					        l.file_id, f.file_name, l.user_id, l.user_login,
 					        l.ip_address, l.user_agent, l.referer, l.downloaded_at
-					   FROM {$wpdb->prefix}idl_download_log l
+					   FROM {$wpdb->prefix}isfm_download_log l
 					   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
-					   LEFT JOIN {$wpdb->prefix}idl_files f ON f.id = l.file_id
+					   LEFT JOIN {$wpdb->prefix}isfm_files f ON f.id = l.file_id
 					  ORDER BY %i {$order}
 					  LIMIT %d OFFSET %d",
 					$orderby,
@@ -294,7 +294,7 @@ class IDL_Log_Table extends WP_List_Table {
 		if ( $this->current_action() !== 'delete' ) {
 			return;
 		}
-		if ( ! current_user_can( 'idl_manage_settings' ) ) {
+		if ( ! current_user_can( 'isfm_manage_settings' ) ) {
 			return;
 		}
 		check_admin_referer( 'bulk-log_entries' );
@@ -307,6 +307,6 @@ class IDL_Log_Table extends WP_List_Table {
 		global $wpdb;
 		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Dynamic IN() placeholder count; $placeholders is pure %d tokens from array_fill. One-shot admin bulk action.
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}idl_download_log WHERE id IN ($placeholders)", ...$ids ) );
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}isfm_download_log WHERE id IN ($placeholders)", ...$ids ) );
 	}
 }

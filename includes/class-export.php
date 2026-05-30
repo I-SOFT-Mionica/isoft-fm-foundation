@@ -3,21 +3,21 @@
  * CSV / JSON export for the download log — Phase 4.
  *
  * Hooks:
- *   admin_post_idl_export_csv   → streams a CSV file
- *   admin_post_idl_export_json  → streams a JSON file
- *   admin_post_idl_purge_logs   → deletes old log entries, redirects back
+ *   admin_post_isfm_export_csv   → streams a CSV file
+ *   admin_post_isfm_export_json  → streams a JSON file
+ *   admin_post_isfm_purge_logs   → deletes old log entries, redirects back
  *
- * All actions require the idl_export_logs capability (Admins only).
- * Purge requires idl_manage_settings.
+ * All actions require the isfm_export_logs capability (Admins only).
+ * Purge requires isfm_manage_settings.
  */
 defined( 'ABSPATH' ) || exit;
 
-class IDL_Export {
+class ISFM_Export {
 
 	public function register_hooks(): void {
-		add_action( 'admin_post_idl_export_csv', array( $this, 'export_csv' ) );
-		add_action( 'admin_post_idl_export_json', array( $this, 'export_json' ) );
-		add_action( 'admin_post_idl_purge_logs', array( $this, 'purge_logs' ) );
+		add_action( 'admin_post_isfm_export_csv', array( $this, 'export_csv' ) );
+		add_action( 'admin_post_isfm_export_json', array( $this, 'export_json' ) );
+		add_action( 'admin_post_isfm_purge_logs', array( $this, 'purge_logs' ) );
 
 		// Handle inline export links from the log viewer (not admin-post, GET-based with nonce).
 		add_action( 'admin_init', array( $this, 'handle_inline_export' ) );
@@ -29,16 +29,16 @@ class IDL_Export {
 
 	public function handle_inline_export(): void {
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Capability-gated GET action; nonce verified below for destructive ops.
-		if ( empty( $_GET['idl_action'] ) ) {
+		if ( empty( $_GET['isfm_action'] ) ) {
 			return;
 		}
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
-		if ( ! current_user_can( 'idl_export_logs' ) ) {
+		if ( ! current_user_can( 'isfm_export_logs' ) ) {
 			return;
 		}
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$action = sanitize_key( $_GET['idl_action'] );
+		$action = sanitize_key( $_GET['isfm_action'] );
 		if ( $action === 'export_csv' ) {
 			$this->stream_csv( $this->fetch_rows() );
 		} elseif ( $action === 'export_json' ) {
@@ -51,33 +51,33 @@ class IDL_Export {
 	// -------------------------------------------------------------------------
 
 	public function export_csv(): void {
-		check_admin_referer( 'idl_export' );
-		if ( ! current_user_can( 'idl_export_logs' ) ) {
-			wp_die( esc_html__( 'Insufficient permissions.', 'i-downloads' ) );
+		check_admin_referer( 'isfm_export' );
+		if ( ! current_user_can( 'isfm_export_logs' ) ) {
+			wp_die( esc_html__( 'Insufficient permissions.', 'isoft-fm-foundation' ) );
 		}
 		$this->stream_csv( $this->fetch_rows() );
 	}
 
 	public function export_json(): void {
-		check_admin_referer( 'idl_export' );
-		if ( ! current_user_can( 'idl_export_logs' ) ) {
-			wp_die( esc_html__( 'Insufficient permissions.', 'i-downloads' ) );
+		check_admin_referer( 'isfm_export' );
+		if ( ! current_user_can( 'isfm_export_logs' ) ) {
+			wp_die( esc_html__( 'Insufficient permissions.', 'isoft-fm-foundation' ) );
 		}
 		$this->stream_json( $this->fetch_rows() );
 	}
 
 	public function purge_logs(): void {
-		check_admin_referer( 'idl_purge_logs' );
-		if ( ! current_user_can( 'idl_manage_settings' ) ) {
-			wp_die( esc_html__( 'Insufficient permissions.', 'i-downloads' ) );
+		check_admin_referer( 'isfm_purge_logs' );
+		if ( ! current_user_can( 'isfm_manage_settings' ) ) {
+			wp_die( esc_html__( 'Insufficient permissions.', 'isoft-fm-foundation' ) );
 		}
 
-		$deleted = ( new IDL_Download_Logger() )->purge_old_logs();
+		$deleted = ( new ISFM_Download_Logger() )->purge_old_logs();
 
 		$redirect = add_query_arg(
 			array(
-				'post_type' => 'idl',
-				'page'      => 'idl-log',
+				'post_type' => 'isfm_file',
+				'page'      => 'isfm-log',
 				'purged'    => $deleted,
 			),
 			admin_url( 'edit.php' )
@@ -115,9 +115,9 @@ class IDL_Export {
 					"SELECT l.id, l.download_id, p.post_title AS download_title,
 					        l.file_id, f.file_name, l.user_id, l.user_login,
 					        l.ip_address, l.user_agent, l.referer, l.downloaded_at
-					   FROM {$wpdb->prefix}idl_download_log l
+					   FROM {$wpdb->prefix}isfm_download_log l
 					   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
-					   LEFT JOIN {$wpdb->prefix}idl_files f ON f.id = l.file_id
+					   LEFT JOIN {$wpdb->prefix}isfm_files f ON f.id = l.file_id
 					  WHERE ( p.post_title LIKE %s OR l.user_login LIKE %s OR l.ip_address LIKE %s )
 					    AND l.download_id = %d
 					  ORDER BY l.downloaded_at DESC
@@ -135,9 +135,9 @@ class IDL_Export {
 					"SELECT l.id, l.download_id, p.post_title AS download_title,
 					        l.file_id, f.file_name, l.user_id, l.user_login,
 					        l.ip_address, l.user_agent, l.referer, l.downloaded_at
-					   FROM {$wpdb->prefix}idl_download_log l
+					   FROM {$wpdb->prefix}isfm_download_log l
 					   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
-					   LEFT JOIN {$wpdb->prefix}idl_files f ON f.id = l.file_id
+					   LEFT JOIN {$wpdb->prefix}isfm_files f ON f.id = l.file_id
 					  WHERE ( p.post_title LIKE %s OR l.user_login LIKE %s OR l.ip_address LIKE %s )
 					  ORDER BY l.downloaded_at DESC
 					  LIMIT 50000",
@@ -153,9 +153,9 @@ class IDL_Export {
 					"SELECT l.id, l.download_id, p.post_title AS download_title,
 					        l.file_id, f.file_name, l.user_id, l.user_login,
 					        l.ip_address, l.user_agent, l.referer, l.downloaded_at
-					   FROM {$wpdb->prefix}idl_download_log l
+					   FROM {$wpdb->prefix}isfm_download_log l
 					   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
-					   LEFT JOIN {$wpdb->prefix}idl_files f ON f.id = l.file_id
+					   LEFT JOIN {$wpdb->prefix}isfm_files f ON f.id = l.file_id
 					  WHERE l.download_id = %d
 					  ORDER BY l.downloaded_at DESC
 					  LIMIT 50000",
@@ -167,9 +167,9 @@ class IDL_Export {
 			"SELECT l.id, l.download_id, p.post_title AS download_title,
 			        l.file_id, f.file_name, l.user_id, l.user_login,
 			        l.ip_address, l.user_agent, l.referer, l.downloaded_at
-			   FROM {$wpdb->prefix}idl_download_log l
+			   FROM {$wpdb->prefix}isfm_download_log l
 			   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
-			   LEFT JOIN {$wpdb->prefix}idl_files f ON f.id = l.file_id
+			   LEFT JOIN {$wpdb->prefix}isfm_files f ON f.id = l.file_id
 			  ORDER BY l.downloaded_at DESC
 			  LIMIT 50000"
 		) ?? array();
@@ -184,7 +184,7 @@ class IDL_Export {
 	 * @param array<object> $rows
 	 */
 	private function stream_csv( array $rows ): void {
-		$filename = 'idl-log-' . gmdate( 'Y-m-d' ) . '.csv';
+		$filename = 'isfm-log-' . gmdate( 'Y-m-d' ) . '.csv';
 
 		// Disable output buffering.
 		while ( ob_get_level() ) {
@@ -248,7 +248,7 @@ class IDL_Export {
 	 * @param array<object> $rows
 	 */
 	private function stream_json( array $rows ): void {
-		$filename = 'idl-log-' . gmdate( 'Y-m-d' ) . '.json';
+		$filename = 'isfm-log-' . gmdate( 'Y-m-d' ) . '.json';
 
 		while ( ob_get_level() ) {
 			ob_end_clean();

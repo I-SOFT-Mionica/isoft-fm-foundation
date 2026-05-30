@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
-<ruleset name="i-Downloads">
-	<description>PHPCS ruleset for i-Downloads WordPress plugin.</description>
+<ruleset name="I-Soft File Manager: Foundation">
+	<description>PHPCS ruleset for I-Soft File Manager: Foundation WordPress plugin.</description>
 
-	<file>i-downloads.php</file>
+	<file>isoft-fm-foundation.php</file>
 	<file>uninstall.php</file>
 	<file>includes</file>
 	<file>admin</file>
@@ -40,7 +40,7 @@
 		<exclude name="WordPress.PHP.YodaConditions.NotYoda"/>
 		<exclude name="Universal.Operators.DisallowShortTernary.Found"/>
 
-		<!-- Custom capabilities — the plugin registers its own caps via IDL_Activator. -->
+		<!-- Custom capabilities — the plugin registers its own caps via ISFM_Activator. -->
 		<exclude name="WordPress.WP.Capabilities.Unknown"/>
 
 		<!-- Direct DB queries + caching: this is a download/log plugin; data freshness matters. Individual queries still use prepare(). -->
@@ -64,13 +64,13 @@
 		<exclude name="Universal.NamingConventions.NoReservedKeywordParameterNames"/>
 	</rule>
 
-	<!-- Allow short prefix IDL_ for classes. -->
+	<!-- Allow short prefix ISFM_ / isfm_ for classes, functions, options, etc. -->
 	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
 		<properties>
 			<property name="prefixes" type="array">
-				<element value="IDL_"/>
-				<element value="idl_"/>
-				<element value="IDL"/>
+				<element value="ISFM_"/>
+				<element value="isfm_"/>
+				<element value="ISFM"/>
 			</property>
 		</properties>
 		<exclude name="WordPress.NamingConventions.PrefixAllGlobals.ShortPrefixPassed"/>

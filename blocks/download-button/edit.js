@@ -1,5 +1,5 @@
 /**
- * i-downloads/download-button — Block editor component.
+ * isoft-fm-foundation/download-button — Block editor component.
  *
  * Shows a live search UI when no download is selected.
  * Once selected, renders a compact preview card with a "Change" button.
@@ -28,7 +28,7 @@ export default function Edit( { attributes, setAttributes } ) {
 	// Load category list once for the filter dropdown.
 	const categories = useSelect(
 		( select ) =>
-			select( coreStore ).getEntityRecords( 'taxonomy', 'idl_category', {
+			select( coreStore ).getEntityRecords( 'taxonomy', 'isfm_category', {
 				per_page: 100,
 				_fields: 'id,name',
 				orderby: 'name',
@@ -41,7 +41,7 @@ export default function Edit( { attributes, setAttributes } ) {
 	const selectedPost = useSelect(
 		( select ) =>
 			downloadId
-				? select( coreStore ).getEntityRecord( 'postType', 'idl', downloadId )
+				? select( coreStore ).getEntityRecord( 'postType', 'isfm_file', downloadId )
 				: null,
 		[ downloadId ]
 	);
@@ -64,7 +64,7 @@ export default function Edit( { attributes, setAttributes } ) {
 				params.set( 'order', 'DESC' );
 			}
 			if ( categoryFilter ) params.set( 'category', String( categoryFilter ) );
-			apiFetch( { path: `/i-downloads/v1/downloads?${ params }` } )
+			apiFetch( { path: `/isoft-fm-foundation/v1/downloads?${ params }` } )
 				.then( ( data ) => setResults( data ?? [] ) )
 				.catch( () => setResults( [] ) );
 		}, DEBOUNCE_MS );
@@ -74,7 +74,7 @@ export default function Edit( { attributes, setAttributes } ) {
 	}, [ query, categoryFilter, downloadId ] );
 
 	const categoryOptions = [
-		{ label: __( 'All categories', 'i-downloads' ), value: 0 },
+		{ label: __( 'All categories', 'isoft-fm-foundation' ), value: 0 },
 		...( categories ?? [] ).map( ( c ) => ( { label: c.name, value: c.id } ) ),
 	];
 
@@ -94,7 +94,7 @@ export default function Edit( { attributes, setAttributes } ) {
 					<span style={ { flex: 1, fontSize: '13px', minWidth: 0 } }>
 						<strong>{ selectedTitle || <Spinner style={ { margin: 0 } } /> }</strong>
 						<span style={ { marginLeft: '8px', color: '#888', fontSize: '11px' } }>
-							{ __( 'download card', 'i-downloads' ) }
+							{ __( 'download card', 'isoft-fm-foundation' ) }
 						</span>
 					</span>
 					<Button
@@ -107,7 +107,7 @@ export default function Edit( { attributes, setAttributes } ) {
 							setCategoryFilter( 0 );
 						} }
 					>
-						{ __( 'Change', 'i-downloads' ) }
+						{ __( 'Change', 'isoft-fm-foundation' ) }
 					</Button>
 				</div>
 			</div>
@@ -130,7 +130,7 @@ export default function Edit( { attributes, setAttributes } ) {
 				} }>
 					<span className="dashicons dashicons-download" style={ { color: '#1e1e1e' } } />
 					<strong style={ { fontSize: '13px' } }>
-						{ __( 'Insert Download Entry [iD]', 'i-downloads' ) }
+						{ __( 'Insert Download Entry [iD]', 'isoft-fm-foundation' ) }
 					</strong>
 				</div>
 
@@ -141,9 +141,9 @@ export default function Edit( { attributes, setAttributes } ) {
 				} }>
 					<div style={ { flex: 2 } }>
 						<TextControl
-							label={ __( 'Search', 'i-downloads' ) }
+							label={ __( 'Search', 'isoft-fm-foundation' ) }
 							hideLabelFromVision
-							placeholder={ __( 'Search downloads…', 'i-downloads' ) }
+							placeholder={ __( 'Search downloads…', 'isoft-fm-foundation' ) }
 							value={ query }
 							onChange={ ( val ) => setQuery( val ) }
 							// eslint-disable-next-line jsx-a11y/no-autofocus
@@ -155,7 +155,7 @@ export default function Edit( { attributes, setAttributes } ) {
 							<Spinner />
 						) : (
 							<SelectControl
-								label={ __( 'Category', 'i-downloads' ) }
+								label={ __( 'Category', 'isoft-fm-foundation' ) }
 								hideLabelFromVision
 								value={ categoryFilter }
 								options={ categoryOptions }
@@ -174,8 +174,8 @@ export default function Edit( { attributes, setAttributes } ) {
 					) : results.length === 0 ? (
 						<p style={ { padding: '12px', margin: 0, color: '#888', fontSize: '13px' } }>
 							{ query
-								? __( 'No downloads found.', 'i-downloads' )
-								: __( 'No downloads yet.', 'i-downloads' ) }
+								? __( 'No downloads found.', 'isoft-fm-foundation' )
+								: __( 'No downloads yet.', 'isoft-fm-foundation' ) }
 						</p>
 					) : (
 						<ul style={ { margin: 0, padding: 0, listStyle: 'none' } }>
@@ -223,8 +223,8 @@ export default function Edit( { attributes, setAttributes } ) {
 					fontSize: '11px', color: '#aaa',
 				} }>
 					{ query
-						? __( 'Click a result to insert.', 'i-downloads' )
-						: __( 'Showing most recent — type to search by title.', 'i-downloads' ) }
+						? __( 'Click a result to insert.', 'isoft-fm-foundation' )
+						: __( 'Showing most recent — type to search by title.', 'isoft-fm-foundation' ) }
 				</div>
 			</div>
 		</div>

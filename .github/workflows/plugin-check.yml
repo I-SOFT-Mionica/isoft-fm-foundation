@@ -55,12 +55,12 @@ jobs:
         # (phpcs.xml.dist, .gitignore, etc.), so this must mirror the release
         # zip exactly.
         run: |
-          mkdir -p /tmp/staging/i-downloads
+          mkdir -p /tmp/staging/isoft-fm-foundation
           rsync -a \
             --exclude='.wp-env.json' \
             --exclude-from="${{ github.workspace }}/.distignore" \
-            "${{ github.workspace }}/" /tmp/staging/i-downloads/
-          ls -la /tmp/staging/i-downloads/
+            "${{ github.workspace }}/" /tmp/staging/isoft-fm-foundation/
+          ls -la /tmp/staging/isoft-fm-foundation/
 
       - name: Inject plugin via docker cp
         run: |
@@ -80,12 +80,12 @@ jobs:
           fi
           echo "Using container: $CONTAINER"
 
-          docker cp /tmp/staging/i-downloads "$CONTAINER:/var/www/html/wp-content/plugins/"
+          docker cp /tmp/staging/isoft-fm-foundation "$CONTAINER:/var/www/html/wp-content/plugins/"
 
       - name: Verify and activate plugin
         run: |
           wp-env run cli wp plugin list
-          wp-env run cli wp plugin activate i-downloads
+          wp-env run cli wp plugin activate isoft-fm-foundation
 
       - name: Run Plugin Check
         # Maximum strictness:
@@ -96,7 +96,7 @@ jobs:
         # Job fails on any finding. To allow a specific code, add it to
         # --ignore-codes=foo,bar rather than relaxing the gate.
         run: |
-          wp-env run cli wp plugin check i-downloads \
+          wp-env run cli wp plugin check isoft-fm-foundation \
             --format=table \
             --exclude-directories=vendor,node_modules,tests \
             --severity=1 \

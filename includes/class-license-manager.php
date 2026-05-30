@@ -1,15 +1,15 @@
 <?php
 defined( 'ABSPATH' ) || exit;
 
-class IDL_License_Manager {
+class ISFM_License_Manager {
 
 	private string $table;
 
-	public const CACHE_GROUP = 'idl_licenses';
+	public const CACHE_GROUP = 'isfm_licenses';
 
 	public function __construct() {
 		global $wpdb;
-		$this->table = $wpdb->prefix . 'idl_licenses';
+		$this->table = $wpdb->prefix . 'isfm_licenses';
 	}
 
 	public static function bust_cache( ?int $id = null ): void {
@@ -26,32 +26,32 @@ class IDL_License_Manager {
 
 	public function register_menu(): void {
 		add_submenu_page(
-			'edit.php?post_type=idl',
-			__( 'Licenses', 'i-downloads' ),
-			__( 'Licenses', 'i-downloads' ),
-			'idl_manage_settings',
-			'idl-licenses',
+			'edit.php?post_type=isfm_file',
+			__( 'Licenses', 'isoft-fm-foundation' ),
+			__( 'Licenses', 'isoft-fm-foundation' ),
+			'isfm_manage_settings',
+			'isfm-licenses',
 			array( $this, 'render_page' )
 		);
 	}
 
 	public function render_page(): void {
-		if ( ! current_user_can( 'idl_manage_settings' ) ) {
-			wp_die( esc_html__( 'You do not have permission to manage licenses.', 'i-downloads' ) );
+		if ( ! current_user_can( 'isfm_manage_settings' ) ) {
+			wp_die( esc_html__( 'You do not have permission to manage licenses.', 'isoft-fm-foundation' ) );
 		}
-		require IDL_PLUGIN_DIR . 'admin/views/licenses-page.php';
+		require ISFM_PLUGIN_DIR . 'admin/views/licenses-page.php';
 	}
 
 	public function handle_form_actions(): void {
-		if ( empty( $_POST['idl_license_action'] ) ) {
+		if ( empty( $_POST['isfm_license_action'] ) ) {
 			return;
 		}
-		check_admin_referer( 'idl_license_action' );
-		if ( ! current_user_can( 'idl_manage_settings' ) ) {
-			wp_die( esc_html__( 'Insufficient permissions.', 'i-downloads' ) );
+		check_admin_referer( 'isfm_license_action' );
+		if ( ! current_user_can( 'isfm_manage_settings' ) ) {
+			wp_die( esc_html__( 'Insufficient permissions.', 'isoft-fm-foundation' ) );
 		}
 
-		$action = sanitize_text_field( wp_unslash( $_POST['idl_license_action'] ) );
+		$action = sanitize_text_field( wp_unslash( $_POST['isfm_license_action'] ) );
 		if ( 'save' === $action ) {
 			$this->save();
 		} elseif ( 'delete' === $action ) {
@@ -138,8 +138,8 @@ class IDL_License_Manager {
 		wp_safe_redirect(
 			add_query_arg(
 				array(
-					'page'      => 'idl-licenses',
-					'post_type' => 'idl',
+					'page'      => 'isfm-licenses',
+					'post_type' => 'isfm_file',
 					'saved'     => '1',
 				),
 				admin_url( 'edit.php' )
@@ -158,8 +158,8 @@ class IDL_License_Manager {
 		wp_safe_redirect(
 			add_query_arg(
 				array(
-					'page'      => 'idl-licenses',
-					'post_type' => 'idl',
+					'page'      => 'isfm-licenses',
+					'post_type' => 'isfm_file',
 					'deleted'   => '1',
 				),
 				admin_url( 'edit.php' )

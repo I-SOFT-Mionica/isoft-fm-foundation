@@ -1,5 +1,5 @@
 /**
- * i-downloads/download-list block — Phase 3
+ * isoft-fm-foundation/download-list block — Phase 3
  */
 import { registerBlockType } from '@wordpress/blocks';
 import metadata from './block.json';
