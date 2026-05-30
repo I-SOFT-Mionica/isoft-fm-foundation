@@ -22,9 +22,6 @@ name: Plugin Check
 # can run against an inactive plugin, sidestepping the PHP 8.4
 # activation barrier (wp-env defaults to PHP 8.3).
 #
-# continue-on-error kept for one cycle as belt-and-braces; drop in a
-# follow-up if this run is green.
-#
 # Backup branch `backup/pre-plugin-check-action-revival` still has the
 # earlier hand-rolled docker-cp variant.
 
@@ -37,7 +34,6 @@ on:
 jobs:
   plugin-check:
     runs-on: ubuntu-latest
-    continue-on-error: true  # remove once stable — see header
 
     steps:
       - uses: actions/checkout@v4
