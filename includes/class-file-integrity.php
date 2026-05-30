@@ -434,7 +434,7 @@ class ISFM_File_Integrity {
 					'post_type' => 'isfm_file',
 					'page'      => 'isfm-settings',
 					'tab'       => 'maintenance',
-					'isfm_ran'   => 1,
+					'isfm_ran'  => 1,
 				),
 				admin_url( 'edit.php' )
 			)

@@ -621,7 +621,7 @@ function isfm_get_download_url( int $file_id ): string {
 	return add_query_arg(
 		array(
 			'isfm_download' => $file_id,
-			'nonce'        => wp_create_nonce( 'isfm_download_' . $file_id ),
+			'nonce'         => wp_create_nonce( 'isfm_download_' . $file_id ),
 		),
 		home_url( '/' )
 	);
