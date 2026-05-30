@@ -54,15 +54,15 @@ $base_url = admin_url( 'edit.php?post_type=isfm_file&page=isfm-log' );
 
 	<?php
 	// Show purge notice.
-	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only flash message after redirect; no state change.
+	// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only flash message after redirect; no state change.
 	if ( isset( $_GET['purged'] ) ) {
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only flash message after redirect; no state change.
 		$purged = absint( wp_unslash( $_GET['purged'] ) );
 		echo '<div class="notice notice-success is-dismissible"><p>';
 		/* translators: %d: number of entries deleted */
 		printf( esc_html__( '%d log entries deleted.', 'isoft-fm-foundation' ), (int) $purged );
 		echo '</p></div>';
 	}
+	// phpcs:enable WordPress.Security.NonceVerification.Recommended
 	?>
 
 	<form method="get" class="isfm-log-filters">
