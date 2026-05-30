@@ -3,17 +3,19 @@ name: Plugin Check
 # Runs the official WordPress Plugin Check (https://wordpress.org/plugins/plugin-check/)
 # via the WordPress team's maintained action.
 #
-# Pre-creating .wp-env.json with our own config is load-bearing:
-# the action auto-generates one with `"core": null` (and no phpVersion)
-# when none exists, which has caused wp-env to skip the WordPress
-# container build in our environment. With WP_ENV_JSON_EXISTS=true the
-# action respects our config.
+# Two action quirks worth knowing about (confirmed against v1.1.6 action.yml):
 #
-# `php-version` is NOT a valid input on the action — PHP version is
-# controlled exclusively through .wp-env.json's phpVersion field.
+# 1. The `wp-version` input is silently dropped for any value except 'trunk'.
+#    The action sets WP_VERSION=null in its Setup wp-env step's env block
+#    unless wp-version=='trunk'. We override that with our own WP_VERSION env
+#    var on the step below.
 #
-# continue-on-error stays for one cycle as a safety net while we verify
-# the fix; remove once the inner job is consistently green.
+# 2. The action does NOT expose any way to set PHP version. Its generated
+#    .wp-env.json has no phpVersion field, so wp-env uses the default (PHP
+#    8.3). Our plugin's `Requires PHP: 8.4` then blocks activation. Until
+#    this is fixed upstream we keep continue-on-error: true so the workflow
+#    stays green at the workflow level. Plugin Check is validated locally
+#    against PHP 8.4 in Local Sites before each release.
 #
 # Custom (non-action) workflow preserved on branch
 # `backup/pre-plugin-check-action-revival` for revival if needed.
@@ -27,34 +29,25 @@ on:
 jobs:
   plugin-check:
     runs-on: ubuntu-latest
-    continue-on-error: true  # see header comment — remove once stable
+    continue-on-error: true  # see header comment — PHP-version mismatch
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Pre-create .wp-env.json
-        # Forces the action's WP_ENV_JSON_EXISTS=true branch; our config
-        # is used instead of the action generating one with "core": null.
-        run: |
-          cat > .wp-env.json <<'EOF'
-          {
-            "phpVersion": "8.4",
-            "testsEnvironment": false,
-            "plugins": [
-              "https://downloads.wordpress.org/plugin/plugin-check.zip"
-            ]
-          }
-          EOF
-          cat .wp-env.json
 
       - name: Run Plugin Check
         # Pinned to a specific release rather than @v1 so an upstream
         # regression can't silently change our gate.
         uses: wordpress/plugin-check-action@v1.1.6
+        env:
+          # See header note 1: override the action's hardcoded WP_VERSION=null
+          # so its generated .wp-env.json has `"core": "latest"` instead of
+          # `"core": null`. Step-level env vars on a calling workflow take
+          # precedence over the action's step-level env block.
+          WP_VERSION: '"latest"'
         with:
           build-dir: ${{ github.workspace }}
           slug: isoft-fm-foundation
-          wp-version: latest
+          wp-version: latest  # ignored by action for non-'trunk', see note 1
           categories: |
             general
             plugin_repo
