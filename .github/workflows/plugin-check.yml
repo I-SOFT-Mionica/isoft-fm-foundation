@@ -1,16 +1,16 @@
 name: Plugin Check
 
 # Runs the official WordPress Plugin Check (https://wordpress.org/plugins/plugin-check/)
-# — the same tool the WP.org plugin-review team runs against submissions.
+# via the WordPress team's maintained action — the same tool the WP.org
+# plugin-review team runs against submissions.
 #
-# We drive wp-env directly because the wordpress/plugin-check-action wrapper
-# installs the plugin via wp-env "mappings", which silently fails when the
-# plugin source lives in a repo subdirectory.
-#
-# We also bypass wp-env's plugin install entirely and `docker cp` our plugin
-# straight into the running WordPress container. Both the "plugins" array
-# entry for a local directory AND the (non-existent) `wp-env install-path`
-# command have proven unreliable; docker cp removes all the abstractions.
+# History: we previously hand-rolled this workflow (install wp-env globally,
+# drive wp-env start ourselves, docker cp the plugin into the container, run
+# wp plugin check) to bypass a wrapper bug. After WordPress 7, Plugin Check
+# 2.0, and the wp-env 11.7.0 regression all landed in late May 2026, the
+# upstream action (v1.1.6) is in a much better position than us to keep up
+# with those upstream changes. The custom workflow is preserved on the
+# branch `backup/pre-plugin-check-action-revival` for easy revival.
 
 on:
   push:
@@ -25,101 +25,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-
-      - name: Install wp-env
-        # Pinned to 10.x: wp-env 11.7.0 has a regression where 'wp-env start'
-        # generates docker-compose 'build:' directives for the WordPress
-        # service but never invokes 'docker compose build' — log shows
-        # 'wordpress Skipped - No image to be pulled' and then only MySQL
-        # containers get created. 10.x doesn't recognize 'testsEnvironment'
-        # so we omit that field (currently it's not in our config anyway).
-        run: npm install -g @wordpress/env@^10.0.0
-
-      - name: Configure wp-env
-        # Pin WordPress core to 6.9 (last 6.x — matches our "Tested up to"
-        # header). 'latest' currently resolves to WP 7 whose Docker image
-        # tags don't yet include a php8.4-apache variant, causing wp-env to
-        # silently skip the WordPress container build.
-        run: |
-          cat > .wp-env.json <<'EOF'
-          {
-            "core": "https://wordpress.org/wordpress-6.9.zip",
-            "phpVersion": "8.4",
-            "plugins": [
-              "https://downloads.wordpress.org/plugin/plugin-check.zip"
-            ]
-          }
-          EOF
-          cat .wp-env.json
-
-      - name: Start wp-env
-        # --debug surfaces wp-env's internal docker-compose calls so we can
-        # see why WordPress containers aren't being created.
-        run: |
-          set -x
-          wp-env --version
-          wp-env start --debug 2>&1
-          echo "--- docker ps -a (all containers, including exited) ---"
-          docker ps -a
-
-      - name: Stage plugin
-        # Stage the same files that build.py / `wp dist-archive` would ship to
-        # WP.org — driven by .distignore so there's a single source of truth.
-        # Plugin Check flags any dev/build files in the staged copy
-        # (phpcs.xml.dist, .gitignore, etc.), so this must mirror the release
-        # zip exactly.
-        run: |
-          mkdir -p /tmp/staging/isoft-fm-foundation
-          rsync -a \
-            --exclude='.wp-env.json' \
-            --exclude-from="${{ github.workspace }}/.distignore" \
-            "${{ github.workspace }}/" /tmp/staging/isoft-fm-foundation/
-          ls -la /tmp/staging/isoft-fm-foundation/
-
-      - name: Inject plugin via docker cp
-        run: |
-          set -x
-
-          # wp-env starts BOTH a dev and a tests environment, each with its
-          # own wordpress container. We need the dev one because `wp-env run
-          # cli` defaults there. Filter by name and exclude '-tests-'.
-          CONTAINER=$(docker ps --format "{{.Names}}" \
-            | grep -E '^wp-env-.*-wordpress-1$' \
-            | grep -v -- '-tests-' \
-            | head -1)
-          if [ -z "$CONTAINER" ]; then
-            echo "Could not find wp-env dev wordpress container. docker ps output:"
-            docker ps
-            exit 1
-          fi
-          echo "Using container: $CONTAINER"
-
-          docker cp /tmp/staging/isoft-fm-foundation "$CONTAINER:/var/www/html/wp-content/plugins/"
-
-      - name: Verify and activate plugin
-        run: |
-          wp-env run cli wp plugin list
-          wp-env run cli wp plugin activate isoft-fm-foundation
-
       - name: Run Plugin Check
-        # Maximum strictness:
-        #   --severity=1                surface everything from informational up
-        #   --categories=...            include security, performance, accessibility
-        #                               (default is only general+plugin_repo)
-        #   --include-experimental      enable experimental checks too
-        # Job fails on any finding. To allow a specific code, add it to
-        # --ignore-codes=foo,bar rather than relaxing the gate.
-        run: |
-          wp-env run cli wp plugin check isoft-fm-foundation \
-            --format=table \
-            --exclude-directories=vendor,node_modules,tests \
-            --severity=1 \
-            --categories=general,plugin_repo,security,performance,accessibility \
-            --include-experimental
-
-      - name: Stop wp-env
-        if: always()
-        run: wp-env stop || true
+        # Pinned to a specific release rather than @v1 so an upstream
+        # regression can't silently change our gate.
+        uses: wordpress/plugin-check-action@v1.1.6
+        with:
+          build-dir: ${{ github.workspace }}
+          slug: isoft-fm-foundation
+          php-version: '8.4'
+          categories: |
+            general
+            plugin_repo
+            security
+            performance
+            accessibility
+          include-experimental: true
+          exclude-directories: |
+            vendor
+            node_modules
+            tests
+            languages
