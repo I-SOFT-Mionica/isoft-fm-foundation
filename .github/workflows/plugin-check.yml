@@ -33,13 +33,14 @@ jobs:
         run: npm install -g @wordpress/env
 
       - name: Configure wp-env
-        # Minimal config. wp-env 10.x rejects "testsEnvironment" (added in
-        # 11.x). "core" is omitted — null means "latest stable WP" per the
-        # schema, but a reviewer suggested explicit null may trigger a
-        # different code path in some versions, so we leave it out.
+        # Pin WordPress core to 6.9 (last 6.x — matches our "Tested up to"
+        # header). 'latest' currently resolves to WP 7 whose Docker image
+        # tags don't yet include a php8.4-apache variant, causing wp-env to
+        # silently skip the WordPress container build.
         run: |
           cat > .wp-env.json <<'EOF'
           {
+            "core": "https://wordpress.org/wordpress-6.9.zip",
             "phpVersion": "8.4",
             "plugins": [
               "https://downloads.wordpress.org/plugin/plugin-check.zip"
