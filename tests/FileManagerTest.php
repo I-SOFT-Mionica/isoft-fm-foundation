@@ -1,6 +1,6 @@
 <?php
 /**
- * IDL_File_Manager CRUD smoke tests.
+ * ISFM_File_Manager CRUD smoke tests.
  *
  * These exercise the DB layer — add/get/update/delete/increment — without
  * actually serving files. add_local_file() is skipped because it requires
@@ -9,13 +9,13 @@
 
 class FileManagerTest extends WP_UnitTestCase {
 
-	private IDL_File_Manager $manager;
+	private ISFM_File_Manager $manager;
 	private int $download_id;
 
 	public function set_up(): void {
 		parent::set_up();
-		$this->manager     = new IDL_File_Manager();
-		$this->download_id = (int) idl_create_draft_download( array( 'title' => 'Host' ) );
+		$this->manager     = new ISFM_File_Manager();
+		$this->download_id = (int) isfm_create_draft_download( array( 'title' => 'Host' ) );
 	}
 
 	public function test_add_external_link_returns_id_and_is_retrievable(): void {

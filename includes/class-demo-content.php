@@ -1,15 +1,15 @@
 <?php
 defined( 'ABSPATH' ) || exit;
 
-class IDL_Demo_Content {
+class ISFM_Demo_Content {
 
 	public function register_hooks(): void {
-		add_action( 'admin_post_idl_install_demo', array( $this, 'handle_install' ) );
-		add_action( 'admin_post_idl_remove_demo', array( $this, 'handle_remove' ) );
+		add_action( 'admin_post_isfm_install_demo', array( $this, 'handle_install' ) );
+		add_action( 'admin_post_isfm_remove_demo', array( $this, 'handle_remove' ) );
 	}
 
 	public static function has_content(): bool {
-		$counts = wp_count_posts( 'idl' );
+		$counts = wp_count_posts( 'isfm_file' );
 		return ( (int) $counts->publish + (int) $counts->draft + (int) $counts->pending ) > 0;
 	}
 
@@ -17,9 +17,9 @@ class IDL_Demo_Content {
 		// phpcs:disable WordPress.DB.SlowDBQuery.slow_db_query_meta_key,WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- Admin-only one-shot check; LIMIT 1 keeps it fast.
 		$query = new WP_Query(
 			array(
-				'post_type'      => 'idl',
+				'post_type'      => 'isfm_file',
 				'post_status'    => 'any',
-				'meta_key'       => '_idl_demo_content',
+				'meta_key'       => '_isfm_demo_content',
 				'meta_value'     => '1',
 				'posts_per_page' => 1,
 				'no_found_rows'  => true,
@@ -30,12 +30,12 @@ class IDL_Demo_Content {
 	}
 
 	public function handle_install(): void {
-		check_admin_referer( 'idl_install_demo' );
-		if ( ! current_user_can( 'idl_manage_settings' ) ) {
-			wp_die( esc_html__( 'You do not have permission to install demo content.', 'i-downloads' ), 403 );
+		check_admin_referer( 'isfm_install_demo' );
+		if ( ! current_user_can( 'isfm_manage_settings' ) ) {
+			wp_die( esc_html__( 'You do not have permission to install demo content.', 'isoft-fm-foundation' ), 403 );
 		}
 		if ( self::has_content() ) {
-			idl_notify_admin( __( 'Demo content cannot be installed — downloads already exist.', 'i-downloads' ), 'error' );
+			isfm_notify_admin( __( 'Demo content cannot be installed — downloads already exist.', 'isoft-fm-foundation' ), 'error' );
 			wp_safe_redirect( $this->settings_url() );
 			exit;
 		}
@@ -44,22 +44,22 @@ class IDL_Demo_Content {
 		$download_ids = $this->create_downloads( $categories );
 		$this->create_demo_page( $download_ids );
 
-		idl_notify_admin( __( 'Demo content installed successfully.', 'i-downloads' ), 'success' );
-		wp_safe_redirect( $this->settings_url( 'idl_demo=installed' ) );
+		isfm_notify_admin( __( 'Demo content installed successfully.', 'isoft-fm-foundation' ), 'success' );
+		wp_safe_redirect( $this->settings_url( 'isfm_demo=installed' ) );
 		exit;
 	}
 
 	public function handle_remove(): void {
-		check_admin_referer( 'idl_remove_demo' );
-		if ( ! current_user_can( 'idl_manage_settings' ) ) {
-			wp_die( esc_html__( 'You do not have permission to remove demo content.', 'i-downloads' ), 403 );
+		check_admin_referer( 'isfm_remove_demo' );
+		if ( ! current_user_can( 'isfm_manage_settings' ) ) {
+			wp_die( esc_html__( 'You do not have permission to remove demo content.', 'isoft-fm-foundation' ), 403 );
 		}
 
 		$this->remove_demo_posts();
 		$this->remove_demo_terms();
 
-		idl_notify_admin( __( 'Demo content removed.', 'i-downloads' ), 'success' );
-		wp_safe_redirect( $this->settings_url( 'idl_demo=removed' ) );
+		isfm_notify_admin( __( 'Demo content removed.', 'isoft-fm-foundation' ), 'success' );
+		wp_safe_redirect( $this->settings_url( 'isfm_demo=removed' ) );
 		exit;
 	}
 
@@ -80,7 +80,7 @@ class IDL_Demo_Content {
 	// ─────────────────────────────────────────────────────────────────────────
 
 	private function use_serbian(): bool {
-		return (bool) idl_get_settings()['cyrillic_titles'];
+		return (bool) isfm_get_settings()['cyrillic_titles'];
 	}
 
 	/**
@@ -99,7 +99,7 @@ class IDL_Demo_Content {
 
 			$result = wp_insert_term(
 				$node['name'],
-				'idl_category',
+				'isfm_category',
 				array(
 					'slug'   => $slug,
 					'parent' => $parent_id,
@@ -114,7 +114,7 @@ class IDL_Demo_Content {
 			}
 
 			$ids[ $slug ] = (int) $result['term_id'];
-			update_term_meta( $ids[ $slug ], '_idl_demo_term', 1 );
+			update_term_meta( $ids[ $slug ], '_isfm_demo_term', 1 );
 		}
 
 		return $ids;
@@ -180,7 +180,7 @@ class IDL_Demo_Content {
 	private function create_downloads( array $cats ): array {
 		$sr        = $this->use_serbian();
 		$downloads = $this->download_definitions( $sr );
-		$file_mgr  = new IDL_File_Manager();
+		$file_mgr  = new ISFM_File_Manager();
 		$created   = array();
 
 		foreach ( $downloads as $def ) {
@@ -190,7 +190,7 @@ class IDL_Demo_Content {
 				array(
 					'post_title'   => $def['title'],
 					'post_status'  => 'publish',
-					'post_type'    => 'idl',
+					'post_type'    => 'isfm_file',
 					'post_content' => $def['description'] ?? '',
 				)
 			);
@@ -199,14 +199,14 @@ class IDL_Demo_Content {
 				continue;
 			}
 
-			update_post_meta( $post_id, '_idl_demo_content', 1 );
-			update_post_meta( $post_id, '_idl_access_role', $def['access'] );
+			update_post_meta( $post_id, '_isfm_demo_content', 1 );
+			update_post_meta( $post_id, '_isfm_access_role', $def['access'] );
 
 			if ( $cat_id ) {
-				wp_set_object_terms( $post_id, $cat_id, 'idl_category' );
+				wp_set_object_terms( $post_id, $cat_id, 'isfm_category' );
 			}
 
-			$cat_path = $cat_id ? idl_category_folder_path( $cat_id ) : '';
+			$cat_path = $cat_id ? isfm_category_folder_path( $cat_id ) : '';
 
 			foreach ( $def['files'] as $i => $file_def ) {
 				$this->create_demo_file( $post_id, $file_def, $cat_id, $cat_path, $i, $file_mgr );
@@ -220,7 +220,7 @@ class IDL_Demo_Content {
 
 	/**
 	 * Create one WP page that showcases all three layouts (single, list, grid)
-	 * using the plugin's blocks. Tagged with _idl_demo_content so the standard
+	 * using the plugin's blocks. Tagged with _isfm_demo_content so the standard
 	 * Remove button cleans it up.
 	 *
 	 * @param list<int> $download_ids Download IDs returned by create_downloads().
@@ -234,7 +234,7 @@ class IDL_Demo_Content {
 
 		$page_id = wp_insert_post(
 			array(
-				'post_title'   => $this->use_serbian() ? 'i-Downloads — Демо страница' : 'i-Downloads — Demo Page',
+				'post_title'   => $this->use_serbian() ? 'I-Soft File Manager: Foundation — Демо страница' : 'I-Soft File Manager: Foundation — Demo Page',
 				'post_status'  => 'publish',
 				'post_type'    => 'page',
 				'post_content' => $this->demo_page_content( $featured_id ),
@@ -242,7 +242,7 @@ class IDL_Demo_Content {
 		);
 
 		if ( ! is_wp_error( $page_id ) && $page_id ) {
-			update_post_meta( $page_id, '_idl_demo_content', 1 );
+			update_post_meta( $page_id, '_isfm_demo_content', 1 );
 		}
 	}
 
@@ -254,8 +254,8 @@ class IDL_Demo_Content {
 		$sr = $this->use_serbian();
 
 		$intro          = $sr
-			? 'Ова страница је аутоматски генерисана од стране i-Downloads демо садржаја. Приказује три начина уграђивања преузимања у страницу или објаву.'
-			: 'This page was auto-generated by the i-Downloads demo content. It shows the three ways you can embed downloads inside any page or post.';
+			? 'Ова страница је аутоматски генерисана од стране I-Soft File Manager: Foundation демо садржаја. Приказује три начина уграђивања преузимања у страницу или објаву.'
+			: 'This page was auto-generated by the I-Soft File Manager: Foundation demo content. It shows the three ways you can embed downloads inside any page or post.';
 		$heading_single = $sr ? 'Појединачно преузимање' : 'Single download';
 		$caption_single = $sr
 			? 'Блок „Унос за преузимање“ приказује једно одређено преузимање као картицу. Корисно за инлајн уграђивање у објаве и странице.'
@@ -274,15 +274,15 @@ class IDL_Demo_Content {
 
 		$parts[] = '<!-- wp:heading --><h2 class="wp-block-heading">' . esc_html( $heading_single ) . '</h2><!-- /wp:heading -->';
 		$parts[] = '<!-- wp:paragraph --><p>' . esc_html( $caption_single ) . '</p><!-- /wp:paragraph -->';
-		$parts[] = '<!-- wp:i-downloads/download-button {"downloadId":' . (int) $featured_id . '} /-->';
+		$parts[] = '<!-- wp:isoft-fm-foundation/download-button {"downloadId":' . (int) $featured_id . '} /-->';
 
 		$parts[] = '<!-- wp:heading --><h2 class="wp-block-heading">' . esc_html( $heading_list ) . '</h2><!-- /wp:heading -->';
 		$parts[] = '<!-- wp:paragraph --><p>' . esc_html( $caption_list ) . '</p><!-- /wp:paragraph -->';
-		$parts[] = '<!-- wp:i-downloads/download-list {"layout":"list","limit":6} /-->';
+		$parts[] = '<!-- wp:isoft-fm-foundation/download-list {"layout":"list","limit":6} /-->';
 
 		$parts[] = '<!-- wp:heading --><h2 class="wp-block-heading">' . esc_html( $heading_grid ) . '</h2><!-- /wp:heading -->';
 		$parts[] = '<!-- wp:paragraph --><p>' . esc_html( $caption_grid ) . '</p><!-- /wp:paragraph -->';
-		$parts[] = '<!-- wp:i-downloads/download-list {"layout":"grid","limit":6} /-->';
+		$parts[] = '<!-- wp:isoft-fm-foundation/download-list {"layout":"grid","limit":6} /-->';
 
 		return implode( "\n\n", $parts );
 	}
@@ -414,7 +414,7 @@ class IDL_Demo_Content {
 		int $cat_id,
 		string $cat_path,
 		int $sort_order,
-		IDL_File_Manager $mgr
+		ISFM_File_Manager $mgr
 	): void {
 		$format = $file_def['format'];
 		$name   = $file_def['name'];
@@ -422,7 +422,7 @@ class IDL_Demo_Content {
 		$body   = $file_def['body'];
 
 		if ( $cat_id ) {
-			IDL_Category_Folders::ensure( $cat_id );
+			ISFM_Category_Folders::ensure( $cat_id );
 		}
 
 		$content = null;
@@ -438,14 +438,14 @@ class IDL_Demo_Content {
 		}
 
 		if ( null === $content ) {
-			$content = "i-Downloads Demo File\n\n{$body}\n\nGenerated: " . wp_date( 'Y-m-d H:i:s' ) . "\n";
+			$content = "I-Soft File Manager: Foundation Demo File\n\n{$body}\n\nGenerated: " . wp_date( 'Y-m-d H:i:s' ) . "\n";
 			$ext     = 'txt';
 			$mime    = 'text/plain';
 		}
 
 		$filename = "{$name}.{$ext}";
 		$rel_path = $cat_path ? "{$cat_path}/{$filename}" : $filename;
-		$abs_path = idl_files_dir() . '/' . $rel_path;
+		$abs_path = isfm_files_dir() . '/' . $rel_path;
 
 		$dir = dirname( $abs_path );
 		if ( ! is_dir( $dir ) ) {
@@ -552,7 +552,7 @@ class IDL_Demo_Content {
 			return null;
 		}
 
-		$tmp = wp_tempnam( 'idl_demo_' );
+		$tmp = wp_tempnam( 'isfm_demo_' );
 
 		$zip = new ZipArchive();
 		if ( true !== $zip->open( $tmp, ZipArchive::CREATE | ZipArchive::OVERWRITE ) ) {
@@ -617,23 +617,23 @@ class IDL_Demo_Content {
 		// phpcs:disable WordPress.DB.SlowDBQuery.slow_db_query_meta_key,WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- Admin-only one-shot removal; bounded by demo content count (~6 posts + 1 page).
 		$posts = get_posts(
 			array(
-				'post_type'      => array( 'idl', 'page' ),
+				'post_type'      => array( 'isfm_file', 'page' ),
 				'post_status'    => 'any',
-				'meta_key'       => '_idl_demo_content',
+				'meta_key'       => '_isfm_demo_content',
 				'meta_value'     => '1',
 				'posts_per_page' => -1,
 				'fields'         => 'ids',
 			)
 		);
 
-		$file_mgr = new IDL_File_Manager();
+		$file_mgr = new ISFM_File_Manager();
 		foreach ( $posts as $post_id ) {
-			// Pages have no associated idl_files rows; only run file cleanup for downloads.
-			if ( 'idl' === get_post_type( $post_id ) ) {
+			// Pages have no associated isfm_files rows; only run file cleanup for downloads.
+			if ( 'isfm_file' === get_post_type( $post_id ) ) {
 				$files = $file_mgr->get_files( $post_id );
 				foreach ( $files as $file ) {
 					if ( $file->file_path ) {
-						$abs = idl_files_dir() . '/' . $file->file_path;
+						$abs = isfm_files_dir() . '/' . $file->file_path;
 						if ( file_exists( $abs ) ) {
 							wp_delete_file( $abs );
 						}
@@ -649,9 +649,9 @@ class IDL_Demo_Content {
 		// phpcs:disable WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- Admin-only one-shot cleanup; no persistent query, no performance concern.
 		$terms = get_terms(
 			array(
-				'taxonomy'   => 'idl_category',
+				'taxonomy'   => 'isfm_category',
 				'hide_empty' => false,
-				'meta_key'   => '_idl_demo_term',
+				'meta_key'   => '_isfm_demo_term',
 				'meta_value' => '1',
 				'fields'     => 'ids',
 			)
@@ -665,7 +665,7 @@ class IDL_Demo_Content {
 		// Delete deepest children first to avoid parent conflicts.
 		$terms = array_reverse( $terms );
 		foreach ( $terms as $term_id ) {
-			wp_delete_term( (int) $term_id, 'idl_category' );
+			wp_delete_term( (int) $term_id, 'isfm_category' );
 		}
 	}
 
@@ -674,7 +674,7 @@ class IDL_Demo_Content {
 	// ─────────────────────────────────────────────────────────────────────────
 
 	private function settings_url( string $extra = '' ): string {
-		$url = admin_url( 'edit.php?post_type=idl&page=idl-settings&tab=maintenance' );
+		$url = admin_url( 'edit.php?post_type=isfm_file&page=isfm-settings&tab=maintenance' );
 		return $extra ? "{$url}&{$extra}" : $url;
 	}
 }

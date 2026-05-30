@@ -2,20 +2,20 @@
 /**
  * REST API endpoints — Phase 3 (Gutenberg block support).
  *
- * Namespace: i-downloads/v1
+ * Namespace: isoft-fm-foundation/v1
  */
 defined( 'ABSPATH' ) || exit;
 
-class IDL_Rest_Api {
+class ISFM_Rest_Api {
 
 	public function register_hooks(): void {
 		add_action( 'rest_api_init', array( $this, 'register_routes' ) );
 	}
 
 	public function register_routes(): void {
-		$ns = 'i-downloads/v1';
+		$ns = 'isoft-fm-foundation/v1';
 
-		// GET /i-downloads/v1/downloads
+		// GET /isoft-fm-foundation/v1/downloads
 		register_rest_route(
 			$ns,
 			'/downloads',
@@ -52,7 +52,7 @@ class IDL_Rest_Api {
 			)
 		);
 
-		// GET /i-downloads/v1/downloads/{id}/files
+		// GET /isoft-fm-foundation/v1/downloads/{id}/files
 		register_rest_route(
 			$ns,
 			'/downloads/(?P<id>\d+)/files',
@@ -70,7 +70,7 @@ class IDL_Rest_Api {
 			)
 		);
 
-		// GET /i-downloads/v1/categories
+		// GET /isoft-fm-foundation/v1/categories
 		register_rest_route(
 			$ns,
 			'/categories',
@@ -87,7 +87,7 @@ class IDL_Rest_Api {
 			)
 		);
 
-		// GET /i-downloads/v1/stats/overview
+		// GET /isoft-fm-foundation/v1/stats/overview
 		register_rest_route(
 			$ns,
 			'/stats/overview',
@@ -98,7 +98,7 @@ class IDL_Rest_Api {
 			)
 		);
 
-		// GET /i-downloads/v1/logs
+		// GET /isoft-fm-foundation/v1/logs
 		register_rest_route(
 			$ns,
 			'/logs',
@@ -140,7 +140,7 @@ class IDL_Rest_Api {
 	 * /logs which expose download history (who downloaded what, when, from where).
 	 */
 	public function logs_permission(): bool {
-		return current_user_can( 'idl_view_logs' );
+		return current_user_can( 'isfm_view_logs' );
 	}
 
 	// -------------------------------------------------------------------------
@@ -148,7 +148,7 @@ class IDL_Rest_Api {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * GET /i-downloads/v1/downloads
+	 * GET /isoft-fm-foundation/v1/downloads
 	 *
 	 * Returns published downloads for the block editor download picker.
 	 * Supports: search, category (term_id), tag (term_id), orderby, order.
@@ -164,7 +164,7 @@ class IDL_Rest_Api {
 		$order           = 'ASC' === strtoupper( (string) $request->get_param( 'order' ) ) ? 'ASC' : 'DESC';
 
 		$args = array(
-			'post_type'      => 'idl',
+			'post_type'      => 'isfm_file',
 			'post_status'    => 'publish',
 			'posts_per_page' => min( (int) $request->get_param( 'per_page' ), 100 ),
 			'no_found_rows'  => true,
@@ -180,7 +180,7 @@ class IDL_Rest_Api {
 
 		if ( $category > 0 ) {
 			$args['tax_query'][] = array(
-				'taxonomy' => 'idl_category',
+				'taxonomy' => 'isfm_category',
 				'field'    => 'term_id',
 				'terms'    => $category,
 			);
@@ -188,7 +188,7 @@ class IDL_Rest_Api {
 
 		if ( $tag > 0 ) {
 			$args['tax_query'][] = array(
-				'taxonomy' => 'idl_tag',
+				'taxonomy' => 'isfm_tag',
 				'field'    => 'term_id',
 				'terms'    => $tag,
 			);
@@ -198,7 +198,7 @@ class IDL_Rest_Api {
 
 		$data = array_map(
 			function ( WP_Post $p ) {
-				$cats = wp_get_post_terms( $p->ID, 'idl_category', array( 'fields' => 'names' ) );
+				$cats = wp_get_post_terms( $p->ID, 'isfm_category', array( 'fields' => 'names' ) );
 				return array(
 					'id'         => $p->ID,
 					'title'      => $p->post_title,
@@ -213,7 +213,7 @@ class IDL_Rest_Api {
 	}
 
 	/**
-	 * GET /i-downloads/v1/downloads/{id}/files
+	 * GET /isoft-fm-foundation/v1/downloads/{id}/files
 	 *
 	 * Returns all files attached to a download — used by the download-button block.
 	 */
@@ -221,18 +221,18 @@ class IDL_Rest_Api {
 		$download_id = (int) $request->get_param( 'id' );
 
 		$post = get_post( $download_id );
-		if ( ! $post || $post->post_type !== 'idl' ) {
+		if ( ! $post || $post->post_type !== 'isfm_file' ) {
 			return new WP_Error(
-				'idl_not_found',
-				__( 'Download not found.', 'i-downloads' ),
+				'isfm_not_found',
+				__( 'Download not found.', 'isoft-fm-foundation' ),
 				array( 'status' => 404 )
 			);
 		}
 
 		if ( ! current_user_can( 'edit_post', $download_id ) ) {
 			return new WP_Error(
-				'idl_forbidden',
-				__( 'You do not have permission to view this download\'s files.', 'i-downloads' ),
+				'isfm_forbidden',
+				__( 'You do not have permission to view this download\'s files.', 'isoft-fm-foundation' ),
 				array( 'status' => 403 )
 			);
 		}
@@ -243,7 +243,7 @@ class IDL_Rest_Api {
 		$files = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT id, title, file_name, file_type, file_size, file_mime, external_url, sort_order
-				   FROM {$wpdb->prefix}idl_files
+				   FROM {$wpdb->prefix}isfm_files
 				  WHERE download_id = %d
 				  ORDER BY sort_order ASC, id ASC",
 				$download_id
@@ -252,8 +252,8 @@ class IDL_Rest_Api {
 
 		if ( $files === null ) {
 			return new WP_Error(
-				'idl_db_error',
-				__( 'Database error.', 'i-downloads' ),
+				'isfm_db_error',
+				__( 'Database error.', 'isoft-fm-foundation' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -262,7 +262,7 @@ class IDL_Rest_Api {
 			function ( object $f ): array {
 				$label = $f->title ?: $f->file_name ?: $f->external_url ?: sprintf(
 				/* translators: %d: file record id */
-					__( 'File #%d', 'i-downloads' ),
+					__( 'File #%d', 'isoft-fm-foundation' ),
 					(int) $f->id
 				);
 				return array(
@@ -282,13 +282,13 @@ class IDL_Rest_Api {
 	}
 
 	/**
-	 * GET /i-downloads/v1/categories
+	 * GET /isoft-fm-foundation/v1/categories
 	 *
-	 * Returns all idl_category terms, optionally filtered by parent.
+	 * Returns all isfm_category terms, optionally filtered by parent.
 	 */
 	public function get_categories( WP_REST_Request $request ): WP_REST_Response {
 		$args = array(
-			'taxonomy'   => 'idl_category',
+			'taxonomy'   => 'isfm_category',
 			'hide_empty' => false,
 			'orderby'    => 'name',
 			'order'      => 'ASC',
@@ -319,12 +319,12 @@ class IDL_Rest_Api {
 	}
 
 	/**
-	 * GET /i-downloads/v1/stats/overview
+	 * GET /isoft-fm-foundation/v1/stats/overview
 	 *
 	 * Returns aggregate statistics for the dashboard widget.
 	 */
 	public function get_stats_overview( WP_REST_Request $request ): WP_REST_Response {
-		$stats = idl_get_stats_overview();
+		$stats = isfm_get_stats_overview();
 
 		return new WP_REST_Response(
 			array(
@@ -339,7 +339,7 @@ class IDL_Rest_Api {
 	}
 
 	/**
-	 * GET /i-downloads/v1/logs
+	 * GET /isoft-fm-foundation/v1/logs
 	 *
 	 * Returns paginated download log entries for the Phase 4 log viewer.
 	 */
@@ -361,9 +361,9 @@ class IDL_Rest_Api {
 					"SELECT l.id, l.download_id, p.post_title AS download_title,
 					        l.file_id, f.file_name, l.user_id, l.user_ip,
 					        l.user_agent, l.downloaded_at
-					   FROM {$wpdb->prefix}idl_download_log l
+					   FROM {$wpdb->prefix}isfm_download_log l
 					   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
-					   LEFT JOIN {$wpdb->prefix}idl_files f ON f.id = l.file_id
+					   LEFT JOIN {$wpdb->prefix}isfm_files f ON f.id = l.file_id
 					  WHERE l.download_id = %d
 					  ORDER BY l.downloaded_at DESC
 					  LIMIT %d OFFSET %d",
@@ -375,7 +375,7 @@ class IDL_Rest_Api {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- REST endpoint on custom log table; count cannot be cached due to live filter.
 			$total = (int) $wpdb->get_var(
 				$wpdb->prepare(
-					"SELECT COUNT(*) FROM {$wpdb->prefix}idl_download_log l WHERE l.download_id = %d",
+					"SELECT COUNT(*) FROM {$wpdb->prefix}isfm_download_log l WHERE l.download_id = %d",
 					$download_id
 				)
 			);
@@ -386,9 +386,9 @@ class IDL_Rest_Api {
 					"SELECT l.id, l.download_id, p.post_title AS download_title,
 					        l.file_id, f.file_name, l.user_id, l.user_ip,
 					        l.user_agent, l.downloaded_at
-					   FROM {$wpdb->prefix}idl_download_log l
+					   FROM {$wpdb->prefix}isfm_download_log l
 					   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
-					   LEFT JOIN {$wpdb->prefix}idl_files f ON f.id = l.file_id
+					   LEFT JOIN {$wpdb->prefix}isfm_files f ON f.id = l.file_id
 					  ORDER BY l.downloaded_at DESC
 					  LIMIT %d OFFSET %d",
 					$per_page,
@@ -396,7 +396,7 @@ class IDL_Rest_Api {
 				)
 			);
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- REST endpoint on custom log table; full-table count, no cache layer.
-			$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}idl_download_log" );
+			$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}isfm_download_log" );
 		}
 
 		$response = new WP_REST_Response( $rows ?? array(), 200 );

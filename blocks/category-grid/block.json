@@ -1,13 +1,13 @@
 {
 	"$schema": "https://schemas.wp.org/trunk/block.json",
 	"apiVersion": 3,
-	"name": "i-downloads/category-grid",
+	"name": "isoft-fm-foundation/category-grid",
 	"version": "0.1.0",
 	"title": "Download Category Grid [iD]",
-	"category": "i-downloads",
+	"category": "isoft-fm-foundation",
 	"icon": "grid-view",
 	"description": "Display download categories as a grid.",
-	"textdomain": "i-downloads",
+	"textdomain": "isoft-fm-foundation",
 	"supports": {
 		"html": false,
 		"color": true,

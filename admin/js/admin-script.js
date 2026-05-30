@@ -1,8 +1,8 @@
-/* global IDL, jQuery */
-( function ( $, IDL ) {
+/* global ISFM, jQuery */
+( function ( $, ISFM ) {
 	'use strict';
 
-	var $fileList = $( '#idl-file-list-body' );
+	var $fileList = $( '#isfm-file-list-body' );
 	var postId    = $( '#post_ID' ).val();
 
 	// -------------------------------------------------------------------------
@@ -35,44 +35,44 @@
 			? esc( file.file_name )
 			: '<a href="' + esc( file.external_url ) + '" target="_blank" rel="noopener noreferrer">' + esc( file.external_url ) + '</a>';
 		var badge   = isLocal
-			? '<span class="idl-badge idl-badge--local">' + esc( ext ) + '</span>'
+			? '<span class="isfm-badge isfm-badge--local">' + esc( ext ) + '</span>'
 			: ( parseInt( file.is_mirror, 10 )
-				? '<span class="idl-badge idl-badge--mirror">' + esc( IDL.i18n.mirror ) + '</span>'
-				: '<span class="idl-badge idl-badge--external">' + esc( IDL.i18n.external ) + '</span>' );
+				? '<span class="isfm-badge isfm-badge--mirror">' + esc( ISFM.i18n.mirror ) + '</span>'
+				: '<span class="isfm-badge isfm-badge--external">' + esc( ISFM.i18n.external ) + '</span>' );
 
-		return '<tr class="idl-file-row" data-file-id="' + esc( file.id ) + '">'
-			+ '<td class="idl-col-sort"><span class="dashicons dashicons-move idl-sort-handle"></span></td>'
-			+ '<td class="idl-file-title" data-title="' + esc( file.title || '' ) + '" data-description="' + esc( file.description || '' ) + '">'
+		return '<tr class="isfm-file-row" data-file-id="' + esc( file.id ) + '">'
+			+ '<td class="isfm-col-sort"><span class="dashicons dashicons-move isfm-sort-handle"></span></td>'
+			+ '<td class="isfm-file-title" data-title="' + esc( file.title || '' ) + '" data-description="' + esc( file.description || '' ) + '">'
 				+ esc( file.title || file.file_name || file.external_url )
 			+ '</td>'
-			+ '<td class="idl-file-source">' + source + '</td>'
+			+ '<td class="isfm-file-source">' + source + '</td>'
 			+ '<td>' + badge + '</td>'
 			+ '<td>' + esc( formatSize( file.file_size ) ) + '</td>'
 			+ '<td>' + esc( file.download_count || 0 ) + '</td>'
 			+ '<td>'
-				+ '<button type="button" class="button button-small idl-btn-edit-file" data-file-id="' + esc( file.id ) + '">' + esc( IDL.i18n.edit ) + '</button> '
-				+ '<button type="button" class="button button-small idl-btn-delete-file" data-file-id="' + esc( file.id ) + '">' + esc( IDL.i18n.remove ) + '</button>'
+				+ '<button type="button" class="button button-small isfm-btn-edit-file" data-file-id="' + esc( file.id ) + '">' + esc( ISFM.i18n.edit ) + '</button> '
+				+ '<button type="button" class="button button-small isfm-btn-delete-file" data-file-id="' + esc( file.id ) + '">' + esc( ISFM.i18n.remove ) + '</button>'
 			+ '</td>'
 			+ '</tr>';
 	}
 
 	function appendFileRow( file ) {
-		$( '#idl-no-files-row' ).remove();
+		$( '#isfm-no-files-row' ).remove();
 		$fileList.append( fileRowHtml( file ) );
 	}
 
 	// -------------------------------------------------------------------------
 	// Tabs
 	// -------------------------------------------------------------------------
-	$( '.idl-tab-nav' ).on(
+	$( '.isfm-tab-nav' ).on(
 		'click',
-		'.idl-tab-btn',
+		'.isfm-tab-btn',
 		function () {
 			var tab = $( this ).data( 'tab' );
-			$( '.idl-tab-btn' ).removeClass( 'is-active' ).attr( 'aria-selected', 'false' );
+			$( '.isfm-tab-btn' ).removeClass( 'is-active' ).attr( 'aria-selected', 'false' );
 			$( this ).addClass( 'is-active' ).attr( 'aria-selected', 'true' );
-			$( '.idl-tab-panel' ).prop( 'hidden', true ).removeClass( 'is-active' );
-			$( '.idl-tab-panel[data-tab="' + tab + '"]' ).prop( 'hidden', false ).addClass( 'is-active' );
+			$( '.isfm-tab-panel' ).prop( 'hidden', true ).removeClass( 'is-active' );
+			$( '.isfm-tab-panel[data-tab="' + tab + '"]' ).prop( 'hidden', false ).addClass( 'is-active' );
 
 			if ( 'browse' === tab ) {
 				loadBrowseList();
@@ -85,20 +85,20 @@
 	// -------------------------------------------------------------------------
 	$fileList.sortable(
 		{
-			handle: '.idl-sort-handle',
-			placeholder: 'idl-sortable-placeholder',
+			handle: '.isfm-sort-handle',
+			placeholder: 'isfm-sortable-placeholder',
 			update: function () {
 				var order = {};
-				$fileList.find( '.idl-file-row' ).each(
+				$fileList.find( '.isfm-file-row' ).each(
 					function ( i ) {
 						order[ $( this ).data( 'file-id' ) ] = i;
 					}
 				);
 				$.post(
-					IDL.ajaxUrl,
+					ISFM.ajaxUrl,
 					{
-						action: 'idl_save_file_order',
-						nonce:  IDL.nonce,
+						action: 'isfm_save_file_order',
+						nonce:  ISFM.nonce,
 						order:  order,
 						}
 				);
@@ -111,86 +111,86 @@
 	// -------------------------------------------------------------------------
 	$fileList.on(
 		'click',
-		'.idl-btn-edit-file',
+		'.isfm-btn-edit-file',
 		function () {
 			var $btn   = $( this );
 			var fileId = $btn.data( 'file-id' );
-			var $row   = $btn.closest( '.idl-file-row' );
+			var $row   = $btn.closest( '.isfm-file-row' );
 
 			// Toggle: close if this row's editor is already open below it.
-			var $existing = $row.next( '.idl-file-edit-row' );
+			var $existing = $row.next( '.isfm-file-edit-row' );
 			if ( $existing.length ) {
 				$existing.remove();
 				return;
 			}
 			// Close any other open editor first.
-			$fileList.find( '.idl-file-edit-row' ).remove();
+			$fileList.find( '.isfm-file-edit-row' ).remove();
 
-			var $titleCell = $row.find( '.idl-file-title' );
+			var $titleCell = $row.find( '.isfm-file-title' );
 			var title      = $titleCell.data( 'title' ) || '';
 			var desc       = $titleCell.data( 'description' ) || '';
 
 			var $editor = $(
-				'<tr class="idl-file-edit-row" data-edit-for="' + fileId + '">'
+				'<tr class="isfm-file-edit-row" data-edit-for="' + fileId + '">'
 				+ '<td colspan="7">'
-				+ '<div class="idl-file-edit">'
-				+ '<p><label>' + esc( IDL.i18n.title ) + '<br>'
-				+ '<input type="text" class="widefat idl-edit-title" />'
+				+ '<div class="isfm-file-edit">'
+				+ '<p><label>' + esc( ISFM.i18n.title ) + '<br>'
+				+ '<input type="text" class="widefat isfm-edit-title" />'
 				+ '</label></p>'
-				+ '<p><label>' + esc( IDL.i18n.description ) + '<br>'
-				+ '<textarea class="widefat idl-edit-description" rows="3"></textarea>'
+				+ '<p><label>' + esc( ISFM.i18n.description ) + '<br>'
+				+ '<textarea class="widefat isfm-edit-description" rows="3"></textarea>'
 				+ '</label></p>'
 				+ '<p>'
-				+ '<button type="button" class="button button-primary idl-edit-save">' + esc( IDL.i18n.save ) + '</button> '
-				+ '<button type="button" class="button idl-edit-cancel">' + esc( IDL.i18n.cancel ) + '</button>'
-				+ '<span class="idl-edit-status" aria-live="polite"></span>'
+				+ '<button type="button" class="button button-primary isfm-edit-save">' + esc( ISFM.i18n.save ) + '</button> '
+				+ '<button type="button" class="button isfm-edit-cancel">' + esc( ISFM.i18n.cancel ) + '</button>'
+				+ '<span class="isfm-edit-status" aria-live="polite"></span>'
 				+ '</p>'
 				+ '</div>'
 				+ '</td>'
 				+ '</tr>'
 			);
-			$editor.find( '.idl-edit-title' ).val( title );
-			$editor.find( '.idl-edit-description' ).val( desc );
+			$editor.find( '.isfm-edit-title' ).val( title );
+			$editor.find( '.isfm-edit-description' ).val( desc );
 			$row.after( $editor );
-			$editor.find( '.idl-edit-title' ).trigger( 'focus' );
+			$editor.find( '.isfm-edit-title' ).trigger( 'focus' );
 		}
 	);
 
 	$fileList.on(
 		'click',
-		'.idl-edit-cancel',
+		'.isfm-edit-cancel',
 		function () {
-			$( this ).closest( '.idl-file-edit-row' ).remove();
+			$( this ).closest( '.isfm-file-edit-row' ).remove();
 		}
 	);
 
 	$fileList.on(
 		'click',
-		'.idl-edit-save',
+		'.isfm-edit-save',
 		function () {
-			var $editor  = $( this ).closest( '.idl-file-edit-row' );
+			var $editor  = $( this ).closest( '.isfm-file-edit-row' );
 			var fileId   = $editor.data( 'edit-for' );
-			var $row     = $fileList.find( '.idl-file-row[data-file-id="' + fileId + '"]' );
-			var newTitle = $editor.find( '.idl-edit-title' ).val();
-			var newDesc  = $editor.find( '.idl-edit-description' ).val();
-			var $status  = $editor.find( '.idl-edit-status' );
+			var $row     = $fileList.find( '.isfm-file-row[data-file-id="' + fileId + '"]' );
+			var newTitle = $editor.find( '.isfm-edit-title' ).val();
+			var newDesc  = $editor.find( '.isfm-edit-description' ).val();
+			var $status  = $editor.find( '.isfm-edit-status' );
 			var $save    = $( this );
 
 			$save.prop( 'disabled', true );
-			$status.text( IDL.i18n.saving );
+			$status.text( ISFM.i18n.saving );
 
 			$.post(
-				IDL.ajaxUrl,
+				ISFM.ajaxUrl,
 				{
-					action:      'idl_update_file_meta',
-					nonce:       IDL.nonce,
+					action:      'isfm_update_file_meta',
+					nonce:       ISFM.nonce,
 					file_id:     fileId,
 					title:       newTitle,
 					description: newDesc,
 				},
 				function ( res ) {
 					if ( res.success ) {
-						var $titleCell = $row.find( '.idl-file-title' );
+						var $titleCell = $row.find( '.isfm-file-title' );
 						$titleCell
 						.text( res.data.file.title || res.data.file.file_name || res.data.file.external_url )
 						.attr( 'data-title', res.data.file.title || '' )
@@ -198,13 +198,13 @@
 						$editor.remove();
 					} else {
 						$save.prop( 'disabled', false );
-						$status.text( ( res.data && res.data.message ) ? res.data.message : IDL.i18n.error );
+						$status.text( ( res.data && res.data.message ) ? res.data.message : ISFM.i18n.error );
 					}
 				}
 			).fail(
 				function () {
 					$save.prop( 'disabled', false );
-					$status.text( IDL.i18n.networkError );
+					$status.text( ISFM.i18n.networkError );
 				}
 			);
 		}
@@ -215,34 +215,34 @@
 	// -------------------------------------------------------------------------
 	$fileList.on(
 		'click',
-		'.idl-btn-delete-file',
+		'.isfm-btn-delete-file',
 		function () {
-			if ( ! window.confirm( IDL.i18n.confirmDelete ) ) {
+			if ( ! window.confirm( ISFM.i18n.confirmDelete ) ) {
 				return;
 			}
 			var $btn   = $( this );
 			var fileId = $btn.data( 'file-id' );
-			var $row   = $btn.closest( '.idl-file-row' );
+			var $row   = $btn.closest( '.isfm-file-row' );
 
 			$btn.prop( 'disabled', true );
 
 			$.post(
-				IDL.ajaxUrl,
+				ISFM.ajaxUrl,
 				{
-					action:  'idl_delete_file',
-					nonce:   IDL.nonce,
+					action:  'isfm_delete_file',
+					nonce:   ISFM.nonce,
 					file_id: fileId,
 				},
 				function ( res ) {
 					if ( res.success ) {
-						$row.next( '.idl-file-edit-row' ).remove();
+						$row.next( '.isfm-file-edit-row' ).remove();
 						$row.remove();
-						if ( $fileList.find( '.idl-file-row' ).length === 0 ) {
-							$fileList.append( '<tr class="idl-no-files" id="idl-no-files-row"><td colspan="7">' + esc( IDL.i18n.noFiles ) + '</td></tr>' );
+						if ( $fileList.find( '.isfm-file-row' ).length === 0 ) {
+							$fileList.append( '<tr class="isfm-no-files" id="isfm-no-files-row"><td colspan="7">' + esc( ISFM.i18n.noFiles ) + '</td></tr>' );
 						}
 					} else {
 						$btn.prop( 'disabled', false );
-						alert( res.data && res.data.message ? res.data.message : IDL.i18n.error );
+						alert( res.data && res.data.message ? res.data.message : ISFM.i18n.error );
 					}
 				}
 			);
@@ -252,9 +252,9 @@
 	// -------------------------------------------------------------------------
 	// Upload — dropzone + file input
 	// -------------------------------------------------------------------------
-	var $dropzone  = $( '#idl-dropzone' );
-	var $fileInput = $( '#idl-file-input' );
-	var $queue     = $( '#idl-upload-queue' );
+	var $dropzone  = $( '#isfm-dropzone' );
+	var $fileInput = $( '#isfm-file-input' );
+	var $queue     = $( '#isfm-upload-queue' );
 
 	$dropzone.on(
 		'click',
@@ -312,31 +312,31 @@
 
 	function uploadOne( file ) {
 		var $item = $(
-			'<li class="idl-upload-item">'
-			+ '<span class="idl-upload-name"></span>'
-			+ '<span class="idl-upload-bar"><span class="idl-upload-bar-fill"></span></span>'
-			+ '<span class="idl-upload-status"></span>'
+			'<li class="isfm-upload-item">'
+			+ '<span class="isfm-upload-name"></span>'
+			+ '<span class="isfm-upload-bar"><span class="isfm-upload-bar-fill"></span></span>'
+			+ '<span class="isfm-upload-status"></span>'
 			+ '</li>'
 		);
-		$item.find( '.idl-upload-name' ).text( file.name );
+		$item.find( '.isfm-upload-name' ).text( file.name );
 		$queue.append( $item );
 
 		var fd = new FormData();
-		fd.append( 'action',      'idl_upload_file' );
-		fd.append( 'nonce',       IDL.nonce );
+		fd.append( 'action',      'isfm_upload_file' );
+		fd.append( 'nonce',       ISFM.nonce );
 		fd.append( 'download_id', postId );
 		fd.append( 'file',        file );
 
 		var xhr = new XMLHttpRequest();
-		xhr.open( 'POST', IDL.ajaxUrl, true );
+		xhr.open( 'POST', ISFM.ajaxUrl, true );
 
 		xhr.upload.addEventListener(
 			'progress',
 			function ( evt ) {
 				if ( evt.lengthComputable ) {
 					var pct = Math.round( ( evt.loaded / evt.total ) * 100 );
-					$item.find( '.idl-upload-bar-fill' ).css( 'width', pct + '%' );
-					$item.find( '.idl-upload-status' ).text( pct + '%' );
+					$item.find( '.isfm-upload-bar-fill' ).css( 'width', pct + '%' );
+					$item.find( '.isfm-upload-status' ).text( pct + '%' );
 				}
 			}
 		);
@@ -346,8 +346,8 @@
 				var res = JSON.parse( xhr.responseText );
 				if ( res.success ) {
 					$item.addClass( 'is-done' );
-					$item.find( '.idl-upload-bar-fill' ).css( 'width', '100%' );
-					$item.find( '.idl-upload-status' ).text( '✓' );
+					$item.find( '.isfm-upload-bar-fill' ).css( 'width', '100%' );
+					$item.find( '.isfm-upload-status' ).text( '✓' );
 					appendFileRow( res.data.file );
 					setTimeout(
 						function () {
@@ -360,17 +360,17 @@
 					);
 				} else {
 					$item.addClass( 'is-error' );
-					$item.find( '.idl-upload-status' ).text( res.data && res.data.message ? res.data.message : IDL.i18n.error );
+					$item.find( '.isfm-upload-status' ).text( res.data && res.data.message ? res.data.message : ISFM.i18n.error );
 				}
 			} catch ( err ) {
 				$item.addClass( 'is-error' );
-				$item.find( '.idl-upload-status' ).text( IDL.i18n.serverError );
+				$item.find( '.isfm-upload-status' ).text( ISFM.i18n.serverError );
 			}
 		};
 
 		xhr.onerror = function () {
 			$item.addClass( 'is-error' );
-			$item.find( '.idl-upload-status' ).text( IDL.i18n.networkError );
+			$item.find( '.isfm-upload-status' ).text( ISFM.i18n.networkError );
 		};
 
 		xhr.send( fd );
@@ -383,43 +383,43 @@
 	function loadBrowseList() {
 		if ( browseLoaded ) {
 			return; }
-		var $list = $( '#idl-browse-list' );
+		var $list = $( '#isfm-browse-list' );
 		if ( ! $list.length ) {
 			return; }
 
 		$.post(
-			IDL.ajaxUrl,
+			ISFM.ajaxUrl,
 			{
-				action:      'idl_browse_category',
-				nonce:       IDL.nonce,
+				action:      'isfm_browse_category',
+				nonce:       ISFM.nonce,
 				download_id: postId,
 			},
 			function ( res ) {
 				browseLoaded = true;
 				$list.empty();
 				if ( ! res.success || ! res.data.files || res.data.files.length === 0 ) {
-					$list.append( '<li class="idl-browse-empty">' + esc( IDL.i18n.noFolderFiles ) + '</li>' );
+					$list.append( '<li class="isfm-browse-empty">' + esc( ISFM.i18n.noFolderFiles ) + '</li>' );
 					return;
 				}
 				res.data.files.forEach(
 					function ( item ) {
-						var $li = $( '<li class="idl-browse-item"></li>' );
-						$li.append( '<span class="idl-browse-name">' + esc( item.name ) + '</span>' );
-						$li.append( '<span class="idl-browse-size">' + esc( formatSize( item.size ) ) + '</span>' );
+						var $li = $( '<li class="isfm-browse-item"></li>' );
+						$li.append( '<span class="isfm-browse-name">' + esc( item.name ) + '</span>' );
+						$li.append( '<span class="isfm-browse-size">' + esc( formatSize( item.size ) ) + '</span>' );
 						if ( item.tracked ) {
-								$li.append( '<span class="idl-browse-tag">' + esc( IDL.i18n.alreadyLinked ) + '</span>' );
+								$li.append( '<span class="isfm-browse-tag">' + esc( ISFM.i18n.alreadyLinked ) + '</span>' );
 								$li.addClass( 'is-tracked' );
 						} else {
-							var $btn = $( '<button type="button" class="button button-small"></button>' ).text( IDL.i18n.linkButton );
+							var $btn = $( '<button type="button" class="button button-small"></button>' ).text( ISFM.i18n.linkButton );
 							$btn.on(
 								'click',
 								function () {
-									$btn.prop( 'disabled', true ).text( IDL.i18n.linking );
+									$btn.prop( 'disabled', true ).text( ISFM.i18n.linking );
 									$.post(
-										IDL.ajaxUrl,
+										ISFM.ajaxUrl,
 										{
-											action:      'idl_import_file',
-											nonce:       IDL.nonce,
+											action:      'isfm_import_file',
+											nonce:       ISFM.nonce,
 											download_id: postId,
 											rel_path:    item.rel,
 										},
@@ -427,10 +427,10 @@
 											if ( r.success ) {
 												appendFileRow( r.data.file );
 												$li.addClass( 'is-tracked' );
-												$btn.replaceWith( '<span class="idl-browse-tag">' + esc( IDL.i18n.linked ) + '</span>' );
+												$btn.replaceWith( '<span class="isfm-browse-tag">' + esc( ISFM.i18n.linked ) + '</span>' );
 											} else {
-												$btn.prop( 'disabled', false ).text( IDL.i18n.retry );
-												alert( r.data && r.data.message ? r.data.message : IDL.i18n.error );
+												$btn.prop( 'disabled', false ).text( ISFM.i18n.retry );
+												alert( r.data && r.data.message ? r.data.message : ISFM.i18n.error );
 											}
 										}
 									);
@@ -446,9 +446,9 @@
 	}
 
 	// Reset browse cache when switching away and back (picks up newly uploaded files).
-	$( '.idl-tab-nav' ).on(
+	$( '.isfm-tab-nav' ).on(
 		'click',
-		'.idl-tab-btn',
+		'.isfm-tab-btn',
 		function () {
 			browseLoaded = false;
 		}
@@ -459,22 +459,22 @@
 	// -------------------------------------------------------------------------
 	$( document ).on(
 		'click',
-		'.idl-btn-ext-save',
+		'.isfm-btn-ext-save',
 		function () {
-			var url      = $( '#idl-ext-url' ).val().trim();
-			var title    = $( '#idl-ext-title' ).val().trim();
-			var isMirror = $( '#idl-ext-mirror' ).is( ':checked' ) ? 1 : 0;
+			var url      = $( '#isfm-ext-url' ).val().trim();
+			var title    = $( '#isfm-ext-title' ).val().trim();
+			var isMirror = $( '#isfm-ext-mirror' ).is( ':checked' ) ? 1 : 0;
 
 			if ( ! url ) {
-				$( '#idl-ext-url' ).trigger( 'focus' );
+				$( '#isfm-ext-url' ).trigger( 'focus' );
 				return;
 			}
 
 			$.post(
-				IDL.ajaxUrl,
+				ISFM.ajaxUrl,
 				{
-					action:      'idl_add_external',
-					nonce:       IDL.nonce,
+					action:      'isfm_add_external',
+					nonce:       ISFM.nonce,
 					download_id: postId,
 					url:         url,
 					title:       title,
@@ -485,11 +485,11 @@
 						// Fetch fresh row by reloading — external add does not return full row.
 						location.reload();
 					} else {
-						alert( res.data && res.data.message ? res.data.message : IDL.i18n.error );
+						alert( res.data && res.data.message ? res.data.message : ISFM.i18n.error );
 					}
 				}
 			);
 		}
 	);
 
-} )( jQuery, IDL );
+} )( jQuery, ISFM );

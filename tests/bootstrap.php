@@ -1,6 +1,6 @@
 <?php
 /**
- * PHPUnit bootstrap for i-Downloads.
+ * PHPUnit bootstrap for I-Soft File Manager: Foundation.
  *
  * Loads the wp-phpunit test framework and then our plugin via the
  * muplugins_loaded hook so WP's test installer can set up a clean DB.
@@ -42,14 +42,14 @@ require_once "{$_tests_dir}/includes/functions.php";
  * Load the plugin before WordPress finishes booting so CPTs, taxonomies,
  * and activation hooks are in place for the test suite.
  */
-function _idl_manually_load_plugin(): void {
-	require dirname( __DIR__ ) . '/i-downloads.php';
+function _isfm_manually_load_plugin(): void {
+	require dirname( __DIR__ ) . '/isoft-fm-foundation.php';
 
 	// Run activation so custom tables exist in the test DB.
-	if ( class_exists( 'IDL_Activator' ) ) {
-		IDL_Activator::activate();
+	if ( class_exists( 'ISFM_Activator' ) ) {
+		ISFM_Activator::activate();
 	}
 }
-tests_add_filter( 'muplugins_loaded', '_idl_manually_load_plugin' );
+tests_add_filter( 'muplugins_loaded', '_isfm_manually_load_plugin' );
 
 require "{$_tests_dir}/includes/bootstrap.php";

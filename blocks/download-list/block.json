@@ -1,13 +1,13 @@
 {
 	"$schema": "https://schemas.wp.org/trunk/block.json",
 	"apiVersion": 3,
-	"name": "i-downloads/download-list",
+	"name": "isoft-fm-foundation/download-list",
 	"version": "0.1.0",
 	"title": "Download List [iD]",
-	"category": "i-downloads",
+	"category": "isoft-fm-foundation",
 	"icon": "download",
 	"description": "Display a list of downloads, optionally filtered by category or tag.",
-	"textdomain": "i-downloads",
+	"textdomain": "isoft-fm-foundation",
 	"supports": {
 		"html": false,
 		"color": true,

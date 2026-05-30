@@ -2,7 +2,7 @@
 /**
  * WP_List_Table subclass for the Broken Links screen.
  *
- * Lists every idl_files row with is_missing = 1 together with enough
+ * Lists every isfm_files row with is_missing = 1 together with enough
  * context for the recovery dialog to run move-back / reassign / split /
  * reupload / detach actions.
  */
@@ -12,7 +12,7 @@ if ( ! class_exists( 'WP_List_Table' ) ) {
 	require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
 }
 
-class IDL_Broken_Links_Table extends WP_List_Table {
+class ISFM_Broken_Links_Table extends WP_List_Table {
 
 	public function __construct() {
 		parent::__construct(
@@ -26,11 +26,11 @@ class IDL_Broken_Links_Table extends WP_List_Table {
 
 	public function get_columns(): array {
 		return array(
-			'download_title' => __( 'Download', 'i-downloads' ),
-			'file_name'      => __( 'File', 'i-downloads' ),
-			'category'       => __( 'Expected folder', 'i-downloads' ),
-			'missing_since'  => __( 'Missing since', 'i-downloads' ),
-			'actions'        => __( 'Recover', 'i-downloads' ),
+			'download_title' => __( 'Download', 'isoft-fm-foundation' ),
+			'file_name'      => __( 'File', 'isoft-fm-foundation' ),
+			'category'       => __( 'Expected folder', 'isoft-fm-foundation' ),
+			'missing_since'  => __( 'Missing since', 'isoft-fm-foundation' ),
+			'actions'        => __( 'Recover', 'isoft-fm-foundation' ),
 		);
 	}
 
@@ -43,7 +43,7 @@ class IDL_Broken_Links_Table extends WP_List_Table {
 	protected function column_download_title( object $item ): string {
 		$title = $item->download_title
 			? esc_html( $item->download_title )
-			: '<em>' . esc_html__( '(deleted)', 'i-downloads' ) . '</em>';
+			: '<em>' . esc_html__( '(deleted)', 'isoft-fm-foundation' ) . '</em>';
 
 		if ( $item->download_id && get_post( $item->download_id ) ) {
 			$title = '<a href="' . esc_url( get_edit_post_link( $item->download_id ) ) . '">' . $title . '</a>';
@@ -53,14 +53,14 @@ class IDL_Broken_Links_Table extends WP_List_Table {
 	}
 
 	protected function column_file_name( object $item ): string {
-		$name = $item->file_name ? esc_html( $item->file_name ) : '<em>' . esc_html__( '(no name)', 'i-downloads' ) . '</em>';
+		$name = $item->file_name ? esc_html( $item->file_name ) : '<em>' . esc_html__( '(no name)', 'isoft-fm-foundation' ) . '</em>';
 		$path = $item->file_path ? '<br><code style="font-size:11px;color:#888;">' . esc_html( $item->file_path ) . '</code>' : '';
 		return $name . $path;
 	}
 
 	protected function column_category( object $item ): string {
 		if ( empty( $item->category_name ) ) {
-			return '<em>' . esc_html__( '(uncategorized)', 'i-downloads' ) . '</em>';
+			return '<em>' . esc_html__( '(uncategorized)', 'isoft-fm-foundation' ) . '</em>';
 		}
 		return esc_html( $item->category_name );
 	}
@@ -71,16 +71,16 @@ class IDL_Broken_Links_Table extends WP_List_Table {
 		}
 		$ts = strtotime( $item->missing_since );
 		return '<span title="' . esc_attr( $item->missing_since ) . '">'
-			. esc_html( human_time_diff( $ts, time() ) . ' ' . __( 'ago', 'i-downloads' ) )
+			. esc_html( human_time_diff( $ts, time() ) . ' ' . __( 'ago', 'isoft-fm-foundation' ) )
 			. '</span>';
 	}
 
 	protected function column_actions( object $item ): string {
 		$file_id = (int) $item->id;
 		return sprintf(
-			'<button type="button" class="button idl-recover-btn" data-file-id="%d">%s</button>',
+			'<button type="button" class="button isfm-recover-btn" data-file-id="%d">%s</button>',
 			$file_id,
-			esc_html__( 'Recover…', 'i-downloads' )
+			esc_html__( 'Recover…', 'isoft-fm-foundation' )
 		);
 	}
 
@@ -100,7 +100,7 @@ class IDL_Broken_Links_Table extends WP_List_Table {
 		// phpcs:enable
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table lookup for admin Broken Links screen.
-		$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}idl_files WHERE is_missing = 1" );
+		$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}isfm_files WHERE is_missing = 1" );
 
 		// Two separate prepared statements keep ORDER BY direction out of any interpolation path.
 		if ( $ascending ) {
@@ -108,7 +108,7 @@ class IDL_Broken_Links_Table extends WP_List_Table {
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
 					"SELECT f.*, p.post_title AS download_title
-					   FROM {$wpdb->prefix}idl_files f
+					   FROM {$wpdb->prefix}isfm_files f
 					   LEFT JOIN {$wpdb->posts} p ON p.ID = f.download_id
 					  WHERE f.is_missing = 1
 					  ORDER BY f.missing_since ASC
@@ -122,7 +122,7 @@ class IDL_Broken_Links_Table extends WP_List_Table {
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
 					"SELECT f.*, p.post_title AS download_title
-					   FROM {$wpdb->prefix}idl_files f
+					   FROM {$wpdb->prefix}isfm_files f
 					   LEFT JOIN {$wpdb->posts} p ON p.ID = f.download_id
 					  WHERE f.is_missing = 1
 					  ORDER BY f.missing_since DESC
@@ -136,7 +136,7 @@ class IDL_Broken_Links_Table extends WP_List_Table {
 		// Enrich each row with category name (one term per download — uses primary category).
 		foreach ( $rows as $row ) {
 			$row->category_name = '';
-			$terms              = get_the_terms( (int) $row->download_id, 'idl_category' );
+			$terms              = get_the_terms( (int) $row->download_id, 'isfm_category' );
 			if ( $terms && ! is_wp_error( $terms ) ) {
 				$row->category_name = $terms[0]->name;
 			}

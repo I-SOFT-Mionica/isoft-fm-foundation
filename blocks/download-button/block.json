@@ -1,13 +1,13 @@
 {
 	"$schema": "https://schemas.wp.org/trunk/block.json",
 	"apiVersion": 3,
-	"name": "i-downloads/download-button",
+	"name": "isoft-fm-foundation/download-button",
 	"version": "0.1.0",
 	"title": "Download Entry [iD]",
-	"category": "i-downloads",
+	"category": "isoft-fm-foundation",
 	"icon": "download",
 	"description": "Embed the full download card for a selected download entry.",
-	"textdomain": "i-downloads",
+	"textdomain": "isoft-fm-foundation",
 	"supports": {
 		"html": false,
 		"color": true,

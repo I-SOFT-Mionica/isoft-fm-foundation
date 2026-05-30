@@ -1,7 +1,7 @@
 <?php
 defined( 'ABSPATH' ) || exit;
 
-class IDL_Extension_Api {
+class ISFM_Extension_Api {
 
 	/** @var array<string,array> Registered extensions keyed by slug. */
 	private static array $extensions = array();
@@ -14,14 +14,14 @@ class IDL_Extension_Api {
 	}
 
 	public function fire_init(): void {
-		do_action( 'idl_extensions_init' );
+		do_action( 'isfm_extensions_init' );
 	}
 
 	public function render_admin_notices(): void {
-		if ( ! current_user_can( 'idl_manage_settings' ) ) {
+		if ( ! current_user_can( 'isfm_manage_settings' ) ) {
 			return;
 		}
-		$notices = get_option( 'idl_admin_notices', array() );
+		$notices = get_option( 'isfm_admin_notices', array() );
 		if ( ! $notices ) {
 			return;
 		}
@@ -32,11 +32,11 @@ class IDL_Extension_Api {
 				esc_html( $n['message'] )
 			);
 		}
-		delete_option( 'idl_admin_notices' );
+		delete_option( 'isfm_admin_notices' );
 	}
 
 	/**
-	 * Register an extension. Called by Sentinel/Orbit inside 'idl_extensions_init'.
+	 * Register an extension. Called by Sentinel/Orbit inside 'isfm_extensions_init'.
 	 *
 	 * @param array{slug:string,name:string,version:string} $args
 	 */

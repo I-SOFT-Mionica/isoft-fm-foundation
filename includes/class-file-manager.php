@@ -1,15 +1,15 @@
 <?php
 defined( 'ABSPATH' ) || exit;
 
-class IDL_File_Manager {
+class ISFM_File_Manager {
 
 	private string $table;
 
-	public const CACHE_GROUP = 'idl_files';
+	public const CACHE_GROUP = 'isfm_files';
 
 	public function __construct() {
 		global $wpdb;
-		$this->table = "{$wpdb->prefix}idl_files";
+		$this->table = "{$wpdb->prefix}isfm_files";
 	}
 
 	/**
@@ -77,19 +77,19 @@ class IDL_File_Manager {
 	}
 
 	/**
-	 * Insert a DB row for a physical file that already lives under idl_files_dir().
-	 * $args['file_path'] must be relative to idl_files_dir().
+	 * Insert a DB row for a physical file that already lives under isfm_files_dir().
+	 * $args['file_path'] must be relative to isfm_files_dir().
 	 */
 	public function add_local_file( int $download_id, array $args ): int|false {
 		global $wpdb;
 
 		// Capture inode for rename-recovery fast path. Gated on the
-		// 'idl_integrity_use_inode' setting (default on; admins on Windows hosting
+		// 'isfm_integrity_use_inode' setting (default on; admins on Windows hosting
 		// should turn this off — Windows does not provide stable POSIX inodes).
 		$inode    = null;
 		$rel_path = (string) ( $args['file_path'] ?? '' );
-		if ( '' !== $rel_path && (bool) get_option( 'idl_integrity_use_inode', 1 ) ) {
-			$abs = idl_files_dir() . '/' . $rel_path;
+		if ( '' !== $rel_path && (bool) get_option( 'isfm_integrity_use_inode', 1 ) ) {
+			$abs = isfm_files_dir() . '/' . $rel_path;
 			if ( is_readable( $abs ) ) {
 				$ino = @fileinode( $abs );
 				if ( $ino && $ino > 0 ) {
@@ -125,7 +125,7 @@ class IDL_File_Manager {
 
 		$file_id = (int) $wpdb->insert_id;
 		self::bust_cache_for( $download_id, $file_id );
-		do_action( 'idl_file_uploaded', $file_id, $download_id );
+		do_action( 'isfm_file_uploaded', $file_id, $download_id );
 		return $file_id;
 	}
 
@@ -156,7 +156,7 @@ class IDL_File_Manager {
 
 		$file_id = (int) $wpdb->insert_id;
 		self::bust_cache_for( $download_id, $file_id );
-		do_action( 'idl_file_uploaded', $file_id, $download_id );
+		do_action( 'isfm_file_uploaded', $file_id, $download_id );
 		return $file_id;
 	}
 
@@ -218,7 +218,7 @@ class IDL_File_Manager {
 			return false;
 		}
 
-		do_action( 'idl_file_deleted', $file_id, (int) $file->download_id );
+		do_action( 'isfm_file_deleted', $file_id, (int) $file->download_id );
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table write; cache invalidated below.
 		$result = $wpdb->delete( $this->table, array( 'id' => $file_id ), array( '%d' ) );
@@ -251,7 +251,7 @@ class IDL_File_Manager {
 				$download_id
 			)
 		);
-		update_post_meta( $download_id, '_idl_download_count', $total );
+		update_post_meta( $download_id, '_isfm_download_count', $total );
 		self::bust_cache_for( $download_id, $file_id );
 	}
 
