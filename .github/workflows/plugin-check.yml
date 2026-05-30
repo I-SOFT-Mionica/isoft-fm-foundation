@@ -3,19 +3,33 @@ name: Plugin Check
 # Runs the official WordPress Plugin Check (https://wordpress.org/plugins/plugin-check/)
 # via the WordPress team's maintained action.
 #
-# Two action quirks worth knowing about (confirmed against v1.1.6 action.yml):
+# ADVISORY ONLY (continue-on-error: true). Investigation findings against
+# wordpress/plugin-check-action@v1.1.6 action.yml — three upstream barriers
+# that together prevent the inner job from going green:
 #
-# 1. The `wp-version` input is silently dropped for any value except 'trunk'.
-#    The action sets WP_VERSION=null in its Setup wp-env step's env block
-#    unless wp-version=='trunk'. We override that with our own WP_VERSION env
-#    var on the step below.
+# 1. wp-env 11.7.0 generates docker-compose `build:` directives for the
+#    WordPress service but never invokes `docker compose build`. Log
+#    signature: `wordpress Skipped - No image to be pulled` followed by
+#    only the MySQL containers coming up.
 #
-# 2. The action does NOT expose any way to set PHP version. Its generated
-#    .wp-env.json has no phpVersion field, so wp-env uses the default (PHP
-#    8.3). Our plugin's `Requires PHP: 8.4` then blocks activation. Until
-#    this is fixed upstream we keep continue-on-error: true so the workflow
-#    stays green at the workflow level. Plugin Check is validated locally
-#    against PHP 8.4 in Local Sites before each release.
+# 2. The action's `wp-version` input is silently dropped for any value
+#    except 'trunk'. Action's Setup wp-env step:
+#      env:
+#        WP_VERSION: ${{ inputs.wp-version == 'trunk' && '...' || 'null' }}
+#    Tried overriding via the calling step's `env: WP_VERSION: latest` —
+#    step-level env inside the action wins over the caller's step env.
+#    Tried pre-creating .wp-env.json — the action unconditionally
+#    truncates and rewrites it (touch + > + echo).
+#
+# 3. The action exposes no way to set PHP version. Its generated
+#    .wp-env.json has no phpVersion field, so wp-env defaults to PHP
+#    8.3, and our `Requires PHP: 8.4` then blocks `wp plugin activate`.
+#
+# Net: we cannot fix this from the caller side without forking the
+# action. Plugin Check is validated locally against PHP 8.4 in Local
+# Sites before each release. When upstream fixes any of these (notably
+# (1) — the wp-env regression), the workflow will start going green on
+# its own and we can drop continue-on-error.
 #
 # Custom (non-action) workflow preserved on branch
 # `backup/pre-plugin-check-action-revival` for revival if needed.
@@ -29,7 +43,7 @@ on:
 jobs:
   plugin-check:
     runs-on: ubuntu-latest
-    continue-on-error: true  # see header comment — PHP-version mismatch
+    continue-on-error: true  # see header comment
 
     steps:
       - uses: actions/checkout@v4
@@ -38,16 +52,9 @@ jobs:
         # Pinned to a specific release rather than @v1 so an upstream
         # regression can't silently change our gate.
         uses: wordpress/plugin-check-action@v1.1.6
-        env:
-          # See header note 1: override the action's hardcoded WP_VERSION=null
-          # so its generated .wp-env.json has `"core": "latest"` instead of
-          # `"core": null`. Step-level env vars on a calling workflow take
-          # precedence over the action's step-level env block.
-          WP_VERSION: '"latest"'
         with:
           build-dir: ${{ github.workspace }}
           slug: isoft-fm-foundation
-          wp-version: latest  # ignored by action for non-'trunk', see note 1
           categories: |
             general
             plugin_repo
