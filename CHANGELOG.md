@@ -2,6 +2,17 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.8.3] — 2026-05-31
+
+Plugin Check runtime warnings cleared once CI started running them. All three findings came from the same place: `ISFM_Shortcodes::enqueue_assets()` hooked into `wp_enqueue_scripts` unconditionally.
+
+### Changed
+- **`includes/class-shortcodes.php`** — `enqueue_assets()` now early-returns unless a new `page_needs_assets()` helper confirms the page actually renders plugin content (single download, download archive/taxonomy, or a post containing one of our shortcodes or blocks). Public CSS and JS no longer load on every front-end page.
+- **`includes/class-shortcodes.php`** — `wp_enqueue_script()` for `isfm-public` switched to the array-args form (`'in_footer' => true, 'strategy' => 'defer'`). Clears `NonBlockingScripts.NoStrategy`.
+
+### CI
+- **`.github/workflows/plugin-check.yml`** — replaced the upstream `wordpress/plugin-check-action` wrapper (which silently no-ops on Node 24.16.0 / libuv 1.52.1 when `.wp-env.json` carries URL-source plugins; see [WordPress/plugin-check-action#579](https://github.com/WordPress/plugin-check-action/issues/579)) with a direct `wp-env` invocation. `.wp-env.json` is URL-plugin-free; Plugin Check is installed post-boot via `wp plugin install plugin-check --activate`. `phpVersion: 8.4` lets the plugin actually activate so runtime checks fire. A `wp cli info` step gates Docker actually being up before the check runs — wp-env can exit 0 without the WordPress container.
+
 ## [0.8.2] — 2026-05-30
 
 Plugin Check round-2 cleanup.
