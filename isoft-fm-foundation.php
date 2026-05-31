@@ -3,7 +3,7 @@
  * Plugin Name: I-Soft File Manager: Foundation
  * Plugin URI:  https://isoft.rs/isoft-fm-foundation
  * Description: Hierarchical file download manager — categories, multi-file entries, secure download handler, audit logging, and role-based access control.
- * Version:     0.8.2
+ * Version:     0.8.3
  * Author:      I-SOFT Mionica
  * Author URI:  https://isoft.rs
  * License:     GPL v2 or later
@@ -16,7 +16,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-const ISFM_VERSION = '0.8.2';
+const ISFM_VERSION = '0.8.3';
 define( 'ISFM_PLUGIN_FILE', __FILE__ );
 define( 'ISFM_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'ISFM_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
