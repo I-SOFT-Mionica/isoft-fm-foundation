@@ -1,23 +1,29 @@
 name: Plugin Check
 
-# Runs the official WordPress Plugin Check (https://wordpress.org/plugins/plugin-check/)
-# via the WordPress team's maintained action.
+# Runs WordPress Plugin Check (https://wordpress.org/plugins/plugin-check/)
+# via wp-env directly. Bypasses wordpress/plugin-check-action because it
+# hits the upstream wp-env bug described below.
 #
-# ⚠ ADVISORY ONLY (continue-on-error: true). As of late May 2026, wp-env 11.7.0
-# has a regression where 'wp-env start' generates docker-compose 'build:'
-# directives for the WordPress service but never invokes 'docker compose build'.
-# The log signature is 'wordpress Skipped - No image to be pulled' followed by
-# only MySQL containers coming up. Both the official action AND our previous
-# hand-rolled workflow hit this — wp-env is broken for everyone.
+# Root cause (per the upstream maintainer bisection in
+# https://github.com/WordPress/plugin-check-action/issues/579):
+# wp-env's URL-source download path silently exit-0s on Node 24.16.0 /
+# libuv 1.52.1 when `.wp-env.json` has `"plugins": ["https://...zip"]`.
+# Suspect: bundled `got@^11.8.5` interacting with the libuv 1.52.1
+# update. The wrapper action ALWAYS adds plugin-check as a URL entry,
+# so it tripped the same bug we tripped with our own custom workflow.
 #
-# We keep the workflow running so we'll see it go green automatically when
-# upstream fixes itself, but failures don't block the merge gate. Plugin Check
-# is validated locally (Local Sites + plugin-check plugin) before tagging a
-# release.
+# Workaround (recommended by the maintainer): keep .wp-env.json
+# URL-plugin-free, and install plugin-check via wp-cli after wp-env
+# starts. Also adds a `wp cli info` check right after start as
+# defense-in-depth — wp-env can exit 0 without actually starting
+# Docker, and that command will fail loudly if it did.
 #
-# Custom workflow preserved on branch `backup/pre-plugin-check-action-revival`
-# in case we want to revive a non-wp-env approach (docker-compose with
-# wordpress:php8.4-apache directly).
+# We also skip `wp plugin activate` for our own plugin — Plugin Check
+# can run against an inactive plugin, sidestepping the PHP 8.4
+# activation barrier (wp-env defaults to PHP 8.3).
+#
+# Backup branch `backup/pre-plugin-check-action-revival` still has the
+# earlier hand-rolled docker-cp variant.
 
 on:
   push:
@@ -28,28 +34,74 @@ on:
 jobs:
   plugin-check:
     runs-on: ubuntu-latest
-    continue-on-error: true  # see header comment
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run Plugin Check
-        # Pinned to a specific release rather than @v1 so an upstream
-        # regression can't silently change our gate.
-        uses: wordpress/plugin-check-action@v1.1.6
+      - uses: actions/setup-node@v4
         with:
-          build-dir: ${{ github.workspace }}
-          slug: isoft-fm-foundation
-          php-version: '8.4'
-          categories: |
-            general
-            plugin_repo
-            security
-            performance
-            accessibility
-          include-experimental: true
-          exclude-directories: |
-            vendor
-            node_modules
-            tests
-            languages
+          node-version: 24
+
+      - name: Install wp-env
+        run: npm install -g @wordpress/env
+
+      - name: Stage plugin (.distignore-filtered)
+        # Plugin Check scans whatever's mounted. If we mount the whole
+        # workspace directly, it sees .wp-env.json, phpcs.xml.dist,
+        # .gitignore, .github/, etc. and flags them. Stage a clean copy
+        # in /tmp first using .distignore (same as the release zip).
+        run: |
+          mkdir -p /tmp/staging/isoft-fm-foundation
+          rsync -a \
+            --exclude='.wp-env.json' \
+            --exclude-from="${GITHUB_WORKSPACE}/.distignore" \
+            "${GITHUB_WORKSPACE}/" /tmp/staging/isoft-fm-foundation/
+          ls -la /tmp/staging/isoft-fm-foundation/
+
+      - name: Generate .wp-env.json
+        # No URL plugins (would trigger the wp-env download-path bug).
+        # phpVersion 8.4 matches the plugin's `Requires PHP` so we can
+        # activate and Plugin Check's runtime checks (enqueued asset
+        # size/scope/loading-strategy) actually fire.
+        run: |
+          cat > .wp-env.json <<'EOF'
+          {
+            "phpVersion": "8.4",
+            "mappings": {
+              "wp-content/plugins/isoft-fm-foundation": "/tmp/staging/isoft-fm-foundation"
+            }
+          }
+          EOF
+          cat .wp-env.json
+
+      - name: Start wp-env
+        run: wp-env start --update
+
+      - name: Verify wp-env actually started
+        # Defense-in-depth: wp-env can exit 0 without starting Docker
+        # (the bug above). This call fails loudly if that happened.
+        run: wp-env run cli wp cli info
+
+      - name: Install plugin-check via wp-cli
+        # NOT via .wp-env.json's plugins array — that's what triggers
+        # the upstream wp-env bug.
+        run: wp-env run cli wp plugin install plugin-check --activate
+
+      - name: Activate isoft-fm-foundation
+        # phpVersion 8.4 in .wp-env.json above lets this pass the
+        # 'Requires PHP: 8.4' guard. Activation enables Plugin Check's
+        # runtime checks (enqueued asset size/scope/etc.).
+        run: wp-env run cli wp plugin activate isoft-fm-foundation
+
+      - name: Run Plugin Check
+        run: |
+          wp-env run cli wp plugin check isoft-fm-foundation \
+            --format=table \
+            --categories=general,plugin_repo,security,performance,accessibility \
+            --include-experimental \
+            --exclude-directories=vendor,node_modules,tests,languages \
+            --require=./wp-content/plugins/plugin-check/cli.php
+
+      - name: Stop wp-env
+        if: always()
+        run: wp-env stop || true
