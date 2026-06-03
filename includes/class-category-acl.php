@@ -210,8 +210,11 @@ class ISFM_Category_ACL {
 		}
 
 		// Target: the posted category. Empty strings / zero values mean
-		// "no change" in WP's terms UI.
-		$raw    = wp_unslash( $_POST['tax_input']['isfm_category'] );
+		// "no change" in WP's terms UI. absint() applied to each element
+		// below is both the unslash (backslashes can't survive int cast)
+		// and the sanitization for numeric IDs.
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- See note above.
+		$raw    = $_POST['tax_input']['isfm_category'];
 		$posted = is_array( $raw ) ? array_map( 'absint', $raw ) : array( absint( $raw ) );
 		foreach ( $posted as $term_id ) {
 			if ( $term_id <= 0 ) {
@@ -452,7 +455,10 @@ class ISFM_Category_ACL {
 			return;
 		}
 
-		$raw = isset( $_POST['isfm_allowed_categories'] ) ? wp_unslash( $_POST['isfm_allowed_categories'] ) : array();
+		// absint() on each element below is both the unslash (numeric input
+		// can't carry magic-quote backslashes) and the sanitization.
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- See note above.
+		$raw = isset( $_POST['isfm_allowed_categories'] ) ? $_POST['isfm_allowed_categories'] : array();
 		$ids = is_array( $raw ) ? array_map( 'absint', $raw ) : array();
 		$ids = array_values( array_filter( $ids, fn( int $i ): bool => $i > 0 ) );
 		update_user_meta( $user_id, self::USER_META_KEY, $ids );
