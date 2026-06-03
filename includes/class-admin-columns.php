@@ -42,7 +42,7 @@ class ISOFT_FMF_Admin_Columns {
 							esc_url(
 								add_query_arg(
 									array(
-										'post_type'          => 'isoft_fmf_file',
+										'post_type' => 'isoft_fmf_file',
 										'isoft_fmf_category' => $t->slug,
 									),
 									admin_url( 'edit.php' )
