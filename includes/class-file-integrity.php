@@ -431,10 +431,10 @@ class ISOFT_FMF_File_Integrity {
 		wp_safe_redirect(
 			add_query_arg(
 				array(
-					'post_type' => 'isoft_fmf_file',
-					'page'      => 'isoft-fmf-settings',
-					'tab'       => 'maintenance',
-					'isoft_fmf_ran'  => 1,
+					'post_type'     => 'isoft_fmf_file',
+					'page'          => 'isoft-fmf-settings',
+					'tab'           => 'maintenance',
+					'isoft_fmf_ran' => 1,
 				),
 				admin_url( 'edit.php' )
 			)
