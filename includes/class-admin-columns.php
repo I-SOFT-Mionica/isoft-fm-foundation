@@ -52,7 +52,7 @@ class ISFM_Admin_Columns {
 						),
 						$terms
 					);
-					echo implode( ', ', $links ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+					echo wp_kses( implode( ', ', $links ), array( 'a' => array( 'href' => true ) ) );
 				} else {
 					echo '—';
 				}

@@ -46,10 +46,9 @@ $just_ran = isset( $_GET['isfm_ran'] ); // phpcs:ignore WordPress.Security.Nonce
 			<tr>
 				<th scope="row"><?php esc_html_e( 'Scan time (site timezone)', 'isoft-fm-foundation' ); ?></th>
 				<td>
-					<?php $time_str = esc_attr( sprintf( '%02d:%02d', (int) $cur_h, (int) $cur_m ) ); ?>
 					<input type="time"
 						name="isfm_integrity_check_time"
-						value="<?php echo $time_str; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>"
+						value="<?php echo esc_attr( sprintf( '%02d:%02d', (int) $cur_h, (int) $cur_m ) ); ?>"
 						step="60" />
 					<p class="description">
 						<?php esc_html_e( 'Pick any time that does not overlap the 01:00 HOT recalculation job. Default 02:30.', 'isoft-fm-foundation' ); ?>

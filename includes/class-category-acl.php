@@ -197,19 +197,26 @@ class ISFM_Category_ACL {
 			return;
 		}
 
+		// WP core verifies update-post_<id> before save_post fires; re-verify
+		// here so static analysis can see it.
+		$nonce = isset( $_POST['_wpnonce'] ) ? sanitize_key( wp_unslash( $_POST['_wpnonce'] ) ) : '';
+		if ( ! wp_verify_nonce( $nonce, 'update-post_' . $post_id ) ) {
+			return;
+		}
+
 		// Only act when the classic editor actually posted a category choice.
-		// Nonce verified by WP core (edit_post) before save_post fires.
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing
 		if ( ! isset( $_POST['tax_input']['isfm_category'] ) ) {
 			return;
 		}
 
 		// Target: the posted category. Empty strings / zero values mean
-		// "no change" in WP's terms UI.
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Term IDs cast to int below.
-		$posted = (array) $_POST['tax_input']['isfm_category'];
+		// "no change" in WP's terms UI. absint() applied to each element
+		// below is both the unslash (backslashes can't survive int cast)
+		// and the sanitization for numeric IDs.
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- See note above.
+		$raw    = $_POST['tax_input']['isfm_category'];
+		$posted = is_array( $raw ) ? array_map( 'absint', $raw ) : array( absint( $raw ) );
 		foreach ( $posted as $term_id ) {
-			$term_id = (int) $term_id;
 			if ( $term_id <= 0 ) {
 				continue;
 			}
@@ -440,12 +447,19 @@ class ISFM_Category_ACL {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
-		// Nonce verified by WP core personal_options_update / edit_user_profile_update actions.
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing
-		$ids = isset( $_POST['isfm_allowed_categories'] )
-			// phpcs:ignore WordPress.Security.NonceVerification.Missing
-			? array_map( 'intval', (array) $_POST['isfm_allowed_categories'] )
-			: array();
+
+		// WP core verifies update-user_<id> before personal_options_update /
+		// edit_user_profile_update fire; re-verify so static analysis sees it.
+		$nonce = isset( $_POST['_wpnonce'] ) ? sanitize_key( wp_unslash( $_POST['_wpnonce'] ) ) : '';
+		if ( ! wp_verify_nonce( $nonce, 'update-user_' . $user_id ) ) {
+			return;
+		}
+
+		// absint() on each element below is both the unslash (numeric input
+		// can't carry magic-quote backslashes) and the sanitization.
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- See note above.
+		$raw = isset( $_POST['isfm_allowed_categories'] ) ? $_POST['isfm_allowed_categories'] : array();
+		$ids = is_array( $raw ) ? array_map( 'absint', $raw ) : array();
 		$ids = array_values( array_filter( $ids, fn( int $i ): bool => $i > 0 ) );
 		update_user_meta( $user_id, self::USER_META_KEY, $ids );
 

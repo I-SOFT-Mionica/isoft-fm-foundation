@@ -80,11 +80,12 @@ class ISFM_Pdf_Thumbnail {
 	}
 
 	private function save_as_attachment( string $image_path, int $parent_id ): int|false {
-		require_once ABSPATH . 'wp-admin/includes/image.php';
+		// Required by wp_upload_bits() (file.php) and wp_generate_attachment_metadata() (image.php) called immediately below.
 		require_once ABSPATH . 'wp-admin/includes/file.php';
-		require_once ABSPATH . 'wp-admin/includes/media.php';
+		require_once ABSPATH . 'wp-admin/includes/image.php';
 
-		$contents = file_get_contents( $image_path ); // phpcs:ignore WordPress.WP.AlternativeFunctions
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Reading a thumbnail we just wrote to sys_get_temp_dir(); WP_Filesystem cannot read from outside ABSPATH.
+		$contents = file_get_contents( $image_path );
 		if ( false === $contents ) {
 			return false;
 		}

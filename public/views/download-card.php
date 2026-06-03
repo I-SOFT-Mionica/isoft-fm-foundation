@@ -106,7 +106,7 @@ $btn_text   = $settings['default_button_text'] ?: __( 'Download', 'isoft-fm-foun
 			<?php elseif ( $can_access ) : ?>
 				<?php if ( $require_agree ) : ?>
 				<div id="<?php echo esc_attr( $hidden_id ); ?>" class="isfm-agree-content" hidden>
-					<?php echo $agree_text; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+					<?php echo wp_kses_post( $agree_text ); ?>
 				</div>
 				<a href="<?php echo esc_url( isfm_get_download_url( (int) $file->id ) ); ?>"
 					class="wp-element-button isfm-download-btn isfm-requires-agree"

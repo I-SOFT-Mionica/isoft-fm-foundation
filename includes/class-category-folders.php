@@ -252,16 +252,23 @@ class ISFM_Category_Folders {
 	 * processes them. Sends a JSON error that the list table JS will display.
 	 */
 	public function ajax_guard_delete(): void {
-		// phpcs:disable WordPress.Security.NonceVerification.Missing -- WP core verifies the nonce in its own delete-tag handler; we only read taxonomy + tag_ID to decide whether to block.
-		$taxonomy = sanitize_key( wp_unslash( $_POST['taxonomy'] ?? '' ) );
+		// Taxonomy gate first so non-isfm deletes pass through untouched (we
+		// must not consume their nonce or fail on it).
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Taxonomy gate only; nonce checked below for our own deletes.
+		$taxonomy = isset( $_POST['taxonomy'] ) ? sanitize_key( wp_unslash( $_POST['taxonomy'] ) ) : '';
 		if ( 'isfm_category' !== $taxonomy ) {
 			return;
 		}
 
-		$term_id = absint( $_POST['tag_ID'] ?? 0 );
-		// phpcs:enable WordPress.Security.NonceVerification.Missing
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Term ID needed for the nonce action below; check_ajax_referer() follows.
+		$term_id = isset( $_POST['tag_ID'] ) ? absint( wp_unslash( $_POST['tag_ID'] ) ) : 0;
 		if ( ! $term_id ) {
 			return;
+		}
+
+		check_ajax_referer( 'delete-tag_' . $term_id );
+		if ( ! current_user_can( 'delete_term', $term_id ) ) {
+			wp_send_json_error( array( 'message' => __( 'Insufficient permissions to delete this category.', 'isoft-fm-foundation' ) ), 403 );
 		}
 
 		$count = $this->count_downloads_in_category( $term_id );

@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.0
 Requires PHP: 8.4
-Stable tag: 0.8.3
+Stable tag: 0.9.0
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -138,6 +138,19 @@ For deeper changes (layout, spacing, typography), all public classes use the `.i
 * `.isfm-list-wrap` — List wrapper
 * `.isfm-category-grid` — Category grid wrapper
 
+== Source code ==
+
+Full source — including the un-minified React/JSX for the three Gutenberg blocks — is hosted publicly at:
+
+https://github.com/I-SOFT-Mionica/isoft-fm-foundation
+
+The compiled block bundles shipped under `blocks/build/` are produced from `blocks/<block-name>/{index,edit}.js` via `@wordpress/scripts` (webpack). To rebuild from a clean checkout:
+
+`npm install
+npm run build`
+
+The build script reads `webpack.config.js`, compiles each block's `index.js` entry, and writes `blocks/build/<block-name>.js` plus an `<block-name>.asset.php` dependency manifest. Running `npm run start` instead watches the sources and rebuilds on save during development.
+
 == Screenshots ==
 
 1. Download edit screen with drag-and-drop upload, per-file progress, and the From Folder browser.
@@ -147,6 +160,16 @@ For deeper changes (layout, spacing, typography), all public classes use the `.i
 5. Download handler settings — security, logging, and serve method.
 
 == Changelog ==
+
+= 0.9.0 =
+* **Round-3 WordPress.org review fixes.** Explicit nonce + capability checks on every flagged save path (`save_term_fields`, `ajax_guard_delete`, `enforce_category_on_save`, `save_profile_field`). License + log admin views now self-guard with `current_user_can()`. Upload mime detection no longer trusts `$_FILES['file']['type']` — uses `mime_content_type()` with `wp_check_filetype()` fallback.
+* **Output escaping** — `wp_kses_post()` / `wp_kses()` around every previously phpcs-ignored echo: admin column links, `paginate_links()`, the four search/download-button shortcode outputs, the license agreement HTML block, and the integrity-scan time picker.
+* **`readfile()` instead of an `fread` loop** in the download streamer.
+* **Plugin URI + Author URI** now point at the public GitHub repo (https://github.com/I-SOFT-Mionica/isoft-fm-foundation). Will swap back to isoft.rs once that domain's TLS cert covers the bare hostname.
+* **New == Source code == readme section** explaining where the React/JSX sources for the three Gutenberg blocks live and how to rebuild them with `npm install && npm run build`.
+
+= 0.8.3 =
+* **Lazy-enqueue + defer.** Public CSS/JS only enqueue on pages that actually render plugin content (single download, download archive/taxonomy, post containing one of our shortcodes/blocks). Script now uses `'strategy' => 'defer'`.
 
 = 0.8.2 =
 * **Uninstall cleanup uses the WP API** instead of a wildcard `DELETE` query. Plugin Check no longer flags the direct DB query, and `_isfm_allowed_categories` user meta now gets removed too (the old wildcard only hit the options table).

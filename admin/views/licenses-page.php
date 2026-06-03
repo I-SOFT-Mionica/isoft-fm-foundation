@@ -1,6 +1,12 @@
 <?php defined( 'ABSPATH' ) || exit;
 
-// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Locals passed in by the including class; not actual globals. ?>
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Locals passed in by the including class; not actual globals.
+
+// Belt-and-braces capability gate even though the menu page is already capability-gated.
+if ( ! current_user_can( 'isfm_manage_settings' ) ) {
+	wp_die( esc_html__( 'You do not have permission to manage licenses.', 'isoft-fm-foundation' ), 403 );
+}
+?>
 <div class="wrap">
 	<h1><?php esc_html_e( 'Licenses', 'isoft-fm-foundation' ); ?> <a href="<?php echo esc_url( add_query_arg( array( 'action' => 'new' ), isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '' ) ); ?>" class="page-title-action"><?php esc_html_e( 'Add New', 'isoft-fm-foundation' ); ?></a></h1>
 
