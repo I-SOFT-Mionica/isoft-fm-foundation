@@ -21,7 +21,7 @@ export default function Edit( { attributes, setAttributes } ) {
 	// Top-level categories for the parent picker
 	const topCategories = useSelect(
 		( select ) =>
-			select( coreStore ).getEntityRecords( 'taxonomy', 'isfm_category', {
+			select( coreStore ).getEntityRecords( 'taxonomy', 'isoft_fmf_category', {
 				per_page: -1,
 				parent: 0,
 				_fields: 'id,name',

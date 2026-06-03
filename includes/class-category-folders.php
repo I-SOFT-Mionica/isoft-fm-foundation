@@ -2,19 +2,19 @@
 /**
  * Category folder manager.
  *
- * Maps every isfm_category term to a physical folder under isfm_files_dir().
+ * Maps every isoft_fmf_category term to a physical folder under isoft_fmf_files_dir().
  * The folder name is the category slug; nesting mirrors the category tree.
  *
  * Folder lifecycle:
  *   created  → folder created on disk
  *   edited   → if slug or parent changed, old folder is renamed, all
- *               isfm_files.file_path rows with the old prefix are updated
+ *               isoft_fmf_files.file_path rows with the old prefix are updated
  *   deleted  → folder is LEFT on disk (files are the source of truth;
  *               a notice is shown if the folder is non-empty)
  */
 defined( 'ABSPATH' ) || exit;
 
-class ISFM_Category_Folders {
+class ISOFT_FMF_Category_Folders {
 
 	/** Captured before term edit so we can detect slug / parent changes. */
 	private static array $pre_edit_path = array();
@@ -34,9 +34,9 @@ class ISFM_Category_Folders {
 
 		// Priority PHP_INT_MAX so we are the *last* callback — nothing else
 		// can overwrite the slug after we rewrite it.
-		add_action( 'created_isfm_category', array( $this, 'on_created' ), PHP_INT_MAX, 2 );
+		add_action( 'created_isoft_fmf_category', array( $this, 'on_created' ), PHP_INT_MAX, 2 );
 		add_action( 'edit_term', array( $this, 'before_edit' ), 10, 3 );
-		add_action( 'edited_isfm_category', array( $this, 'on_edited' ), PHP_INT_MAX, 2 );
+		add_action( 'edited_isoft_fmf_category', array( $this, 'on_edited' ), PHP_INT_MAX, 2 );
 		add_action( 'pre_delete_term', array( $this, 'on_pre_delete' ), 10, 2 );
 		// 'delete-tag' is WP core's own AJAX action for term deletion in the
 		// admin (not our prefix). We hook in at priority 0 to short-circuit the
@@ -53,7 +53,7 @@ class ISFM_Category_Folders {
 	 * term name via sanitize_title(), which passes Cyrillic through unchanged.
 	 */
 	public function filter_pre_term_slug( string $slug, string $taxonomy ): string {
-		if ( 'isfm_category' !== $taxonomy ) {
+		if ( 'isoft_fmf_category' !== $taxonomy ) {
 			return $slug;
 		}
 
@@ -70,13 +70,13 @@ class ISFM_Category_Folders {
 			}
 			// phpcs:enable WordPress.Security.NonceVerification.Missing
 			if ( '' !== $raw_name ) {
-				$slug = sanitize_title( isfm_cyrillic_to_latin( $raw_name ) );
+				$slug = sanitize_title( isoft_fmf_cyrillic_to_latin( $raw_name ) );
 			}
 		} else {
 			// Non-empty slug — may already be URL-encoded Cyrillic.
 			$decoded = urldecode( $slug );
 			if ( preg_match( '/\p{Cyrillic}/u', $decoded ) ) {
-				$slug = sanitize_title( isfm_cyrillic_to_latin( $decoded ) );
+				$slug = sanitize_title( isoft_fmf_cyrillic_to_latin( $decoded ) );
 			}
 		}
 
@@ -111,7 +111,7 @@ class ISFM_Category_Folders {
 			return false; // Nothing to do.
 		}
 
-		$latin = sanitize_title( isfm_cyrillic_to_latin( $decoded ) );
+		$latin = sanitize_title( isoft_fmf_cyrillic_to_latin( $decoded ) );
 
 		if ( ! $latin || $latin === $current || $latin === $decoded ) {
 			return false;
@@ -140,7 +140,7 @@ class ISFM_Category_Folders {
 			array( '%d' )
 		);
 		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
-		clean_term_cache( $term_id, 'isfm_category' );
+		clean_term_cache( $term_id, 'isoft_fmf_category' );
 		return true;
 	}
 
@@ -164,10 +164,10 @@ class ISFM_Category_Folders {
 	 */
 	public function before_edit( int $term_id, int $tt_id, string $taxonomy ): void {
 		unset( $tt_id );
-		if ( 'isfm_category' !== $taxonomy ) {
+		if ( 'isoft_fmf_category' !== $taxonomy ) {
 			return;
 		}
-		self::$pre_edit_path[ $term_id ] = isfm_category_folder_path( $term_id );
+		self::$pre_edit_path[ $term_id ] = isoft_fmf_category_folder_path( $term_id );
 	}
 
 	/**
@@ -185,13 +185,13 @@ class ISFM_Category_Folders {
 		}
 
 		$old_rel = self::$pre_edit_path[ $term_id ];
-		$new_rel = isfm_category_folder_path( $term_id );
+		$new_rel = isoft_fmf_category_folder_path( $term_id );
 
 		unset( self::$pre_edit_path[ $term_id ] );
 
 		// Always ensure the target folder exists (covers categories created
 		// before this version that never got a folder).
-		$new_fs = isfm_files_dir() . '/' . $new_rel;
+		$new_fs = isoft_fmf_files_dir() . '/' . $new_rel;
 
 		if ( $old_rel === $new_rel ) {
 			if ( ! file_exists( $new_fs ) ) {
@@ -200,7 +200,7 @@ class ISFM_Category_Folders {
 			return;
 		}
 
-		$old_fs = isfm_files_dir() . '/' . $old_rel;
+		$old_fs = isoft_fmf_files_dir() . '/' . $old_rel;
 
 		if ( file_exists( $old_fs ) ) {
 			wp_mkdir_p( dirname( $new_fs ) );
@@ -229,10 +229,10 @@ class ISFM_Category_Folders {
 		$old_prefix = "{$old_rel}/";
 		$new_prefix = "{$new_rel}/";
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Bulk path rewrite on custom isfm_files table after folder rename; cache flushed below.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Bulk path rewrite on custom isoft_fmf_files table after folder rename; cache flushed below.
 		$wpdb->query(
 			$wpdb->prepare(
-				"UPDATE {$wpdb->prefix}isfm_files
+				"UPDATE {$wpdb->prefix}isoft_fmf_files
 				    SET file_path = CONCAT( %s, SUBSTRING( file_path, %d ) )
 				  WHERE file_path LIKE %s",
 				$new_prefix,
@@ -242,13 +242,13 @@ class ISFM_Category_Folders {
 		);
 		// Bulk update touched an unknown number of rows across multiple downloads — flush
 		// the whole cache group so every download_id key is re-read on next hit.
-		wp_cache_flush_group( ISFM_File_Manager::CACHE_GROUP );
+		wp_cache_flush_group( ISOFT_FMF_File_Manager::CACHE_GROUP );
 
-		do_action( 'isfm_category_folder_renamed', $term_id, $old_rel, $new_rel );
+		do_action( 'isoft_fmf_category_folder_renamed', $term_id, $old_rel, $new_rel );
 	}
 
 	/**
-	 * AJAX guard: intercept delete-tag requests for isfm_category before WP core
+	 * AJAX guard: intercept delete-tag requests for isoft_fmf_category before WP core
 	 * processes them. Sends a JSON error that the list table JS will display.
 	 */
 	public function ajax_guard_delete(): void {
@@ -256,7 +256,7 @@ class ISFM_Category_Folders {
 		// must not consume their nonce or fail on it).
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Taxonomy gate only; nonce checked below for our own deletes.
 		$taxonomy = isset( $_POST['taxonomy'] ) ? sanitize_key( wp_unslash( $_POST['taxonomy'] ) ) : '';
-		if ( 'isfm_category' !== $taxonomy ) {
+		if ( 'isoft_fmf_category' !== $taxonomy ) {
 			return;
 		}
 
@@ -276,7 +276,7 @@ class ISFM_Category_Folders {
 			return;
 		}
 
-		$term = get_term( $term_id, 'isfm_category' );
+		$term = get_term( $term_id, 'isoft_fmf_category' );
 		$name = $term ? $term->name : "#{$term_id}";
 
 		$message = sprintf(
@@ -291,7 +291,7 @@ class ISFM_Category_Folders {
 			$count
 		);
 
-		isfm_notify_admin( $message, 'error' );
+		isoft_fmf_notify_admin( $message, 'error' );
 		wp_die( '0' );
 	}
 
@@ -300,14 +300,14 @@ class ISFM_Category_Folders {
 	 * (would become orphaned), otherwise remove the folder if it is empty.
 	 */
 	public function on_pre_delete( int $term_id, string $taxonomy ): void {
-		if ( 'isfm_category' !== $taxonomy ) {
+		if ( 'isoft_fmf_category' !== $taxonomy ) {
 			return;
 		}
 
 		$count = $this->count_downloads_in_category( $term_id );
 
 		if ( $count > 0 ) {
-			$term = get_term( $term_id, 'isfm_category' );
+			$term = get_term( $term_id, 'isoft_fmf_category' );
 			$name = $term ? $term->name : "#{$term_id}";
 
 			wp_die(
@@ -333,7 +333,7 @@ class ISFM_Category_Folders {
 		}
 
 		// No downloads — remove the folder if it is also empty on disk.
-		$fs_path = isfm_category_fs_path( $term_id );
+		$fs_path = isoft_fmf_category_fs_path( $term_id );
 		if ( ! file_exists( $fs_path ) ) {
 			return;
 		}
@@ -361,7 +361,7 @@ class ISFM_Category_Folders {
 	}
 
 	/**
-	 * When a download's isfm_category assignment changes, move its files from
+	 * When a download's isoft_fmf_category assignment changes, move its files from
 	 * the old category folder to the new one.
 	 *
 	 * Signature: set_object_terms( $object_id, $terms, $tt_ids, $taxonomy, $append, $old_tt_ids )
@@ -375,10 +375,10 @@ class ISFM_Category_Folders {
 		array $old_tt_ids
 	): void {
 		unset( $terms, $append );
-		if ( 'isfm_category' !== $taxonomy ) {
+		if ( 'isoft_fmf_category' !== $taxonomy ) {
 			return;
 		}
-		if ( 'isfm_file' !== get_post_type( $object_id ) ) {
+		if ( 'isoft_fmf_file' !== get_post_type( $object_id ) ) {
 			return;
 		}
 
@@ -395,7 +395,7 @@ class ISFM_Category_Folders {
 		}
 
 		$new_tt_id = (int) $tt_ids[0];
-		$new_term  = get_term_by( 'term_taxonomy_id', $new_tt_id, 'isfm_category' );
+		$new_term  = get_term_by( 'term_taxonomy_id', $new_tt_id, 'isoft_fmf_category' );
 		if ( ! $new_term || is_wp_error( $new_term ) ) {
 			return;
 		}
@@ -422,7 +422,7 @@ class ISFM_Category_Folders {
 				   FROM {$wpdb->term_relationships} tr
 				   JOIN {$wpdb->term_taxonomy} tt ON tr.term_taxonomy_id = tt.term_taxonomy_id
 				  WHERE tt.term_id = %d
-				    AND tt.taxonomy = 'isfm_category'",
+				    AND tt.taxonomy = 'isoft_fmf_category'",
 				$term_id
 			)
 		);
@@ -439,7 +439,7 @@ class ISFM_Category_Folders {
 	 * @return bool  True if the folder exists (or was just created).
 	 */
 	public static function ensure( int $term_id ): bool {
-		$path = isfm_category_fs_path( $term_id );
+		$path = isoft_fmf_category_fs_path( $term_id );
 		if ( file_exists( $path ) ) {
 			return true;
 		}
@@ -458,7 +458,7 @@ class ISFM_Category_Folders {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Category reassign walks files of one download; cache busted at end of loop.
 		$files = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT id, file_path, file_name FROM {$wpdb->prefix}isfm_files WHERE download_id = %d",
+				"SELECT id, file_path, file_name FROM {$wpdb->prefix}isoft_fmf_files WHERE download_id = %d",
 				$download_id
 			)
 		);
@@ -468,8 +468,8 @@ class ISFM_Category_Folders {
 		}
 
 		self::ensure( $new_category_id );
-		$new_folder = isfm_category_fs_path( $new_category_id );
-		$base       = isfm_files_dir();
+		$new_folder = isoft_fmf_category_fs_path( $new_category_id );
+		$base       = isoft_fmf_files_dir();
 
 		foreach ( $files as $file ) {
 			if ( empty( $file->file_path ) ) {
@@ -486,7 +486,7 @@ class ISFM_Category_Folders {
 			// Guard against overwriting an existing file in the target folder.
 			if ( file_exists( $new_abs ) && $old_abs !== $new_abs ) {
 				return new WP_Error(
-					'isfm_collision',
+					'isoft_fmf_collision',
 					sprintf(
 						/* translators: %s: filename */
 						__( 'Cannot move "%s" — a file with that name already exists in the target category folder.', 'isoft-fm-foundation' ),
@@ -497,7 +497,7 @@ class ISFM_Category_Folders {
 
 			if ( ! self::wp_fs()->move( $old_abs, $new_abs, false ) ) {
 				return new WP_Error(
-					'isfm_rename_failed',
+					'isoft_fmf_rename_failed',
 					sprintf(
 						/* translators: %s: filename */
 						__( 'Failed to move "%s" to the new category folder. Check folder permissions.', 'isoft-fm-foundation' ),
@@ -507,10 +507,10 @@ class ISFM_Category_Folders {
 			}
 
 			// Update the stored path
-			$new_rel = isfm_category_folder_path( $new_category_id ) . '/' . $file->file_name;
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Path rewrite on custom isfm_files table; cache busted below.
+			$new_rel = isoft_fmf_category_folder_path( $new_category_id ) . '/' . $file->file_name;
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Path rewrite on custom isoft_fmf_files table; cache busted below.
 			$wpdb->update(
-				"{$wpdb->prefix}isfm_files",
+				"{$wpdb->prefix}isoft_fmf_files",
 				array( 'file_path' => $new_rel ),
 				array( 'id' => (int) $file->id ),
 				array( '%s' ),
@@ -518,7 +518,7 @@ class ISFM_Category_Folders {
 			);
 		}
 
-		ISFM_File_Manager::bust_cache_for( $download_id );
+		ISOFT_FMF_File_Manager::bust_cache_for( $download_id );
 		return true;
 	}
 }

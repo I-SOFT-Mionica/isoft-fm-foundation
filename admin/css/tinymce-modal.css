@@ -1,6 +1,6 @@
 /* ── TinyMCE Insert Download modal ─────────────────────────────────────── */
 
-.isfm-tmce-modal {
+.isoft-fmf-tmce-modal {
 	position: fixed;
 	inset: 0;
 	z-index: 100001;
@@ -9,17 +9,17 @@
 	justify-content: center;
 }
 
-.isfm-tmce-modal[hidden] {
+.isoft-fmf-tmce-modal[hidden] {
 	display: none;
 }
 
-.isfm-tmce-modal__backdrop {
+.isoft-fmf-tmce-modal__backdrop {
 	position: absolute;
 	inset: 0;
 	background: rgba(0, 0, 0, .6);
 }
 
-.isfm-tmce-modal__dialog {
+.isoft-fmf-tmce-modal__dialog {
 	position: relative;
 	background: #fff;
 	border-radius: 4px;
@@ -33,7 +33,7 @@
 }
 
 /* Header */
-.isfm-tmce-modal__header {
+.isoft-fmf-tmce-modal__header {
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -42,7 +42,7 @@
 	border-bottom: 1px solid #ddd;
 }
 
-.isfm-tmce-modal__title {
+.isoft-fmf-tmce-modal__title {
 	flex: 1;
 	margin: 0;
 	font-size: 14px;
@@ -52,11 +52,11 @@
 	gap: 8px;
 }
 
-.isfm-tmce-modal__title .dashicons {
+.isoft-fmf-tmce-modal__title .dashicons {
 	color: #0a7ee3;
 }
 
-.isfm-tmce-modal__close {
+.isoft-fmf-tmce-modal__close {
 	background: transparent;
 	border: 0;
 	cursor: pointer;
@@ -66,19 +66,19 @@
 	padding: 4px;
 }
 
-.isfm-tmce-modal__close:hover {
+.isoft-fmf-tmce-modal__close:hover {
 	color: #1e1e1e;
 }
 
 /* Filters */
-.isfm-tmce-modal__filters {
+.isoft-fmf-tmce-modal__filters {
 	display: flex;
 	gap: 8px;
 	padding: 10px 12px;
 	border-bottom: 1px solid #eee;
 }
 
-.isfm-tmce-modal__search {
+.isoft-fmf-tmce-modal__search {
 	flex: 2;
 	padding: 6px 8px;
 	border: 1px solid #ccd0d4;
@@ -86,7 +86,7 @@
 	font-size: 13px;
 }
 
-.isfm-tmce-modal__category {
+.isoft-fmf-tmce-modal__category {
 	flex: 1;
 	padding: 6px 8px;
 	border: 1px solid #ccd0d4;
@@ -95,20 +95,20 @@
 }
 
 /* Results */
-.isfm-tmce-modal__results {
+.isoft-fmf-tmce-modal__results {
 	flex: 1;
 	overflow-y: auto;
 	min-height: 120px;
 	max-height: 300px;
 }
 
-.isfm-tmce-modal__list {
+.isoft-fmf-tmce-modal__list {
 	list-style: none;
 	margin: 0;
 	padding: 0;
 }
 
-.isfm-tmce-modal__item {
+.isoft-fmf-tmce-modal__item {
 	display: flex;
 	align-items: center;
 	gap: 10px;
@@ -122,23 +122,23 @@
 	font-size: 13px;
 }
 
-.isfm-tmce-modal__item:hover {
+.isoft-fmf-tmce-modal__item:hover {
 	background: #f0f6fc;
 }
 
-.isfm-tmce-modal__item .dashicons {
+.isoft-fmf-tmce-modal__item .dashicons {
 	color: #0a7ee3;
 	flex-shrink: 0;
 }
 
-.isfm-tmce-modal__item-title {
+.isoft-fmf-tmce-modal__item-title {
 	flex: 1;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-.isfm-tmce-modal__item-cat {
+.isoft-fmf-tmce-modal__item-cat {
 	font-size: 11px;
 	color: #888;
 	flex-shrink: 0;
@@ -148,9 +148,9 @@
 	white-space: nowrap;
 }
 
-.isfm-tmce-modal__loading,
-.isfm-tmce-modal__empty,
-.isfm-tmce-modal__hint {
+.isoft-fmf-tmce-modal__loading,
+.isoft-fmf-tmce-modal__empty,
+.isoft-fmf-tmce-modal__hint {
 	padding: 12px;
 	margin: 0;
 	font-size: 13px;
@@ -158,7 +158,7 @@
 }
 
 /* Footer */
-.isfm-tmce-modal__footer {
+.isoft-fmf-tmce-modal__footer {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
@@ -167,7 +167,7 @@
 	background: #f6f7f7;
 }
 
-.isfm-tmce-modal__footer .isfm-tmce-modal__hint {
+.isoft-fmf-tmce-modal__footer .isoft-fmf-tmce-modal__hint {
 	padding: 0;
 	font-size: 11px;
 }

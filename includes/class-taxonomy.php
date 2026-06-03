@@ -1,20 +1,20 @@
 <?php
 defined( 'ABSPATH' ) || exit;
 
-class ISFM_Taxonomy {
+class ISOFT_FMF_Taxonomy {
 
 	public function register_hooks(): void {
 		add_action( 'init', array( $this, 'register' ) );
-		add_action( 'isfm_category_add_form_fields', array( $this, 'add_term_fields' ) );
-		add_action( 'isfm_category_edit_form_fields', array( $this, 'edit_term_fields' ) );
-		add_action( 'created_isfm_category', array( $this, 'save_term_fields' ) );
-		add_action( 'edited_isfm_category', array( $this, 'save_term_fields' ) );
+		add_action( 'isoft_fmf_category_add_form_fields', array( $this, 'add_term_fields' ) );
+		add_action( 'isoft_fmf_category_edit_form_fields', array( $this, 'edit_term_fields' ) );
+		add_action( 'created_isoft_fmf_category', array( $this, 'save_term_fields' ) );
+		add_action( 'edited_isoft_fmf_category', array( $this, 'save_term_fields' ) );
 	}
 
 	public function register(): void {
 		register_taxonomy(
-			'isfm_category',
-			'isfm_file',
+			'isoft_fmf_category',
+			'isoft_fmf_file',
 			array(
 				'labels'            => array(
 					'name'              => _x( 'Download Categories', 'taxonomy general name', 'isoft-fm-foundation' ),
@@ -34,20 +34,20 @@ class ISFM_Taxonomy {
 				'show_ui'           => true,
 				'show_admin_column' => true,
 				'show_in_rest'      => true,
-				'rewrite'           => array( 'slug' => get_option( 'isfm_category_slug', 'download-category' ) ),
+				'rewrite'           => array( 'slug' => get_option( 'isoft_fmf_category_slug', 'download-category' ) ),
 				'capabilities'      => array(
-					'manage_terms' => 'isfm_manage_categories',
-					'edit_terms'   => 'isfm_manage_categories',
-					'delete_terms' => 'isfm_manage_categories',
-					'assign_terms' => 'isfm_create_downloads',
+					'manage_terms' => 'isoft_fmf_manage_categories',
+					'edit_terms'   => 'isoft_fmf_manage_categories',
+					'delete_terms' => 'isoft_fmf_manage_categories',
+					'assign_terms' => 'isoft_fmf_create_downloads',
 				),
 			)
 		);
 
 		// Tags — non-hierarchical, multiple per download
 		register_taxonomy(
-			'isfm_tag',
-			'isfm_file',
+			'isoft_fmf_tag',
+			'isoft_fmf_file',
 			array(
 				'labels'            => array(
 					'name'                       => _x( 'Download Tags', 'taxonomy general name', 'isoft-fm-foundation' ),
@@ -70,19 +70,19 @@ class ISFM_Taxonomy {
 				'show_ui'           => true,
 				'show_admin_column' => true,
 				'show_in_rest'      => true,
-				'rewrite'           => array( 'slug' => get_option( 'isfm_tag_slug', 'download-tag' ) ),
+				'rewrite'           => array( 'slug' => get_option( 'isoft_fmf_tag_slug', 'download-tag' ) ),
 				'capabilities'      => array(
-					'manage_terms' => 'isfm_manage_categories',
-					'edit_terms'   => 'isfm_manage_categories',
-					'delete_terms' => 'isfm_manage_categories',
-					'assign_terms' => 'isfm_create_downloads',
+					'manage_terms' => 'isoft_fmf_manage_categories',
+					'edit_terms'   => 'isoft_fmf_manage_categories',
+					'delete_terms' => 'isoft_fmf_manage_categories',
+					'assign_terms' => 'isoft_fmf_create_downloads',
 				),
 			)
 		);
 
 		register_term_meta(
-			'isfm_category',
-			'_isfm_cat_icon',
+			'isoft_fmf_category',
+			'_isoft_fmf_cat_icon',
 			array(
 				'type'              => 'string',
 				'single'            => true,
@@ -90,10 +90,10 @@ class ISFM_Taxonomy {
 				'show_in_rest'      => true,
 			)
 		);
-		// TODO v1.0: Category-level access role — enforce in ISFM_Access_Control.
+		// TODO v1.0: Category-level access role — enforce in ISOFT_FMF_Access_Control.
 		// register_term_meta(
-		// 'isfm_category',
-		// '_isfm_cat_access_role',
+		// 'isoft_fmf_category',
+		// '_isoft_fmf_cat_access_role',
 		// [
 		// 'type'              => 'string',
 		// 'single'            => true,
@@ -101,8 +101,8 @@ class ISFM_Taxonomy {
 		// ]
 		// );
 		register_term_meta(
-			'isfm_category',
-			'_isfm_cat_sort_order',
+			'isoft_fmf_category',
+			'_isoft_fmf_cat_sort_order',
 			array(
 				'type'              => 'integer',
 				'single'            => true,
@@ -114,51 +114,51 @@ class ISFM_Taxonomy {
 	public function add_term_fields(): void {
 		?>
 		<div class="form-field">
-			<label for="isfm-cat-icon"><?php esc_html_e( 'Icon', 'isoft-fm-foundation' ); ?></label>
-			<input type="text" name="isfm_cat_icon" id="isfm-cat-icon" value="" />
+			<label for="isoft-fmf-cat-icon"><?php esc_html_e( 'Icon', 'isoft-fm-foundation' ); ?></label>
+			<input type="text" name="isoft_fmf_cat_icon" id="isoft-fmf-cat-icon" value="" />
 			<p class="description"><?php esc_html_e( 'Dashicon name (e.g. dashicons-folder) or image URL.', 'isoft-fm-foundation' ); ?></p>
 		</div>
-		<?php // TODO v1.0: Category-level access role — enforce in ISFM_Access_Control. ?>
+		<?php // TODO v1.0: Category-level access role — enforce in ISOFT_FMF_Access_Control. ?>
 		<?php
 		/*
 		<div class="form-field">
-			<label for="isfm-cat-access-role"><?php esc_html_e( 'Access Role', 'isoft-fm-foundation' ); ?></label>
-			<?php $this->render_access_role_select( '', 'isfm_cat_access_role', 'isfm-cat-access-role' ); ?>
+			<label for="isoft-fmf-cat-access-role"><?php esc_html_e( 'Access Role', 'isoft-fm-foundation' ); ?></label>
+			<?php $this->render_access_role_select( '', 'isoft_fmf_cat_access_role', 'isoft-fmf-cat-access-role' ); ?>
 		</div>
 		*/
 		?>
 		<div class="form-field">
-			<label for="isfm-cat-sort-order"><?php esc_html_e( 'Sort Order', 'isoft-fm-foundation' ); ?></label>
-			<input type="number" name="isfm_cat_sort_order" id="isfm-cat-sort-order" value="0" min="0" />
+			<label for="isoft-fmf-cat-sort-order"><?php esc_html_e( 'Sort Order', 'isoft-fm-foundation' ); ?></label>
+			<input type="number" name="isoft_fmf_cat_sort_order" id="isoft-fmf-cat-sort-order" value="0" min="0" />
 		</div>
 		<?php
 	}
 
 	public function edit_term_fields( WP_Term $term ): void {
-		$icon = get_term_meta( $term->term_id, '_isfm_cat_icon', true );
-		// TODO v1.0: Category-level access role — enforce in ISFM_Access_Control.
-		// $role = get_term_meta( $term->term_id, '_isfm_cat_access_role', true );
-		$sort_order = (int) get_term_meta( $term->term_id, '_isfm_cat_sort_order', true );
+		$icon = get_term_meta( $term->term_id, '_isoft_fmf_cat_icon', true );
+		// TODO v1.0: Category-level access role — enforce in ISOFT_FMF_Access_Control.
+		// $role = get_term_meta( $term->term_id, '_isoft_fmf_cat_access_role', true );
+		$sort_order = (int) get_term_meta( $term->term_id, '_isoft_fmf_cat_sort_order', true );
 		?>
 		<tr class="form-field">
-			<th><label for="isfm-cat-icon"><?php esc_html_e( 'Icon', 'isoft-fm-foundation' ); ?></label></th>
+			<th><label for="isoft-fmf-cat-icon"><?php esc_html_e( 'Icon', 'isoft-fm-foundation' ); ?></label></th>
 			<td>
-				<input type="text" name="isfm_cat_icon" id="isfm-cat-icon" value="<?php echo esc_attr( $icon ); ?>" />
+				<input type="text" name="isoft_fmf_cat_icon" id="isoft-fmf-cat-icon" value="<?php echo esc_attr( $icon ); ?>" />
 				<p class="description"><?php esc_html_e( 'Dashicon name or image URL.', 'isoft-fm-foundation' ); ?></p>
 			</td>
 		</tr>
-		<?php // TODO v1.0: Category-level access role — enforce in ISFM_Access_Control. ?>
+		<?php // TODO v1.0: Category-level access role — enforce in ISOFT_FMF_Access_Control. ?>
 		<?php
 		/*
 		<tr class="form-field">
-			<th><label for="isfm-cat-access-role"><?php esc_html_e( 'Access Role', 'isoft-fm-foundation' ); ?></label></th>
-			<td><?php $this->render_access_role_select( $role, 'isfm_cat_access_role', 'isfm-cat-access-role' ); ?></td>
+			<th><label for="isoft-fmf-cat-access-role"><?php esc_html_e( 'Access Role', 'isoft-fm-foundation' ); ?></label></th>
+			<td><?php $this->render_access_role_select( $role, 'isoft_fmf_cat_access_role', 'isoft-fmf-cat-access-role' ); ?></td>
 		</tr>
 		*/
 		?>
 		<tr class="form-field">
-			<th><label for="isfm-cat-sort-order"><?php esc_html_e( 'Sort Order', 'isoft-fm-foundation' ); ?></label></th>
-			<td><input type="number" name="isfm_cat_sort_order" id="isfm-cat-sort-order" value="<?php echo esc_attr( $sort_order ); ?>" min="0" /></td>
+			<th><label for="isoft-fmf-cat-sort-order"><?php esc_html_e( 'Sort Order', 'isoft-fm-foundation' ); ?></label></th>
+			<td><input type="number" name="isoft_fmf_cat_sort_order" id="isoft-fmf-cat-sort-order" value="<?php echo esc_attr( $sort_order ); ?>" min="0" /></td>
 		</tr>
 		<?php
 	}
@@ -175,19 +175,19 @@ class ISFM_Taxonomy {
 			return;
 		}
 
-		if ( isset( $_POST['isfm_cat_icon'] ) ) {
-			update_term_meta( $term_id, '_isfm_cat_icon', sanitize_text_field( wp_unslash( $_POST['isfm_cat_icon'] ) ) );
+		if ( isset( $_POST['isoft_fmf_cat_icon'] ) ) {
+			update_term_meta( $term_id, '_isoft_fmf_cat_icon', sanitize_text_field( wp_unslash( $_POST['isoft_fmf_cat_icon'] ) ) );
 		}
-		// TODO v1.0: Category-level access role — enforce in ISFM_Access_Control.
-		// if ( isset( $_POST['isfm_cat_access_role'] ) ) {
-		// update_term_meta( $term_id, '_isfm_cat_access_role', sanitize_text_field( wp_unslash( $_POST['isfm_cat_access_role'] ) ) );
+		// TODO v1.0: Category-level access role — enforce in ISOFT_FMF_Access_Control.
+		// if ( isset( $_POST['isoft_fmf_cat_access_role'] ) ) {
+		// update_term_meta( $term_id, '_isoft_fmf_cat_access_role', sanitize_text_field( wp_unslash( $_POST['isoft_fmf_cat_access_role'] ) ) );
 		// }
-		if ( isset( $_POST['isfm_cat_sort_order'] ) ) {
-			update_term_meta( $term_id, '_isfm_cat_sort_order', absint( wp_unslash( $_POST['isfm_cat_sort_order'] ) ) );
+		if ( isset( $_POST['isoft_fmf_cat_sort_order'] ) ) {
+			update_term_meta( $term_id, '_isoft_fmf_cat_sort_order', absint( wp_unslash( $_POST['isoft_fmf_cat_sort_order'] ) ) );
 		}
 	}
 
-	// TODO v1.0: Category-level access role — enforce in ISFM_Access_Control.
+	// TODO v1.0: Category-level access role — enforce in ISOFT_FMF_Access_Control.
 	// private function render_access_role_select( string $selected, string $name, string $id ): void {
 	// $roles = [
 	// 'public'        => __( 'Public (everyone)', 'isoft-fm-foundation' ),

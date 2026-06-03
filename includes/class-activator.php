@@ -1,7 +1,7 @@
 <?php
 defined( 'ABSPATH' ) || exit;
 
-class ISFM_Activator {
+class ISOFT_FMF_Activator {
 
 	public static function activate(): void {
 		self::create_tables();
@@ -9,18 +9,18 @@ class ISFM_Activator {
 		self::register_capabilities();
 		self::seed_licenses();
 		self::create_file_storage();
-		// Can't flush here — the 'isfm_file' CPT isn't registered yet at activation-hook time
-		// (plugins_loaded hasn't fired). Set a flag; ISFM_Post_Type::register() will flush
+		// Can't flush here — the 'isoft_fmf_file' CPT isn't registered yet at activation-hook time
+		// (plugins_loaded hasn't fired). Set a flag; ISOFT_FMF_Post_Type::register() will flush
 		// on the very next request after the CPT is in place.
-		update_option( 'isfm_flush_rewrite_rules', 1 );
+		update_option( 'isoft_fmf_flush_rewrite_rules', 1 );
 	}
 
 	/**
-	 * Create the isfm-files/ storage directory and write an .htaccess that
-	 * blocks all direct web access. Files must go through ISFM_Download_Handler.
+	 * Create the isoft-fmf-files/ storage directory and write an .htaccess that
+	 * blocks all direct web access. Files must go through ISOFT_FMF_Download_Handler.
 	 */
 	private static function create_file_storage(): void {
-		$dir = isfm_files_dir();
+		$dir = isoft_fmf_files_dir();
 
 		if ( ! file_exists( $dir ) ) {
 			wp_mkdir_p( $dir );
@@ -50,7 +50,7 @@ HTACCESS;
 	 */
 	public static function maybe_register_capabilities(): void {
 		$role = get_role( 'administrator' );
-		if ( $role && ! $role->has_cap( 'isfm_manage_settings' ) ) {
+		if ( $role && ! $role->has_cap( 'isoft_fmf_manage_settings' ) ) {
 			self::register_capabilities();
 
 			// The current user object cached its caps before we added ours.
@@ -69,7 +69,7 @@ HTACCESS;
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 
 		dbDelta(
-			"CREATE TABLE {$wpdb->prefix}isfm_files (
+			"CREATE TABLE {$wpdb->prefix}isoft_fmf_files (
 			id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 			download_id     BIGINT UNSIGNED NOT NULL,
 			file_type       ENUM('local','external') NOT NULL DEFAULT 'local',
@@ -98,7 +98,7 @@ HTACCESS;
 		);
 
 		dbDelta(
-			"CREATE TABLE {$wpdb->prefix}isfm_download_log (
+			"CREATE TABLE {$wpdb->prefix}isoft_fmf_download_log (
 			id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 			download_id     BIGINT UNSIGNED NOT NULL,
 			file_id         BIGINT UNSIGNED NOT NULL,
@@ -120,7 +120,7 @@ HTACCESS;
 
 		// Daily download counts — one row per download per day, updated on each download.
 		dbDelta(
-			"CREATE TABLE {$wpdb->prefix}isfm_download_daily (
+			"CREATE TABLE {$wpdb->prefix}isoft_fmf_download_daily (
 			download_id     BIGINT UNSIGNED NOT NULL,
 			log_date        DATE NOT NULL,
 			count           BIGINT UNSIGNED NOT NULL DEFAULT 0,
@@ -130,7 +130,7 @@ HTACCESS;
 		);
 
 		dbDelta(
-			"CREATE TABLE {$wpdb->prefix}isfm_licenses (
+			"CREATE TABLE {$wpdb->prefix}isoft_fmf_licenses (
 			id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 			title       VARCHAR(255) NOT NULL,
 			slug        VARCHAR(255) NOT NULL,
@@ -146,7 +146,7 @@ HTACCESS;
 		) $charset_collate;"
 		);
 
-		update_option( 'isfm_db_version', ISFM_VERSION );
+		update_option( 'isoft_fmf_db_version', ISOFT_FMF_VERSION );
 	}
 
 	/**
@@ -164,33 +164,33 @@ HTACCESS;
 			  WHERE TABLE_SCHEMA = DATABASE()
 			    AND TABLE_NAME   = %s
 			    AND COLUMN_NAME  = 'attachment_id'",
-				"{$wpdb->prefix}isfm_files"
+				"{$wpdb->prefix}isoft_fmf_files"
 			)
 		);
 		if ( $has_column ) {
-			$wpdb->query( "ALTER TABLE {$wpdb->prefix}isfm_files DROP COLUMN attachment_id" );
+			$wpdb->query( "ALTER TABLE {$wpdb->prefix}isoft_fmf_files DROP COLUMN attachment_id" );
 		}
 
 		// Obsolete options from the media-library mode.
-		delete_option( 'isfm_storage_mode' );
-		delete_option( 'isfm_custom_folder' );
+		delete_option( 'isoft_fmf_storage_mode' );
+		delete_option( 'isoft_fmf_custom_folder' );
 
 		// Removed in 0.6.1: arbitrary CSS injection is disallowed by the WP.org
 		// plugin guidelines.
-		delete_option( 'isfm_custom_css' );
+		delete_option( 'isoft_fmf_custom_css' );
 
 		// Obsolete per-download storage-mode post meta.
-		$wpdb->query( "DELETE FROM {$wpdb->postmeta} WHERE meta_key = '_isfm_storage_mode'" );
+		$wpdb->query( "DELETE FROM {$wpdb->postmeta} WHERE meta_key = '_isoft_fmf_storage_mode'" );
 		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange
 	}
 
 	private static function register_capabilities(): void {
 		$role_caps = array(
-			'subscriber'    => array( 'isfm_view_downloads' ),
-			'contributor'   => array( 'isfm_view_downloads' ),
-			'author'        => array( 'isfm_view_downloads', 'isfm_create_downloads', 'isfm_edit_own_downloads' ),
-			'editor'        => array( 'isfm_view_downloads', 'isfm_create_downloads', 'isfm_edit_own_downloads', 'isfm_edit_all_downloads', 'isfm_delete_downloads', 'isfm_manage_categories', 'isfm_view_logs' ),
-			'administrator' => array( 'isfm_view_downloads', 'isfm_create_downloads', 'isfm_edit_own_downloads', 'isfm_edit_all_downloads', 'isfm_delete_downloads', 'isfm_manage_categories', 'isfm_view_logs', 'isfm_export_logs', 'isfm_manage_settings' ),
+			'subscriber'    => array( 'isoft_fmf_view_downloads' ),
+			'contributor'   => array( 'isoft_fmf_view_downloads' ),
+			'author'        => array( 'isoft_fmf_view_downloads', 'isoft_fmf_create_downloads', 'isoft_fmf_edit_own_downloads' ),
+			'editor'        => array( 'isoft_fmf_view_downloads', 'isoft_fmf_create_downloads', 'isoft_fmf_edit_own_downloads', 'isoft_fmf_edit_all_downloads', 'isoft_fmf_delete_downloads', 'isoft_fmf_manage_categories', 'isoft_fmf_view_logs' ),
+			'administrator' => array( 'isoft_fmf_view_downloads', 'isoft_fmf_create_downloads', 'isoft_fmf_edit_own_downloads', 'isoft_fmf_edit_all_downloads', 'isoft_fmf_delete_downloads', 'isoft_fmf_manage_categories', 'isoft_fmf_view_logs', 'isoft_fmf_export_logs', 'isoft_fmf_manage_settings' ),
 		);
 
 		foreach ( $role_caps as $role_name => $caps ) {
@@ -208,7 +208,7 @@ HTACCESS;
 		global $wpdb;
 
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Activator: one-shot seed on fresh install.
-		if ( (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}isfm_licenses" ) > 0 ) {
+		if ( (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}isoft_fmf_licenses" ) > 0 ) {
 			return;
 		}
 
@@ -252,7 +252,7 @@ HTACCESS;
 		);
 
 		foreach ( $licenses as $license ) {
-			$wpdb->insert( "{$wpdb->prefix}isfm_licenses", $license, array( '%s', '%s', '%s', '%s', '%s', '%d', '%d' ) );
+			$wpdb->insert( "{$wpdb->prefix}isoft_fmf_licenses", $license, array( '%s', '%s', '%s', '%s', '%s', '%d', '%d' ) );
 		}
 		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 	}

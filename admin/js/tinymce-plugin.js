@@ -1,8 +1,8 @@
 /**
  * TinyMCE plugin for I-Soft File Manager: Foundation — "Insert Download [iD]" toolbar button.
  *
- * Adds a button that opens the search modal (#isfm-tmce-modal).
- * On selection, inserts [isfm_download id=X] at the cursor position.
+ * Adds a button that opens the search modal (#isoft-fmf-tmce-modal).
+ * On selection, inserts [isoft_fmf_download id=X] at the cursor position.
  */
 ( function () {
 	'use strict';
@@ -11,12 +11,12 @@
 	var debounceTimer = null;
 
 	tinymce.PluginManager.add(
-		'isfm_insert',
+		'isoft_fmf_insert',
 		function ( editor ) {
 
 			// ── Button ─────────────────────────────────────────────────────────────
 			editor.addButton(
-				'isfm_insert',
+				'isoft_fmf_insert',
 				{
 					title: ISFMTmce.i18n.insertDownload,
 					icon: 'dashicons-download',
@@ -27,7 +27,7 @@
 
 			// ── Modal helpers ──────────────────────────────────────────────────────
 			function getModal() {
-				return document.getElementById( 'isfm-tmce-modal' );
+				return document.getElementById( 'isoft-fmf-tmce-modal' );
 			}
 
 			function openModal() {
@@ -38,8 +38,8 @@
 
 				modal.removeAttribute( 'hidden' );
 
-				var searchInput = document.getElementById( 'isfm-tmce-search' );
-				var catSelect   = document.getElementById( 'isfm-tmce-category' );
+				var searchInput = document.getElementById( 'isoft-fmf-tmce-search' );
+				var catSelect   = document.getElementById( 'isoft-fmf-tmce-category' );
 
 				// Reset state
 				searchInput.value = '';
@@ -58,9 +58,9 @@
 					modal._isfmBound = true;
 
 					// Backdrop click closes
-					modal.querySelector( '.isfm-tmce-modal__backdrop' ).addEventListener( 'click', closeModal );
-					modal.querySelector( '.isfm-tmce-modal__close' ).addEventListener( 'click', closeModal );
-					modal.querySelector( '.isfm-tmce-modal__cancel' ).addEventListener( 'click', closeModal );
+					modal.querySelector( '.isoft-fmf-tmce-modal__backdrop' ).addEventListener( 'click', closeModal );
+					modal.querySelector( '.isoft-fmf-tmce-modal__close' ).addEventListener( 'click', closeModal );
+					modal.querySelector( '.isoft-fmf-tmce-modal__cancel' ).addEventListener( 'click', closeModal );
 
 					// Search input — debounced
 					searchInput.addEventListener(
@@ -85,10 +85,10 @@
 					);
 
 					// Result click — event delegation
-					document.getElementById( 'isfm-tmce-results' ).addEventListener(
+					document.getElementById( 'isoft-fmf-tmce-results' ).addEventListener(
 						'click',
 						function ( e ) {
-							var btn = e.target.closest( '.isfm-tmce-modal__item' );
+							var btn = e.target.closest( '.isoft-fmf-tmce-modal__item' );
 							if ( btn ) {
 								insertDownload( parseInt( btn.dataset.id, 10 ) );
 							}
@@ -115,15 +115,15 @@
 			}
 
 			function fetchResults( search, category ) {
-				var resultsEl         = document.getElementById( 'isfm-tmce-results' );
+				var resultsEl         = document.getElementById( 'isoft-fmf-tmce-results' );
 				resultsEl.textContent = '';
 				var loading           = document.createElement( 'p' );
-				loading.className     = 'isfm-tmce-modal__loading';
+				loading.className     = 'isoft-fmf-tmce-modal__loading';
 				loading.textContent   = ISFMTmce.i18n.loading;
 				resultsEl.appendChild( loading );
 
 				var data = new FormData();
-				data.append( 'action',   'isfm_tmce_search' );
+				data.append( 'action',   'isoft_fmf_tmce_search' );
 				data.append( 'nonce',    ISFMTmce.nonce );
 				data.append( 'search',   search );
 				data.append( 'category', category );
@@ -131,7 +131,7 @@
 				function showError() {
 					resultsEl.textContent = '';
 					var err               = document.createElement( 'p' );
-					err.className         = 'isfm-tmce-modal__empty';
+					err.className         = 'isoft-fmf-tmce-modal__empty';
 					err.textContent       = ISFMTmce.i18n.loadError;
 					resultsEl.appendChild( err );
 				}
@@ -157,7 +157,7 @@
 				if ( ! id ) {
 					return;
 				}
-				editor.insertContent( '[isfm_download id=' + id + ']' );
+				editor.insertContent( '[isoft_fmf_download id=' + id + ']' );
 				closeModal();
 			}
 		}

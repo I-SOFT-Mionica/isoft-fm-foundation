@@ -16,17 +16,17 @@
 
 defined( 'ABSPATH' ) || exit;
 
-class ISFM_File_Integrity {
+class ISOFT_FMF_File_Integrity {
 
-	private const CRON_HOOK  = 'isfm_integrity_check';
+	private const CRON_HOOK  = 'isoft_fmf_integrity_check';
 	private const CHUNK_SIZE = 200;
 
 	public function register_hooks(): void {
 		add_action( 'init', array( $this, 'maybe_schedule' ) );
 		add_action( self::CRON_HOOK, array( $this, 'run_scheduled_check' ) );
-		add_action( 'update_option_isfm_integrity_check_enabled', array( $this, 'reschedule' ), 10, 0 );
-		add_action( 'update_option_isfm_integrity_check_time', array( $this, 'reschedule' ), 10, 0 );
-		add_action( 'admin_post_isfm_integrity_check_now', array( $this, 'handle_run_now' ) );
+		add_action( 'update_option_isoft_fmf_integrity_check_enabled', array( $this, 'reschedule' ), 10, 0 );
+		add_action( 'update_option_isoft_fmf_integrity_check_time', array( $this, 'reschedule' ), 10, 0 );
+		add_action( 'admin_post_isoft_fmf_integrity_check_now', array( $this, 'handle_run_now' ) );
 	}
 
 	// -------------------------------------------------------------------------
@@ -34,7 +34,7 @@ class ISFM_File_Integrity {
 	// -------------------------------------------------------------------------
 
 	public function maybe_schedule(): void {
-		$enabled = (bool) get_option( 'isfm_integrity_check_enabled', 0 );
+		$enabled = (bool) get_option( 'isoft_fmf_integrity_check_enabled', 0 );
 		if ( ! $enabled ) {
 			$this->unschedule();
 			return;
@@ -60,7 +60,7 @@ class ISFM_File_Integrity {
 	}
 
 	private function next_run_timestamp(): int {
-		$raw = (string) get_option( 'isfm_integrity_check_time', '02:30' );
+		$raw = (string) get_option( 'isoft_fmf_integrity_check_time', '02:30' );
 		if ( ! preg_match( '/^(\d{1,2}):(\d{2})$/', $raw, $m ) ) {
 			$m = array( '02:30', '2', '30' );
 		}
@@ -93,7 +93,7 @@ class ISFM_File_Integrity {
 		if ( empty( $file->is_missing ) ) {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table write; cache invalidated below.
 			$wpdb->update(
-				"{$wpdb->prefix}isfm_files",
+				"{$wpdb->prefix}isoft_fmf_files",
 				array(
 					'is_missing'    => 1,
 					'missing_since' => current_time( 'mysql' ),
@@ -102,15 +102,15 @@ class ISFM_File_Integrity {
 				array( '%d', '%s' ),
 				array( '%d' )
 			);
-			ISFM_File_Manager::bust_cache_for( $download_id, (int) $file->id );
-			delete_transient( 'isfm_missing_count' );
+			ISOFT_FMF_File_Manager::bust_cache_for( $download_id, (int) $file->id );
+			delete_transient( 'isoft_fmf_missing_count' );
 		}
 
 		// Count remaining non-missing local files on this download.
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Live count immediately after write; freshness required.
 		$healthy = (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$wpdb->prefix}isfm_files
+				"SELECT COUNT(*) FROM {$wpdb->prefix}isoft_fmf_files
 				  WHERE download_id = %d
 				    AND file_type   = 'local'
 				    AND is_missing  = 0",
@@ -129,7 +129,7 @@ class ISFM_File_Integrity {
 						'post_status' => 'draft',
 					)
 				);
-				update_post_meta( $download_id, '_isfm_auto_unpublished_at', time() );
+				update_post_meta( $download_id, '_isoft_fmf_auto_unpublished_at', time() );
 			}
 			$mode = 'unpublished';
 		}
@@ -138,8 +138,8 @@ class ISFM_File_Integrity {
 		if ( empty( $file->is_missing ) ) {
 			$url     = add_query_arg(
 				array(
-					'post_type' => 'isfm_file',
-					'page'      => 'isfm-broken-links',
+					'post_type' => 'isoft_fmf_file',
+					'page'      => 'isoft-fmf-broken-links',
 					'highlight' => (int) $file->id,
 				),
 				admin_url( 'edit.php' )
@@ -151,10 +151,10 @@ class ISFM_File_Integrity {
 				esc_html( $title ),
 				esc_url( $url )
 			);
-			isfm_notify_admin( $message, 'warning' );
+			isoft_fmf_notify_admin( $message, 'warning' );
 		}
 
-		do_action( 'isfm_file_missing', (int) $file->id, $download_id, 'serve' );
+		do_action( 'isoft_fmf_file_missing', (int) $file->id, $download_id, 'serve' );
 
 		return $mode;
 	}
@@ -171,10 +171,10 @@ class ISFM_File_Integrity {
 			header( 'Content-Type: text/html; charset=' . get_option( 'blog_charset' ) );
 		}
 
-		$template = ISFM_PLUGIN_DIR . 'templates/file-unavailable.php';
+		$template = ISOFT_FMF_PLUGIN_DIR . 'templates/file-unavailable.php';
 		if ( file_exists( $template ) ) {
-			$isfm_unavailable_post_id = $download_id;
-			$isfm_unavailable_mode    = $mode;
+			$isoft_fmf_unavailable_post_id = $download_id;
+			$isoft_fmf_unavailable_mode    = $mode;
 			include $template;
 		} else {
 			wp_die( esc_html__( 'This file is temporarily unavailable.', 'isoft-fm-foundation' ), '', 503 );
@@ -204,7 +204,7 @@ class ISFM_File_Integrity {
 		while ( true ) {
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT * FROM {$wpdb->prefix}isfm_files
+					"SELECT * FROM {$wpdb->prefix}isoft_fmf_files
 					  WHERE file_type = 'local'
 					  ORDER BY id ASC
 					  LIMIT %d OFFSET %d",
@@ -229,10 +229,10 @@ class ISFM_File_Integrity {
 
 		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 		$summary['finished_at'] = current_time( 'mysql' );
-		update_option( 'isfm_integrity_last_run', $summary, false );
+		update_option( 'isoft_fmf_integrity_last_run', $summary, false );
 
 		if ( $summary['checked'] > 0 ) {
-			isfm_notify_admin(
+			isoft_fmf_notify_admin(
 				sprintf(
 					/* translators: 1: healed, 2: relinked, 3: still missing */
 					__( 'File integrity check: %1$d healed, %2$d relinked, %3$d still missing.', 'isoft-fm-foundation' ),
@@ -244,8 +244,8 @@ class ISFM_File_Integrity {
 			);
 		}
 
-		delete_transient( 'isfm_missing_count' );
-		do_action( 'isfm_integrity_check_complete', $summary );
+		delete_transient( 'isoft_fmf_missing_count' );
+		do_action( 'isoft_fmf_integrity_check_complete', $summary );
 
 		return $summary;
 	}
@@ -258,7 +258,7 @@ class ISFM_File_Integrity {
 			return 'skipped';
 		}
 
-		$abs = isfm_files_dir() . '/' . $file->file_path;
+		$abs = isoft_fmf_files_dir() . '/' . $file->file_path;
 
 		if ( file_exists( $abs ) ) {
 			if ( ! empty( $file->is_missing ) ) {
@@ -269,7 +269,7 @@ class ISFM_File_Integrity {
 		}
 
 		// File is not at the expected path. Try inode-based rename recovery.
-		$autorelink = (bool) get_option( 'isfm_integrity_autorelink', 1 );
+		$autorelink = (bool) get_option( 'isoft_fmf_integrity_autorelink', 1 );
 		if ( $autorelink && $this->try_relink_by_inode( $file ) ) {
 			$this->mark_healthy( $file );
 			return 'relinked';
@@ -287,7 +287,7 @@ class ISFM_File_Integrity {
 	 * AND hashes match (recycling guard), update file_path to the new relative path.
 	 */
 	public function try_relink_by_inode( object $file ): bool {
-		if ( ! (bool) get_option( 'isfm_integrity_use_inode', 1 ) ) {
+		if ( ! (bool) get_option( 'isoft_fmf_integrity_use_inode', 1 ) ) {
 			return false;
 		}
 		if ( empty( $file->inode ) || empty( $file->file_hash ) ) {
@@ -299,7 +299,7 @@ class ISFM_File_Integrity {
 			return false;
 		}
 
-		$category_fs = isfm_category_fs_path( $term_id );
+		$category_fs = isoft_fmf_category_fs_path( $term_id );
 		if ( ! is_dir( $category_fs ) ) {
 			return false;
 		}
@@ -331,12 +331,12 @@ class ISFM_File_Integrity {
 			// Commit new relative path.
 			global $wpdb;
 			$new_rel = ltrim(
-				str_replace( '\\', '/', substr( $candidate, strlen( isfm_files_dir() ) ) ),
+				str_replace( '\\', '/', substr( $candidate, strlen( isoft_fmf_files_dir() ) ) ),
 				'/'
 			);
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Rename-recovery relink; cache invalidated below.
 			$wpdb->update(
-				"{$wpdb->prefix}isfm_files",
+				"{$wpdb->prefix}isoft_fmf_files",
 				array(
 					'file_path' => $new_rel,
 					'file_name' => basename( $candidate ),
@@ -345,7 +345,7 @@ class ISFM_File_Integrity {
 				array( '%s', '%s' ),
 				array( '%d' )
 			);
-			ISFM_File_Manager::bust_cache_for( (int) $file->download_id, (int) $file->id );
+			ISOFT_FMF_File_Manager::bust_cache_for( (int) $file->download_id, (int) $file->id );
 			return true;
 		}
 
@@ -356,7 +356,7 @@ class ISFM_File_Integrity {
 		global $wpdb;
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table write; cache invalidated below.
 		$wpdb->update(
-			"{$wpdb->prefix}isfm_files",
+			"{$wpdb->prefix}isoft_fmf_files",
 			array(
 				'is_missing'    => 0,
 				'missing_since' => null,
@@ -367,8 +367,8 @@ class ISFM_File_Integrity {
 		);
 
 		$download_id = (int) $file->download_id;
-		ISFM_File_Manager::bust_cache_for( $download_id, (int) $file->id );
-		delete_transient( 'isfm_missing_count' );
+		ISOFT_FMF_File_Manager::bust_cache_for( $download_id, (int) $file->id );
+		delete_transient( 'isoft_fmf_missing_count' );
 		$this->maybe_republish( $download_id );
 	}
 
@@ -377,7 +377,7 @@ class ISFM_File_Integrity {
 	 * remain flagged as missing, flip it back to 'publish' and clear the flag.
 	 */
 	private function maybe_republish( int $download_id ): void {
-		$auto = get_post_meta( $download_id, '_isfm_auto_unpublished_at', true );
+		$auto = get_post_meta( $download_id, '_isoft_fmf_auto_unpublished_at', true );
 		if ( ! $auto ) {
 			return;
 		}
@@ -386,7 +386,7 @@ class ISFM_File_Integrity {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Live count immediately after mark_healthy write; freshness required.
 		$still_broken = (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$wpdb->prefix}isfm_files
+				"SELECT COUNT(*) FROM {$wpdb->prefix}isoft_fmf_files
 				  WHERE download_id = %d
 				    AND file_type   = 'local'
 				    AND is_missing  = 1",
@@ -405,11 +405,11 @@ class ISFM_File_Integrity {
 				)
 			);
 		}
-		delete_post_meta( $download_id, '_isfm_auto_unpublished_at' );
+		delete_post_meta( $download_id, '_isoft_fmf_auto_unpublished_at' );
 	}
 
 	private function get_download_category_id( int $download_id ): int {
-		$terms = get_the_terms( $download_id, 'isfm_category' );
+		$terms = get_the_terms( $download_id, 'isoft_fmf_category' );
 		if ( ! $terms || is_wp_error( $terms ) ) {
 			return 0;
 		}
@@ -421,20 +421,20 @@ class ISFM_File_Integrity {
 	// -------------------------------------------------------------------------
 
 	public function handle_run_now(): void {
-		if ( ! current_user_can( 'isfm_manage_settings' ) ) {
+		if ( ! current_user_can( 'isoft_fmf_manage_settings' ) ) {
 			wp_die( esc_html__( 'You do not have permission to run the integrity check.', 'isoft-fm-foundation' ) );
 		}
-		check_admin_referer( 'isfm_integrity_check_now' );
+		check_admin_referer( 'isoft_fmf_integrity_check_now' );
 
 		$this->run_scheduled_check();
 
 		wp_safe_redirect(
 			add_query_arg(
 				array(
-					'post_type' => 'isfm_file',
-					'page'      => 'isfm-settings',
+					'post_type' => 'isoft_fmf_file',
+					'page'      => 'isoft-fmf-settings',
 					'tab'       => 'maintenance',
-					'isfm_ran'  => 1,
+					'isoft_fmf_ran'  => 1,
 				),
 				admin_url( 'edit.php' )
 			)
@@ -447,19 +447,19 @@ class ISFM_File_Integrity {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Cross-category inode hunt — scan the entire isfm-files tree for a candidate
+	 * Cross-category inode hunt — scan the entire isoft-fmf-files tree for a candidate
 	 * whose inode matches $file->inode and whose SHA-256 matches $file->file_hash.
 	 * Returns the absolute path, or null.
 	 */
 	public static function find_by_inode_anywhere( object $file ): ?string {
-		if ( ! (bool) get_option( 'isfm_integrity_use_inode', 1 ) ) {
+		if ( ! (bool) get_option( 'isoft_fmf_integrity_use_inode', 1 ) ) {
 			return null;
 		}
 		if ( empty( $file->inode ) || empty( $file->file_hash ) ) {
 			return null;
 		}
 
-		$root = isfm_files_dir();
+		$root = isoft_fmf_files_dir();
 		if ( ! is_dir( $root ) ) {
 			return null;
 		}
@@ -490,14 +490,14 @@ class ISFM_File_Integrity {
 	 * Count of rows currently flagged as missing. Used for the menu badge.
 	 */
 	public static function missing_count(): int {
-		$cached = get_transient( 'isfm_missing_count' );
+		$cached = get_transient( 'isoft_fmf_missing_count' );
 		if ( false !== $cached ) {
 			return (int) $cached;
 		}
 		global $wpdb;
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Badge counter on custom table; cached as isfm_missing_count transient.
-		$count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}isfm_files WHERE is_missing = 1" );
-		set_transient( 'isfm_missing_count', $count, 5 * MINUTE_IN_SECONDS );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Badge counter on custom table; cached as isoft_fmf_missing_count transient.
+		$count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}isoft_fmf_files WHERE is_missing = 1" );
+		set_transient( 'isoft_fmf_missing_count', $count, 5 * MINUTE_IN_SECONDS );
 		return $count;
 	}
 }

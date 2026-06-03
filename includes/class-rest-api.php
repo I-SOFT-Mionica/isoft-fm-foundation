@@ -6,7 +6,7 @@
  */
 defined( 'ABSPATH' ) || exit;
 
-class ISFM_Rest_Api {
+class ISOFT_FMF_Rest_Api {
 
 	public function register_hooks(): void {
 		add_action( 'rest_api_init', array( $this, 'register_routes' ) );
@@ -140,7 +140,7 @@ class ISFM_Rest_Api {
 	 * /logs which expose download history (who downloaded what, when, from where).
 	 */
 	public function logs_permission(): bool {
-		return current_user_can( 'isfm_view_logs' );
+		return current_user_can( 'isoft_fmf_view_logs' );
 	}
 
 	// -------------------------------------------------------------------------
@@ -164,7 +164,7 @@ class ISFM_Rest_Api {
 		$order           = 'ASC' === strtoupper( (string) $request->get_param( 'order' ) ) ? 'ASC' : 'DESC';
 
 		$args = array(
-			'post_type'      => 'isfm_file',
+			'post_type'      => 'isoft_fmf_file',
 			'post_status'    => 'publish',
 			'posts_per_page' => min( (int) $request->get_param( 'per_page' ), 100 ),
 			'no_found_rows'  => true,
@@ -180,7 +180,7 @@ class ISFM_Rest_Api {
 
 		if ( $category > 0 ) {
 			$args['tax_query'][] = array(
-				'taxonomy' => 'isfm_category',
+				'taxonomy' => 'isoft_fmf_category',
 				'field'    => 'term_id',
 				'terms'    => $category,
 			);
@@ -188,7 +188,7 @@ class ISFM_Rest_Api {
 
 		if ( $tag > 0 ) {
 			$args['tax_query'][] = array(
-				'taxonomy' => 'isfm_tag',
+				'taxonomy' => 'isoft_fmf_tag',
 				'field'    => 'term_id',
 				'terms'    => $tag,
 			);
@@ -198,7 +198,7 @@ class ISFM_Rest_Api {
 
 		$data = array_map(
 			function ( WP_Post $p ) {
-				$cats = wp_get_post_terms( $p->ID, 'isfm_category', array( 'fields' => 'names' ) );
+				$cats = wp_get_post_terms( $p->ID, 'isoft_fmf_category', array( 'fields' => 'names' ) );
 				return array(
 					'id'         => $p->ID,
 					'title'      => $p->post_title,
@@ -221,9 +221,9 @@ class ISFM_Rest_Api {
 		$download_id = (int) $request->get_param( 'id' );
 
 		$post = get_post( $download_id );
-		if ( ! $post || $post->post_type !== 'isfm_file' ) {
+		if ( ! $post || $post->post_type !== 'isoft_fmf_file' ) {
 			return new WP_Error(
-				'isfm_not_found',
+				'isoft_fmf_not_found',
 				__( 'Download not found.', 'isoft-fm-foundation' ),
 				array( 'status' => 404 )
 			);
@@ -231,7 +231,7 @@ class ISFM_Rest_Api {
 
 		if ( ! current_user_can( 'edit_post', $download_id ) ) {
 			return new WP_Error(
-				'isfm_forbidden',
+				'isoft_fmf_forbidden',
 				__( 'You do not have permission to view this download\'s files.', 'isoft-fm-foundation' ),
 				array( 'status' => 403 )
 			);
@@ -243,7 +243,7 @@ class ISFM_Rest_Api {
 		$files = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT id, title, file_name, file_type, file_size, file_mime, external_url, sort_order
-				   FROM {$wpdb->prefix}isfm_files
+				   FROM {$wpdb->prefix}isoft_fmf_files
 				  WHERE download_id = %d
 				  ORDER BY sort_order ASC, id ASC",
 				$download_id
@@ -252,7 +252,7 @@ class ISFM_Rest_Api {
 
 		if ( $files === null ) {
 			return new WP_Error(
-				'isfm_db_error',
+				'isoft_fmf_db_error',
 				__( 'Database error.', 'isoft-fm-foundation' ),
 				array( 'status' => 500 )
 			);
@@ -284,11 +284,11 @@ class ISFM_Rest_Api {
 	/**
 	 * GET /isoft-fm-foundation/v1/categories
 	 *
-	 * Returns all isfm_category terms, optionally filtered by parent.
+	 * Returns all isoft_fmf_category terms, optionally filtered by parent.
 	 */
 	public function get_categories( WP_REST_Request $request ): WP_REST_Response {
 		$args = array(
-			'taxonomy'   => 'isfm_category',
+			'taxonomy'   => 'isoft_fmf_category',
 			'hide_empty' => false,
 			'orderby'    => 'name',
 			'order'      => 'ASC',
@@ -324,7 +324,7 @@ class ISFM_Rest_Api {
 	 * Returns aggregate statistics for the dashboard widget.
 	 */
 	public function get_stats_overview( WP_REST_Request $request ): WP_REST_Response {
-		$stats = isfm_get_stats_overview();
+		$stats = isoft_fmf_get_stats_overview();
 
 		return new WP_REST_Response(
 			array(
@@ -361,9 +361,9 @@ class ISFM_Rest_Api {
 					"SELECT l.id, l.download_id, p.post_title AS download_title,
 					        l.file_id, f.file_name, l.user_id, l.user_ip,
 					        l.user_agent, l.downloaded_at
-					   FROM {$wpdb->prefix}isfm_download_log l
+					   FROM {$wpdb->prefix}isoft_fmf_download_log l
 					   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
-					   LEFT JOIN {$wpdb->prefix}isfm_files f ON f.id = l.file_id
+					   LEFT JOIN {$wpdb->prefix}isoft_fmf_files f ON f.id = l.file_id
 					  WHERE l.download_id = %d
 					  ORDER BY l.downloaded_at DESC
 					  LIMIT %d OFFSET %d",
@@ -375,7 +375,7 @@ class ISFM_Rest_Api {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- REST endpoint on custom log table; count cannot be cached due to live filter.
 			$total = (int) $wpdb->get_var(
 				$wpdb->prepare(
-					"SELECT COUNT(*) FROM {$wpdb->prefix}isfm_download_log l WHERE l.download_id = %d",
+					"SELECT COUNT(*) FROM {$wpdb->prefix}isoft_fmf_download_log l WHERE l.download_id = %d",
 					$download_id
 				)
 			);
@@ -386,9 +386,9 @@ class ISFM_Rest_Api {
 					"SELECT l.id, l.download_id, p.post_title AS download_title,
 					        l.file_id, f.file_name, l.user_id, l.user_ip,
 					        l.user_agent, l.downloaded_at
-					   FROM {$wpdb->prefix}isfm_download_log l
+					   FROM {$wpdb->prefix}isoft_fmf_download_log l
 					   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
-					   LEFT JOIN {$wpdb->prefix}isfm_files f ON f.id = l.file_id
+					   LEFT JOIN {$wpdb->prefix}isoft_fmf_files f ON f.id = l.file_id
 					  ORDER BY l.downloaded_at DESC
 					  LIMIT %d OFFSET %d",
 					$per_page,
@@ -396,7 +396,7 @@ class ISFM_Rest_Api {
 				)
 			);
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- REST endpoint on custom log table; full-table count, no cache layer.
-			$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}isfm_download_log" );
+			$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}isoft_fmf_download_log" );
 		}
 
 		$response = new WP_REST_Response( $rows ?? array(), 200 );

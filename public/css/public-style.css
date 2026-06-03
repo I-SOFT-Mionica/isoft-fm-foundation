@@ -11,94 +11,94 @@
  * Pixel values are reserved for: hairline borders, tap-target minimums,
  * and dashicon glyph sizing.
  *
- * Customization: every color in this file is exposed as a `--isfm-*` CSS
+ * Customization: every color in this file is exposed as a `--isoft-fmf-*` CSS
  * custom property on `:root`. Override from Appearance → Customize →
  * Additional CSS — see readme.txt "Customizing appearance" for the full
- * list. The download button intentionally has no `--isfm-btn-*` vars so
+ * list. The download button intentionally has no `--isoft-fmf-btn-*` vars so
  * theme `wp-element-button` styling stays in control.
  */
 
 :root {
 	/* Surfaces */
-	--isfm-card-bg:        #fff;
-	--isfm-card-border:    #e5e5e5;
-	--isfm-row-border:     #f0f0f0;
-	--isfm-title-band-bg:  #f6f7f9;
+	--isoft-fmf-card-bg:        #fff;
+	--isoft-fmf-card-border:    #e5e5e5;
+	--isoft-fmf-row-border:     #f0f0f0;
+	--isoft-fmf-title-band-bg:  #f6f7f9;
 
 	/* Typography */
-	--isfm-meta-color:     #666;
-	--isfm-empty-color:    #888;
+	--isoft-fmf-meta-color:     #666;
+	--isoft-fmf-empty-color:    #888;
 
 	/* HOT badge */
-	--isfm-badge-hot-bg:    #e74c3c;
-	--isfm-badge-hot-color: #fff;
+	--isoft-fmf-badge-hot-bg:    #e74c3c;
+	--isoft-fmf-badge-hot-color: #fff;
 
 	/* File-type colors — single source of truth for both list-mode tiles
-	 * (.isfm-icon--*) and grid-mode badges (.isfm-meta--type.isfm-type--*). */
-	--isfm-icon-color:    #fff;
-	--isfm-icon-pdf-bg:   #c0392b;
-	--isfm-icon-doc-bg:   #2980b9;
-	--isfm-icon-xls-bg:   #27ae60;
-	--isfm-icon-ppt-bg:   #e67e22;
-	--isfm-icon-zip-bg:   #8e44ad;
-	--isfm-icon-img-bg:   #16a085;
-	--isfm-icon-vid-bg:   #2c3e50;
-	--isfm-icon-aud-bg:   #d35400;
-	--isfm-icon-file-bg:  #7f8c8d;
+	 * (.isoft-fmf-icon--*) and grid-mode badges (.isoft-fmf-meta--type.isoft-fmf-type--*). */
+	--isoft-fmf-icon-color:    #fff;
+	--isoft-fmf-icon-pdf-bg:   #c0392b;
+	--isoft-fmf-icon-doc-bg:   #2980b9;
+	--isoft-fmf-icon-xls-bg:   #27ae60;
+	--isoft-fmf-icon-ppt-bg:   #e67e22;
+	--isoft-fmf-icon-zip-bg:   #8e44ad;
+	--isoft-fmf-icon-img-bg:   #16a085;
+	--isoft-fmf-icon-vid-bg:   #2c3e50;
+	--isoft-fmf-icon-aud-bg:   #d35400;
+	--isoft-fmf-icon-file-bg:  #7f8c8d;
 }
 
 /* Establish the query container on the shortcode wrapper. Both the list/grid
- * shortcode and any direct .isfm-grid render become query containers. */
-.isfm-list-wrap,
-.isfm-grid,
-.isfm-category-grid {
+ * shortcode and any direct .isoft-fmf-grid render become query containers. */
+.isoft-fmf-list-wrap,
+.isoft-fmf-grid,
+.isoft-fmf-category-grid {
 	container-type: inline-size;
 }
 
 /* Grid layouts — auto-fill so cells never stretch wider than a card. */
-.isfm-grid { display: grid; gap: 1.5rem; }
-.isfm-grid--cols-2 { grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr)); }
-.isfm-grid--cols-3 { grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr)); }
-.isfm-grid--cols-4 { grid-template-columns: repeat(auto-fill, minmax(min(100%,  10rem), 1fr)); }
+.isoft-fmf-grid { display: grid; gap: 1.5rem; }
+.isoft-fmf-grid--cols-2 { grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr)); }
+.isoft-fmf-grid--cols-3 { grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr)); }
+.isoft-fmf-grid--cols-4 { grid-template-columns: repeat(auto-fill, minmax(min(100%,  10rem), 1fr)); }
 
 /* Download card — structural */
-.isfm-download-card { display: flex; flex-direction: column; }
-.isfm-download-card__thumbnail img { display: block; width: 100%; height: auto; }
-.isfm-download-card__actions { margin-top: auto; padding-top: .75em; }
+.isoft-fmf-download-card { display: flex; flex-direction: column; }
+.isoft-fmf-download-card__thumbnail img { display: block; width: 100%; height: auto; }
+.isoft-fmf-download-card__actions { margin-top: auto; padding-top: .75em; }
 
 /* File list table */
-.isfm-file-list { width: 100%; border-collapse: collapse; }
-.isfm-file-list td,
-.isfm-file-list th { padding: .5em .75em; text-align: left; }
+.isoft-fmf-file-list { width: 100%; border-collapse: collapse; }
+.isoft-fmf-file-list td,
+.isoft-fmf-file-list th { padding: .5em .75em; text-align: left; }
 
 /* Meta badges */
-.isfm-meta { display: inline-flex; align-items: center; gap: .25em; }
+.isoft-fmf-meta { display: inline-flex; align-items: center; gap: .25em; }
 
 /* ── Download card — JDownloads-style (list mode) ────────────────────────── */
-.isfm-download-card {
-	border-bottom: 1px solid var(--isfm-card-border, #e5e5e5);
+.isoft-fmf-download-card {
+	border-bottom: 1px solid var(--isoft-fmf-card-border, #e5e5e5);
 	padding: .5em 0;
 }
-.isfm-download-card + .isfm-download-card {
+.isoft-fmf-download-card + .isoft-fmf-download-card {
 	margin-top: 0;
 }
-.isfm-download-card__title {
+.isoft-fmf-download-card__title {
 	font-size: 1em;
 	margin: 0 0 .25em;
 }
 
-.isfm-file-item {
+.isoft-fmf-file-item {
 	display: flex;
 	align-items: center;
 	gap: .75em;
 	padding: .5em 0;
-	border-bottom: 1px solid var(--isfm-row-border, #f0f0f0);
+	border-bottom: 1px solid var(--isoft-fmf-row-border, #f0f0f0);
 }
-.isfm-file-item:last-child { border-bottom: none; }
-.isfm-file-item--empty { color: var(--isfm-empty-color, #888); font-style: italic; }
+.isoft-fmf-file-item:last-child { border-bottom: none; }
+.isoft-fmf-file-item--empty { color: var(--isoft-fmf-empty-color, #888); font-style: italic; }
 
 /* File type icon (list mode) */
-.isfm-file-item__icon {
+.isoft-fmf-file-item__icon {
 	flex: 0 0 2.6em;
 	width: 2.6em;
 	height: 3.25em;
@@ -110,46 +110,46 @@
 	font-size: .625em;
 	font-weight: 700;
 	letter-spacing: .03em;
-	color: var(--isfm-icon-color, #fff);
-	background: var(--isfm-icon-file-bg, #7f8c8d);
+	color: var(--isoft-fmf-icon-color, #fff);
+	background: var(--isoft-fmf-icon-file-bg, #7f8c8d);
 	text-transform: uppercase;
 }
-.isfm-icon--pdf  { background: var(--isfm-icon-pdf-bg,  #c0392b); }
-.isfm-icon--doc  { background: var(--isfm-icon-doc-bg,  #2980b9); }
-.isfm-icon--xls  { background: var(--isfm-icon-xls-bg,  #27ae60); }
-.isfm-icon--ppt  { background: var(--isfm-icon-ppt-bg,  #e67e22); }
-.isfm-icon--zip  { background: var(--isfm-icon-zip-bg,  #8e44ad); }
-.isfm-icon--img  { background: var(--isfm-icon-img-bg,  #16a085); }
-.isfm-icon--vid  { background: var(--isfm-icon-vid-bg,  #2c3e50); }
-.isfm-icon--aud  { background: var(--isfm-icon-aud-bg,  #d35400); }
-.isfm-icon--file { background: var(--isfm-icon-file-bg, #7f8c8d); }
+.isoft-fmf-icon--pdf  { background: var(--isoft-fmf-icon-pdf-bg,  #c0392b); }
+.isoft-fmf-icon--doc  { background: var(--isoft-fmf-icon-doc-bg,  #2980b9); }
+.isoft-fmf-icon--xls  { background: var(--isoft-fmf-icon-xls-bg,  #27ae60); }
+.isoft-fmf-icon--ppt  { background: var(--isoft-fmf-icon-ppt-bg,  #e67e22); }
+.isoft-fmf-icon--zip  { background: var(--isoft-fmf-icon-zip-bg,  #8e44ad); }
+.isoft-fmf-icon--img  { background: var(--isoft-fmf-icon-img-bg,  #16a085); }
+.isoft-fmf-icon--vid  { background: var(--isoft-fmf-icon-vid-bg,  #2c3e50); }
+.isoft-fmf-icon--aud  { background: var(--isoft-fmf-icon-aud-bg,  #d35400); }
+.isoft-fmf-icon--file { background: var(--isoft-fmf-icon-file-bg, #7f8c8d); }
 
 /* Info column — grows */
-.isfm-file-item__info { flex: 1 1 auto; min-width: 0; }
-.isfm-file-item__title {
+.isoft-fmf-file-item__info { flex: 1 1 auto; min-width: 0; }
+.isoft-fmf-file-item__title {
 	font-weight: 600;
 	margin-bottom: .2em;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
-.isfm-file-item__title a { text-decoration: none; }
-.isfm-file-item__title a:hover { text-decoration: underline; }
+.isoft-fmf-file-item__title a { text-decoration: none; }
+.isoft-fmf-file-item__title a:hover { text-decoration: underline; }
 
 /* Meta row */
-.isfm-file-item__meta {
+.isoft-fmf-file-item__meta {
 	display: flex;
 	flex-wrap: wrap;
 	gap: .5em 1em;
 	font-size: .8em;
-	color: var(--isfm-meta-color, #666);
+	color: var(--isoft-fmf-meta-color, #666);
 }
-.isfm-file-item__meta .isfm-meta {
+.isoft-fmf-file-item__meta .isoft-fmf-meta {
 	display: inline-flex;
 	align-items: center;
 	gap: .2em;
 }
-.isfm-file-item__meta .dashicons {
+.isoft-fmf-file-item__meta .dashicons {
 	/* Dashicons are glyph-font; sizing in px keeps them crisp across scales. */
 	font-size: 14px;
 	width: 14px;
@@ -158,10 +158,10 @@
 }
 
 /* Action column */
-.isfm-file-item__action { flex: 0 0 auto; }
+.isoft-fmf-file-item__action { flex: 0 0 auto; }
 
 /* HOT badge */
-.isfm-badge--hot {
+.isoft-fmf-badge--hot {
 	display: inline-block;
 	padding: .1em .4em;
 	font-size: .625em;
@@ -169,14 +169,14 @@
 	border-radius: 2px;
 	text-transform: uppercase;
 	letter-spacing: .05em;
-	background: var(--isfm-badge-hot-bg, #e74c3c);
-	color: var(--isfm-badge-hot-color, #fff);
+	background: var(--isoft-fmf-badge-hot-bg, #e74c3c);
+	color: var(--isoft-fmf-badge-hot-color, #fff);
 	vertical-align: middle;
 	margin-left: .3em;
 }
 
 /* Agreement modal overlay — hidden by default, shown via .is-open */
-.isfm-modal-overlay {
+.isoft-fmf-modal-overlay {
 	display: none;
 	position: fixed;
 	inset: 0;
@@ -185,17 +185,17 @@
 	justify-content: center;
 	z-index: 9999;
 }
-.isfm-modal-overlay.is-open {
+.isoft-fmf-modal-overlay.is-open {
 	display: flex;
 }
-.isfm-modal {
+.isoft-fmf-modal {
 	max-width: 38rem;
 	width: 90%;
 	max-height: 80vh;
 	overflow-y: auto;
 	padding: 2em;
 }
-.isfm-modal__license-text {
+.isoft-fmf-modal__license-text {
 	max-height: 13rem;
 	overflow-y: auto;
 	padding: .75em;
@@ -203,19 +203,19 @@
 }
 
 /* Download button — uses WP standard class; we only add structural tweaks */
-.isfm-download-btn {
+.isoft-fmf-download-btn {
 	display: inline-flex;
 	align-items: center;
 	gap: .4em;
 	width: fit-content;
 	width: -moz-fit-content; /* Firefox < 94 */
 }
-.isfm-download-btn--restricted {
+.isoft-fmf-download-btn--restricted {
 	opacity: 0.6;
 	cursor: default;
 	pointer-events: none;
 }
-.isfm-download-btn--login {
+.isoft-fmf-download-btn--login {
 	opacity: 0.85;
 }
 
@@ -227,14 +227,14 @@
  * The file-type icon column is hidden in grid mode — its info moves into
  * the meta row as a colored badge so every meta value lines up uniformly.
  */
-.isfm-grid .isfm-download-card {
+.isoft-fmf-grid .isoft-fmf-download-card {
 	aspect-ratio: 1.5 / 2.7;
-	border: 1px solid var(--isfm-card-border, #e5e5e5);
+	border: 1px solid var(--isoft-fmf-card-border, #e5e5e5);
 	border-radius: 4px;
 	padding: 0;
 	margin: 0;
 	overflow: hidden;
-	background: var(--isfm-card-bg, #fff);
+	background: var(--isoft-fmf-card-bg, #fff);
 	display: flex;
 	flex-direction: column;
 }
@@ -244,17 +244,17 @@
  * honor the 1.5:2.7 portrait lock because each file becomes its own row
  * inside the card. Release the aspect-ratio, stack files compactly, and
  * let the card grow to its content. */
-.isfm-grid .isfm-download-card:has(.isfm-download-card__title) {
+.isoft-fmf-grid .isoft-fmf-download-card:has(.isoft-fmf-download-card__title) {
 	aspect-ratio: auto;
 }
-.isfm-grid .isfm-download-card__title {
+.isoft-fmf-grid .isoft-fmf-download-card__title {
 	font-size: 1em;
 	font-weight: 600;
 	line-height: 1.3;
 	margin: 0;
 	padding: .8em 1em;
-	background: var(--isfm-title-band-bg, #f6f7f9);
-	border-bottom: 1px solid var(--isfm-card-border, #e5e5e5);
+	background: var(--isoft-fmf-title-band-bg, #f6f7f9);
+	border-bottom: 1px solid var(--isoft-fmf-card-border, #e5e5e5);
 	display: -webkit-box;
 	-webkit-line-clamp: 3;
 	line-clamp: 3;
@@ -262,29 +262,29 @@
 	overflow: hidden;
 	word-break: break-word;
 }
-.isfm-grid .isfm-download-card__title a { color: inherit; text-decoration: none; }
+.isoft-fmf-grid .isoft-fmf-download-card__title a { color: inherit; text-decoration: none; }
 
 /* Inside a multi-file card: each row is compact — no per-file title band,
  * smaller meta block, inline button at the bottom of the row. The
  * per-download-card bands only apply to single-file cards. */
-.isfm-grid .isfm-download-card:has(.isfm-download-card__title) .isfm-file-item {
+.isoft-fmf-grid .isoft-fmf-download-card:has(.isoft-fmf-download-card__title) .isoft-fmf-file-item {
 	flex-direction: row;
 	flex-wrap: wrap;
 	align-items: center;
 	gap: .75em;
 	padding: .75em 1em;
-	border-bottom: 1px solid var(--isfm-row-border, #f0f0f0);
+	border-bottom: 1px solid var(--isoft-fmf-row-border, #f0f0f0);
 	flex: 0 0 auto;
 }
-.isfm-grid .isfm-download-card:has(.isfm-download-card__title) .isfm-file-item:last-child {
+.isoft-fmf-grid .isoft-fmf-download-card:has(.isoft-fmf-download-card__title) .isoft-fmf-file-item:last-child {
 	border-bottom: none;
 }
-.isfm-grid .isfm-download-card:has(.isfm-download-card__title) .isfm-file-item__info {
+.isoft-fmf-grid .isoft-fmf-download-card:has(.isoft-fmf-download-card__title) .isoft-fmf-file-item__info {
 	flex: 1 1 0;
 	padding: 0;
 	min-width: 0;
 }
-.isfm-grid .isfm-download-card:has(.isfm-download-card__title) .isfm-file-item__title {
+.isoft-fmf-grid .isoft-fmf-download-card:has(.isoft-fmf-download-card__title) .isoft-fmf-file-item__title {
 	flex: 0 0 auto;
 	background: none;
 	border: none;
@@ -293,7 +293,7 @@
 	-webkit-line-clamp: 2;
 	line-clamp: 2;
 }
-.isfm-grid .isfm-download-card:has(.isfm-download-card__title) .isfm-file-item__meta {
+.isoft-fmf-grid .isoft-fmf-download-card:has(.isoft-fmf-download-card__title) .isoft-fmf-file-item__meta {
 	flex: 0 0 auto;
 	flex-direction: row;
 	flex-wrap: wrap;
@@ -301,22 +301,22 @@
 	padding: 0;
 	font-size: .8em;
 }
-.isfm-grid .isfm-download-card:has(.isfm-download-card__title) .isfm-file-item__meta .dashicons {
+.isoft-fmf-grid .isoft-fmf-download-card:has(.isoft-fmf-download-card__title) .isoft-fmf-file-item__meta .dashicons {
 	font-size: 14px;
 	width: 14px;
 	height: 14px;
 }
-.isfm-grid .isfm-download-card:has(.isfm-download-card__title) .isfm-file-item__action {
+.isoft-fmf-grid .isoft-fmf-download-card:has(.isoft-fmf-download-card__title) .isoft-fmf-file-item__action {
 	flex: 0 0 100%;
 	min-height: auto;
 	margin: 0;
 }
-.isfm-grid .isfm-download-card:has(.isfm-download-card__title) .isfm-file-item__action .isfm-download-btn {
+.isoft-fmf-grid .isoft-fmf-download-card:has(.isoft-fmf-download-card__title) .isoft-fmf-file-item__action .isoft-fmf-download-btn {
 	border-radius: 3px;
 	padding: .5em 1em;
 }
 
-.isfm-grid .isfm-file-item {
+.isoft-fmf-grid .isoft-fmf-file-item {
 	display: flex;
 	flex-direction: column;
 	align-items: stretch;
@@ -328,10 +328,10 @@
 }
 
 /* Hide the large colored file-type tile in grid mode. */
-.isfm-grid .isfm-file-item__icon { display: none; }
+.isoft-fmf-grid .isoft-fmf-file-item__icon { display: none; }
 
 /* The info wrapper holds the title band + meta block. */
-.isfm-grid .isfm-file-item__info {
+.isoft-fmf-grid .isoft-fmf-file-item__info {
 	flex: 1 1 auto;
 	min-width: 0;
 	display: flex;
@@ -340,13 +340,13 @@
 }
 
 /* ── Title band ── 30% of card height, visually distinct strip. */
-.isfm-grid .isfm-file-item__title {
+.isoft-fmf-grid .isoft-fmf-file-item__title {
 	flex: 0 0 30%;
 	width: 100%;
 	padding: .8em 1em;
 	margin: 0;
-	background: var(--isfm-title-band-bg, #f6f7f9);
-	border-bottom: 1px solid var(--isfm-card-border, #e5e5e5);
+	background: var(--isoft-fmf-title-band-bg, #f6f7f9);
+	border-bottom: 1px solid var(--isoft-fmf-card-border, #e5e5e5);
 	font-size: 1em;
 	font-weight: 600;
 	line-height: 1.3;
@@ -365,10 +365,10 @@
 	line-clamp: 3;
 	-webkit-box-orient: vertical;
 }
-.isfm-grid .isfm-file-item__title a { color: inherit; text-decoration: none; }
+.isoft-fmf-grid .isoft-fmf-file-item__title a { color: inherit; text-decoration: none; }
 
 /* ── Meta block ── Fills remaining vertical space, one value per line. */
-.isfm-grid .isfm-file-item__meta {
+.isoft-fmf-grid .isoft-fmf-file-item__meta {
 	flex: 1 1 auto;
 	display: flex;
 	flex-direction: column;
@@ -376,49 +376,49 @@
 	gap: .5em;
 	padding: 1em;
 	font-size: .95em;
-	color: var(--isfm-meta-color, #666);
+	color: var(--isoft-fmf-meta-color, #666);
 	margin: 0;
 }
-.isfm-grid .isfm-file-item__meta .isfm-meta { font-size: inherit; }
-.isfm-grid .isfm-file-item__meta .dashicons {
+.isoft-fmf-grid .isoft-fmf-file-item__meta .isoft-fmf-meta { font-size: inherit; }
+.isoft-fmf-grid .isoft-fmf-file-item__meta .dashicons {
 	/* Larger dashicons in grid mode — still glyph-font so still px. */
 	font-size: 18px;
 	width: 18px;
 	height: 18px;
 }
-.isfm-grid .isfm-meta--lock { align-self: flex-end; }
+.isoft-fmf-grid .isoft-fmf-meta--lock { align-self: flex-end; }
 
 /* File-type badge — grid-only. In list mode the big colored icon tile on
  * the left already conveys the file type, so we hide this duplicate badge
- * everywhere except inside .isfm-grid.
+ * everywhere except inside .isoft-fmf-grid.
  *
- * The hide rule has to match the specificity of .isfm-file-item__meta
- * .isfm-meta (2 classes) or it loses. The show rule + the type-color rules
+ * The hide rule has to match the specificity of .isoft-fmf-file-item__meta
+ * .isoft-fmf-meta (2 classes) or it loses. The show rule + the type-color rules
  * share the same base specificity so the cascade order decides — colors
  * declared last, they win. */
-.isfm-file-item__meta .isfm-meta--type { display: none; }
-.isfm-grid .isfm-file-item__meta .isfm-meta--type {
+.isoft-fmf-file-item__meta .isoft-fmf-meta--type { display: none; }
+.isoft-fmf-grid .isoft-fmf-file-item__meta .isoft-fmf-meta--type {
 	display: inline-block;
 	padding: .2em .6em;
 	font-size: .85em;
 	font-weight: 700;
 	letter-spacing: .05em;
 	border-radius: 3px;
-	color: var(--isfm-icon-color, #fff);
+	color: var(--isoft-fmf-icon-color, #fff);
 	text-transform: uppercase;
 }
-.isfm-grid .isfm-meta--type.isfm-type--pdf  { background: var(--isfm-icon-pdf-bg,  #c0392b); }
-.isfm-grid .isfm-meta--type.isfm-type--doc  { background: var(--isfm-icon-doc-bg,  #2980b9); }
-.isfm-grid .isfm-meta--type.isfm-type--xls  { background: var(--isfm-icon-xls-bg,  #27ae60); }
-.isfm-grid .isfm-meta--type.isfm-type--ppt  { background: var(--isfm-icon-ppt-bg,  #e67e22); }
-.isfm-grid .isfm-meta--type.isfm-type--zip  { background: var(--isfm-icon-zip-bg,  #8e44ad); }
-.isfm-grid .isfm-meta--type.isfm-type--img  { background: var(--isfm-icon-img-bg,  #16a085); }
-.isfm-grid .isfm-meta--type.isfm-type--vid  { background: var(--isfm-icon-vid-bg,  #2c3e50); }
-.isfm-grid .isfm-meta--type.isfm-type--aud  { background: var(--isfm-icon-aud-bg,  #d35400); }
-.isfm-grid .isfm-meta--type.isfm-type--file { background: var(--isfm-icon-file-bg, #7f8c8d); }
+.isoft-fmf-grid .isoft-fmf-meta--type.isoft-fmf-type--pdf  { background: var(--isoft-fmf-icon-pdf-bg,  #c0392b); }
+.isoft-fmf-grid .isoft-fmf-meta--type.isoft-fmf-type--doc  { background: var(--isoft-fmf-icon-doc-bg,  #2980b9); }
+.isoft-fmf-grid .isoft-fmf-meta--type.isoft-fmf-type--xls  { background: var(--isoft-fmf-icon-xls-bg,  #27ae60); }
+.isoft-fmf-grid .isoft-fmf-meta--type.isoft-fmf-type--ppt  { background: var(--isoft-fmf-icon-ppt-bg,  #e67e22); }
+.isoft-fmf-grid .isoft-fmf-meta--type.isoft-fmf-type--zip  { background: var(--isoft-fmf-icon-zip-bg,  #8e44ad); }
+.isoft-fmf-grid .isoft-fmf-meta--type.isoft-fmf-type--img  { background: var(--isoft-fmf-icon-img-bg,  #16a085); }
+.isoft-fmf-grid .isoft-fmf-meta--type.isoft-fmf-type--vid  { background: var(--isoft-fmf-icon-vid-bg,  #2c3e50); }
+.isoft-fmf-grid .isoft-fmf-meta--type.isoft-fmf-type--aud  { background: var(--isoft-fmf-icon-aud-bg,  #d35400); }
+.isoft-fmf-grid .isoft-fmf-meta--type.isoft-fmf-type--file { background: var(--isoft-fmf-icon-file-bg, #7f8c8d); }
 
 /* ── Action band ── 15% of card height, full width, text centered. */
-.isfm-grid .isfm-file-item__action {
+.isoft-fmf-grid .isoft-fmf-file-item__action {
 	flex: 0 0 15%;
 	/* Tap-target minimum per WCAG 2.5.5 — must be px. */
 	min-height: 44px;
@@ -426,7 +426,7 @@
 	margin: 0;
 	padding: 0;
 }
-.isfm-grid .isfm-file-item__action .isfm-download-btn {
+.isoft-fmf-grid .isoft-fmf-file-item__action .isoft-fmf-download-btn {
 	flex: 1 1 auto;
 	width: 100%;
 	height: 100%;
@@ -446,35 +446,35 @@
  * to their content.
  */
 @container (max-width: 30rem) {
-	.isfm-grid--cols-2,
-	.isfm-grid--cols-3,
-	.isfm-grid--cols-4 { grid-template-columns: 1fr; }
+	.isoft-fmf-grid--cols-2,
+	.isoft-fmf-grid--cols-3,
+	.isoft-fmf-grid--cols-4 { grid-template-columns: 1fr; }
 
-	.isfm-grid .isfm-download-card   { aspect-ratio: auto; }
-	.isfm-grid .isfm-file-item__title  { flex: 0 0 auto; }
-	.isfm-grid .isfm-file-item__meta   { flex: 0 0 auto; padding: 1em; }
-	.isfm-grid .isfm-file-item__action { flex: 0 0 auto; min-height: 48px; }
+	.isoft-fmf-grid .isoft-fmf-download-card   { aspect-ratio: auto; }
+	.isoft-fmf-grid .isoft-fmf-file-item__title  { flex: 0 0 auto; }
+	.isoft-fmf-grid .isoft-fmf-file-item__meta   { flex: 0 0 auto; padding: 1em; }
+	.isoft-fmf-grid .isoft-fmf-file-item__action { flex: 0 0 auto; min-height: 48px; }
 }
 
 /* List-mode file row: collapse action column onto its own row when
  * the container is tight (e.g. dropped in a sidebar). */
 @container (max-width: 22rem) {
-	.isfm-file-item { flex-wrap: wrap; }
-	.isfm-file-item__action { width: 100%; }
-	.isfm-download-btn { width: 100%; justify-content: center; }
+	.isoft-fmf-file-item { flex-wrap: wrap; }
+	.isoft-fmf-file-item__action { width: 100%; }
+	.isoft-fmf-download-btn { width: 100%; justify-content: center; }
 }
 
 /* List table: stack rows vertically in very narrow containers. */
 @container (max-width: 22rem) {
-	.isfm-file-list thead { display: none; }
-	.isfm-file-list td    { display: block; padding: .25em .5em; }
+	.isoft-fmf-file-list thead { display: none; }
+	.isoft-fmf-file-list td    { display: block; padding: .25em .5em; }
 }
 
 /* Missing file state — flagged by integrity check */
-.isfm-file-item--missing { opacity: .55; }
-.isfm-file-item--missing .isfm-file-item__title,
-.isfm-file-item--missing .isfm-file-item__meta { text-decoration: line-through; }
-.isfm-file-missing-label {
+.isoft-fmf-file-item--missing { opacity: .55; }
+.isoft-fmf-file-item--missing .isoft-fmf-file-item__title,
+.isoft-fmf-file-item--missing .isoft-fmf-file-item__meta { text-decoration: line-through; }
+.isoft-fmf-file-missing-label {
 	display: inline-block;
 	padding: 3px 10px;
 	font-size: 12px;

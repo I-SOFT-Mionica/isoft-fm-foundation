@@ -2,6 +2,34 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.9.1] — 2026-06-04
+
+Plugin prefix bumped from `isfm` (4 chars) to `isoft_fmf` (8 chars). Driven by the round-3 reviewer comment ("don't try to use two- or three-letter prefixes anymore. We host almost 100,000 plugins on WordPress.org alone... you're likely to encounter conflicts"). `isfm` met the stated 4-char minimum but the reviewer's tone telegraphed that the floor and the comfortable target aren't the same number.
+
+### Renamed (lockstep)
+- **PHP**: `ISFM_X` → `ISOFT_FMF_X` (classes, constants), `isfm_X` → `isoft_fmf_X` (functions, post type `isfm_file` → `isoft_fmf_file`, taxonomies `isfm_category`/`isfm_tag` → `isoft_fmf_category`/`isoft_fmf_tag`, options, capabilities, hook names, AJAX actions)
+- **DB tables**: `wp_isfm_files`, `wp_isfm_download_log`, `wp_isfm_licenses` → `wp_isoft_fmf_*`
+- **Postmeta + usermeta keys**: `_isfm_X` → `_isoft_fmf_X`
+- **CSS**: classes (`.isfm-card` → `.isoft-fmf-card`), custom properties (`--isfm-card-bg` → `--isoft-fmf-card-bg`)
+- **File storage dir**: `wp-content/uploads/isfm-files/` → `wp-content/uploads/isoft-fmf-files/`
+- **Theme template overrides**: `templates/archive-isfm_file.php` → `templates/archive-isoft_fmf_file.php` (and the three sibling templates)
+
+### Unchanged (already long-form)
+- Text domain: `isoft-fm-foundation`
+- REST namespace: `isoft-fm-foundation/v1`
+- Block names: `isoft-fm-foundation/download-list`, `isoft-fm-foundation/download-button`, `isoft-fm-foundation/category-grid`
+- WP.org slug: `isoft-fm-foundation`
+
+### Migration
+None. The plugin has not shipped publicly, so test installs should remove `wp-content/uploads/isfm-files/` and the `wp_isfm_*` tables, then activate fresh. Same posture as 0.8.0.
+
+### phpcs.xml.dist
+- Updated prefix list (`ISFM_` / `isfm_` → `ISOFT_FMF_` / `isoft_fmf_`).
+- Dropped `WordPress.NamingConventions.PrefixAllGlobals.ShortPrefixPassed` exclusion — `isoft_fmf` (8 chars) isn't short.
+
+### Incidental
+- **`package-lock.json`** — fixed `webisfm-conversions` corruption back to `webidl-conversions`. The 0.8.0 (`idl` → `isfm`) sed pass had accidentally rewritten the lockfile's reference to the `webidl-conversions` npm package, breaking `npm install` for downstream contributors. Excluded from this rename pass to prevent reoccurrence.
+
 ## [0.9.0] — 2026-05-31
 
 Round-3 WordPress.org review fixes. Every finding addressed; one informational item (the `wp_ajax_delete-tag` "prefix" flag) noted as a false positive — that hook is a core WP action, not our declaration.

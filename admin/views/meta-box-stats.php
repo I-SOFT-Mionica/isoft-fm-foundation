@@ -34,8 +34,8 @@
 		echo esc_url(
 			add_query_arg(
 				array(
-					'page'        => 'isfm-log',
-					'post_type'   => 'isfm_file',
+					'page'        => 'isoft-fmf-log',
+					'post_type'   => 'isoft_fmf_file',
 					'download_id' => get_the_ID(),
 				),
 				admin_url( 'edit.php' )

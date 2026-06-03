@@ -13,4 +13,4 @@ $atts = array(
 	'show_description' => ! empty( $attributes['showDescription'] ) ? '1' : '0',
 );
 
-echo wp_kses( do_shortcode( '[isfm_categories' . isfm_atts_to_string( $atts ) . ']' ), isfm_allowed_html() );
+echo wp_kses( do_shortcode( '[isoft_fmf_categories' . isoft_fmf_atts_to_string( $atts ) . ']' ), isoft_fmf_allowed_html() );

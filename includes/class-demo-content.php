@@ -1,15 +1,15 @@
 <?php
 defined( 'ABSPATH' ) || exit;
 
-class ISFM_Demo_Content {
+class ISOFT_FMF_Demo_Content {
 
 	public function register_hooks(): void {
-		add_action( 'admin_post_isfm_install_demo', array( $this, 'handle_install' ) );
-		add_action( 'admin_post_isfm_remove_demo', array( $this, 'handle_remove' ) );
+		add_action( 'admin_post_isoft_fmf_install_demo', array( $this, 'handle_install' ) );
+		add_action( 'admin_post_isoft_fmf_remove_demo', array( $this, 'handle_remove' ) );
 	}
 
 	public static function has_content(): bool {
-		$counts = wp_count_posts( 'isfm_file' );
+		$counts = wp_count_posts( 'isoft_fmf_file' );
 		return ( (int) $counts->publish + (int) $counts->draft + (int) $counts->pending ) > 0;
 	}
 
@@ -17,9 +17,9 @@ class ISFM_Demo_Content {
 		// phpcs:disable WordPress.DB.SlowDBQuery.slow_db_query_meta_key,WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- Admin-only one-shot check; LIMIT 1 keeps it fast.
 		$query = new WP_Query(
 			array(
-				'post_type'      => 'isfm_file',
+				'post_type'      => 'isoft_fmf_file',
 				'post_status'    => 'any',
-				'meta_key'       => '_isfm_demo_content',
+				'meta_key'       => '_isoft_fmf_demo_content',
 				'meta_value'     => '1',
 				'posts_per_page' => 1,
 				'no_found_rows'  => true,
@@ -30,12 +30,12 @@ class ISFM_Demo_Content {
 	}
 
 	public function handle_install(): void {
-		check_admin_referer( 'isfm_install_demo' );
-		if ( ! current_user_can( 'isfm_manage_settings' ) ) {
+		check_admin_referer( 'isoft_fmf_install_demo' );
+		if ( ! current_user_can( 'isoft_fmf_manage_settings' ) ) {
 			wp_die( esc_html__( 'You do not have permission to install demo content.', 'isoft-fm-foundation' ), 403 );
 		}
 		if ( self::has_content() ) {
-			isfm_notify_admin( __( 'Demo content cannot be installed — downloads already exist.', 'isoft-fm-foundation' ), 'error' );
+			isoft_fmf_notify_admin( __( 'Demo content cannot be installed — downloads already exist.', 'isoft-fm-foundation' ), 'error' );
 			wp_safe_redirect( $this->settings_url() );
 			exit;
 		}
@@ -44,22 +44,22 @@ class ISFM_Demo_Content {
 		$download_ids = $this->create_downloads( $categories );
 		$this->create_demo_page( $download_ids );
 
-		isfm_notify_admin( __( 'Demo content installed successfully.', 'isoft-fm-foundation' ), 'success' );
-		wp_safe_redirect( $this->settings_url( 'isfm_demo=installed' ) );
+		isoft_fmf_notify_admin( __( 'Demo content installed successfully.', 'isoft-fm-foundation' ), 'success' );
+		wp_safe_redirect( $this->settings_url( 'isoft_fmf_demo=installed' ) );
 		exit;
 	}
 
 	public function handle_remove(): void {
-		check_admin_referer( 'isfm_remove_demo' );
-		if ( ! current_user_can( 'isfm_manage_settings' ) ) {
+		check_admin_referer( 'isoft_fmf_remove_demo' );
+		if ( ! current_user_can( 'isoft_fmf_manage_settings' ) ) {
 			wp_die( esc_html__( 'You do not have permission to remove demo content.', 'isoft-fm-foundation' ), 403 );
 		}
 
 		$this->remove_demo_posts();
 		$this->remove_demo_terms();
 
-		isfm_notify_admin( __( 'Demo content removed.', 'isoft-fm-foundation' ), 'success' );
-		wp_safe_redirect( $this->settings_url( 'isfm_demo=removed' ) );
+		isoft_fmf_notify_admin( __( 'Demo content removed.', 'isoft-fm-foundation' ), 'success' );
+		wp_safe_redirect( $this->settings_url( 'isoft_fmf_demo=removed' ) );
 		exit;
 	}
 
@@ -80,7 +80,7 @@ class ISFM_Demo_Content {
 	// ─────────────────────────────────────────────────────────────────────────
 
 	private function use_serbian(): bool {
-		return (bool) isfm_get_settings()['cyrillic_titles'];
+		return (bool) isoft_fmf_get_settings()['cyrillic_titles'];
 	}
 
 	/**
@@ -99,7 +99,7 @@ class ISFM_Demo_Content {
 
 			$result = wp_insert_term(
 				$node['name'],
-				'isfm_category',
+				'isoft_fmf_category',
 				array(
 					'slug'   => $slug,
 					'parent' => $parent_id,
@@ -114,7 +114,7 @@ class ISFM_Demo_Content {
 			}
 
 			$ids[ $slug ] = (int) $result['term_id'];
-			update_term_meta( $ids[ $slug ], '_isfm_demo_term', 1 );
+			update_term_meta( $ids[ $slug ], '_isoft_fmf_demo_term', 1 );
 		}
 
 		return $ids;
@@ -180,7 +180,7 @@ class ISFM_Demo_Content {
 	private function create_downloads( array $cats ): array {
 		$sr        = $this->use_serbian();
 		$downloads = $this->download_definitions( $sr );
-		$file_mgr  = new ISFM_File_Manager();
+		$file_mgr  = new ISOFT_FMF_File_Manager();
 		$created   = array();
 
 		foreach ( $downloads as $def ) {
@@ -190,7 +190,7 @@ class ISFM_Demo_Content {
 				array(
 					'post_title'   => $def['title'],
 					'post_status'  => 'publish',
-					'post_type'    => 'isfm_file',
+					'post_type'    => 'isoft_fmf_file',
 					'post_content' => $def['description'] ?? '',
 				)
 			);
@@ -199,14 +199,14 @@ class ISFM_Demo_Content {
 				continue;
 			}
 
-			update_post_meta( $post_id, '_isfm_demo_content', 1 );
-			update_post_meta( $post_id, '_isfm_access_role', $def['access'] );
+			update_post_meta( $post_id, '_isoft_fmf_demo_content', 1 );
+			update_post_meta( $post_id, '_isoft_fmf_access_role', $def['access'] );
 
 			if ( $cat_id ) {
-				wp_set_object_terms( $post_id, $cat_id, 'isfm_category' );
+				wp_set_object_terms( $post_id, $cat_id, 'isoft_fmf_category' );
 			}
 
-			$cat_path = $cat_id ? isfm_category_folder_path( $cat_id ) : '';
+			$cat_path = $cat_id ? isoft_fmf_category_folder_path( $cat_id ) : '';
 
 			foreach ( $def['files'] as $i => $file_def ) {
 				$this->create_demo_file( $post_id, $file_def, $cat_id, $cat_path, $i, $file_mgr );
@@ -220,7 +220,7 @@ class ISFM_Demo_Content {
 
 	/**
 	 * Create one WP page that showcases all three layouts (single, list, grid)
-	 * using the plugin's blocks. Tagged with _isfm_demo_content so the standard
+	 * using the plugin's blocks. Tagged with _isoft_fmf_demo_content so the standard
 	 * Remove button cleans it up.
 	 *
 	 * @param list<int> $download_ids Download IDs returned by create_downloads().
@@ -242,7 +242,7 @@ class ISFM_Demo_Content {
 		);
 
 		if ( ! is_wp_error( $page_id ) && $page_id ) {
-			update_post_meta( $page_id, '_isfm_demo_content', 1 );
+			update_post_meta( $page_id, '_isoft_fmf_demo_content', 1 );
 		}
 	}
 
@@ -414,7 +414,7 @@ class ISFM_Demo_Content {
 		int $cat_id,
 		string $cat_path,
 		int $sort_order,
-		ISFM_File_Manager $mgr
+		ISOFT_FMF_File_Manager $mgr
 	): void {
 		$format = $file_def['format'];
 		$name   = $file_def['name'];
@@ -422,7 +422,7 @@ class ISFM_Demo_Content {
 		$body   = $file_def['body'];
 
 		if ( $cat_id ) {
-			ISFM_Category_Folders::ensure( $cat_id );
+			ISOFT_FMF_Category_Folders::ensure( $cat_id );
 		}
 
 		$content = null;
@@ -445,7 +445,7 @@ class ISFM_Demo_Content {
 
 		$filename = "{$name}.{$ext}";
 		$rel_path = $cat_path ? "{$cat_path}/{$filename}" : $filename;
-		$abs_path = isfm_files_dir() . '/' . $rel_path;
+		$abs_path = isoft_fmf_files_dir() . '/' . $rel_path;
 
 		$dir = dirname( $abs_path );
 		if ( ! is_dir( $dir ) ) {
@@ -552,7 +552,7 @@ class ISFM_Demo_Content {
 			return null;
 		}
 
-		$tmp = wp_tempnam( 'isfm_demo_' );
+		$tmp = wp_tempnam( 'isoft_fmf_demo_' );
 
 		$zip = new ZipArchive();
 		if ( true !== $zip->open( $tmp, ZipArchive::CREATE | ZipArchive::OVERWRITE ) ) {
@@ -617,23 +617,23 @@ class ISFM_Demo_Content {
 		// phpcs:disable WordPress.DB.SlowDBQuery.slow_db_query_meta_key,WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- Admin-only one-shot removal; bounded by demo content count (~6 posts + 1 page).
 		$posts = get_posts(
 			array(
-				'post_type'      => array( 'isfm_file', 'page' ),
+				'post_type'      => array( 'isoft_fmf_file', 'page' ),
 				'post_status'    => 'any',
-				'meta_key'       => '_isfm_demo_content',
+				'meta_key'       => '_isoft_fmf_demo_content',
 				'meta_value'     => '1',
 				'posts_per_page' => -1,
 				'fields'         => 'ids',
 			)
 		);
 
-		$file_mgr = new ISFM_File_Manager();
+		$file_mgr = new ISOFT_FMF_File_Manager();
 		foreach ( $posts as $post_id ) {
-			// Pages have no associated isfm_files rows; only run file cleanup for downloads.
-			if ( 'isfm_file' === get_post_type( $post_id ) ) {
+			// Pages have no associated isoft_fmf_files rows; only run file cleanup for downloads.
+			if ( 'isoft_fmf_file' === get_post_type( $post_id ) ) {
 				$files = $file_mgr->get_files( $post_id );
 				foreach ( $files as $file ) {
 					if ( $file->file_path ) {
-						$abs = isfm_files_dir() . '/' . $file->file_path;
+						$abs = isoft_fmf_files_dir() . '/' . $file->file_path;
 						if ( file_exists( $abs ) ) {
 							wp_delete_file( $abs );
 						}
@@ -649,9 +649,9 @@ class ISFM_Demo_Content {
 		// phpcs:disable WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- Admin-only one-shot cleanup; no persistent query, no performance concern.
 		$terms = get_terms(
 			array(
-				'taxonomy'   => 'isfm_category',
+				'taxonomy'   => 'isoft_fmf_category',
 				'hide_empty' => false,
-				'meta_key'   => '_isfm_demo_term',
+				'meta_key'   => '_isoft_fmf_demo_term',
 				'meta_value' => '1',
 				'fields'     => 'ids',
 			)
@@ -665,7 +665,7 @@ class ISFM_Demo_Content {
 		// Delete deepest children first to avoid parent conflicts.
 		$terms = array_reverse( $terms );
 		foreach ( $terms as $term_id ) {
-			wp_delete_term( (int) $term_id, 'isfm_category' );
+			wp_delete_term( (int) $term_id, 'isoft_fmf_category' );
 		}
 	}
 
@@ -674,7 +674,7 @@ class ISFM_Demo_Content {
 	// ─────────────────────────────────────────────────────────────────────────
 
 	private function settings_url( string $extra = '' ): string {
-		$url = admin_url( 'edit.php?post_type=isfm_file&page=isfm-settings&tab=maintenance' );
+		$url = admin_url( 'edit.php?post_type=isoft_fmf_file&page=isoft-fmf-settings&tab=maintenance' );
 		return $extra ? "{$url}&{$extra}" : $url;
 	}
 }

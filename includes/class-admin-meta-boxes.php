@@ -1,26 +1,26 @@
 <?php
 defined( 'ABSPATH' ) || exit;
 
-class ISFM_Admin_Meta_Boxes {
+class ISOFT_FMF_Admin_Meta_Boxes {
 
 	public function register_hooks(): void {
 		add_action( 'add_meta_boxes', array( $this, 'register' ) );
-		add_action( 'save_post_isfm_file', array( $this, 'save' ), 10, 2 );
+		add_action( 'save_post_isoft_fmf_file', array( $this, 'save' ), 10, 2 );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue' ) );
 		add_action( 'post_submitbox_misc_actions', array( $this, 'render_access_role_in_publish_box' ) );
 		add_filter( 'wp_insert_post_data', array( $this, 'strip_post_password' ), 10, 2 );
-		add_action( 'wp_ajax_isfm_delete_file', array( $this, 'ajax_delete_file' ) );
-		add_action( 'wp_ajax_isfm_save_file_order', array( $this, 'ajax_save_order' ) );
-		add_action( 'wp_ajax_isfm_add_external', array( $this, 'ajax_add_external' ) );
-		add_action( 'wp_ajax_isfm_update_file_meta', array( $this, 'ajax_update_file_meta' ) );
-		add_action( 'wp_ajax_isfm_upload_file', array( $this, 'ajax_upload_file' ) );
-		add_action( 'wp_ajax_isfm_browse_category', array( $this, 'ajax_browse_category' ) );
-		add_action( 'wp_ajax_isfm_import_file', array( $this, 'ajax_import_file' ) );
+		add_action( 'wp_ajax_isoft_fmf_delete_file', array( $this, 'ajax_delete_file' ) );
+		add_action( 'wp_ajax_isoft_fmf_save_file_order', array( $this, 'ajax_save_order' ) );
+		add_action( 'wp_ajax_isoft_fmf_add_external', array( $this, 'ajax_add_external' ) );
+		add_action( 'wp_ajax_isoft_fmf_update_file_meta', array( $this, 'ajax_update_file_meta' ) );
+		add_action( 'wp_ajax_isoft_fmf_upload_file', array( $this, 'ajax_upload_file' ) );
+		add_action( 'wp_ajax_isoft_fmf_browse_category', array( $this, 'ajax_browse_category' ) );
+		add_action( 'wp_ajax_isoft_fmf_import_file', array( $this, 'ajax_import_file' ) );
 	}
 
-	/** Resolve the single isfm_category term id assigned to a download. */
+	/** Resolve the single isoft_fmf_category term id assigned to a download. */
 	public static function get_download_category( int $download_id ): ?int {
-		$terms = wp_get_object_terms( $download_id, 'isfm_category', array( 'fields' => 'ids' ) );
+		$terms = wp_get_object_terms( $download_id, 'isoft_fmf_category', array( 'fields' => 'ids' ) );
 		if ( is_wp_error( $terms ) || empty( $terms ) ) {
 			return null;
 		}
@@ -29,21 +29,21 @@ class ISFM_Admin_Meta_Boxes {
 
 	public function enqueue( string $hook ): void {
 		global $post_type;
-		if ( ! in_array( $hook, array( 'post.php', 'post-new.php' ), true ) || 'isfm_file' !== $post_type ) {
+		if ( ! in_array( $hook, array( 'post.php', 'post-new.php' ), true ) || 'isoft_fmf_file' !== $post_type ) {
 			return;
 		}
 		wp_enqueue_script(
-			'isfm-admin',
-			ISFM_PLUGIN_URL . 'admin/js/admin-script.js',
+			'isoft-fmf-admin',
+			ISOFT_FMF_PLUGIN_URL . 'admin/js/admin-script.js',
 			array( 'jquery', 'jquery-ui-sortable' ),
-			ISFM_VERSION,
+			ISOFT_FMF_VERSION,
 			true
 		);
 		wp_localize_script(
-			'isfm-admin',
-			'ISFM',
+			'isoft-fmf-admin',
+			'ISOFT_FMF',
 			array(
-				'nonce'   => wp_create_nonce( 'isfm_admin' ),
+				'nonce'   => wp_create_nonce( 'isoft_fmf_admin' ),
 				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
 				'i18n'    => array(
 					'confirmDelete' => __( 'Remove this file from the download?', 'isoft-fm-foundation' ),
@@ -70,37 +70,37 @@ class ISFM_Admin_Meta_Boxes {
 				),
 			)
 		);
-		wp_enqueue_style( 'isfm-admin', ISFM_PLUGIN_URL . 'admin/css/admin-style.css', array(), ISFM_VERSION );
-		wp_add_inline_style( 'isfm-admin', '#visibility-action, .misc-pub-visibility { display: none !important; }' );
+		wp_enqueue_style( 'isoft-fmf-admin', ISOFT_FMF_PLUGIN_URL . 'admin/css/admin-style.css', array(), ISOFT_FMF_VERSION );
+		wp_add_inline_style( 'isoft-fmf-admin', '#visibility-action, .misc-pub-visibility { display: none !important; }' );
 	}
 
 	public function register(): void {
 		// Files first — that is the primary purpose of this CPT.
-		add_meta_box( 'isfm-files', __( 'Files', 'isoft-fm-foundation' ), array( $this, 'render_files' ), 'isfm_file', 'normal', 'high' );
+		add_meta_box( 'isoft-fmf-files', __( 'Files', 'isoft-fm-foundation' ), array( $this, 'render_files' ), 'isoft_fmf_file', 'normal', 'high' );
 		// Description replaces the removed post editor.
-		add_meta_box( 'isfm-description', __( 'Description', 'isoft-fm-foundation' ), array( $this, 'render_description' ), 'isfm_file', 'normal', 'high' );
-		add_meta_box( 'isfm-version-info', __( 'Version & License', 'isoft-fm-foundation' ), array( $this, 'render_version_info' ), 'isfm_file', 'normal', 'default' );
-		add_meta_box( 'isfm-stats', __( 'Statistics', 'isoft-fm-foundation' ), array( $this, 'render_stats' ), 'isfm_file', 'side', 'default' );
+		add_meta_box( 'isoft-fmf-description', __( 'Description', 'isoft-fm-foundation' ), array( $this, 'render_description' ), 'isoft_fmf_file', 'normal', 'high' );
+		add_meta_box( 'isoft-fmf-version-info', __( 'Version & License', 'isoft-fm-foundation' ), array( $this, 'render_version_info' ), 'isoft_fmf_file', 'normal', 'default' );
+		add_meta_box( 'isoft-fmf-stats', __( 'Statistics', 'isoft-fm-foundation' ), array( $this, 'render_stats' ), 'isoft_fmf_file', 'side', 'default' );
 	}
 
 	// --- Render callbacks ---
 
 	public function render_files( WP_Post $post ): void {
-		wp_nonce_field( "isfm_save_meta_{$post->ID}", 'isfm_meta_nonce' );
-		$files         = ( new ISFM_File_Manager() )->get_files( $post->ID );
+		wp_nonce_field( "isoft_fmf_save_meta_{$post->ID}", 'isoft_fmf_meta_nonce' );
+		$files         = ( new ISOFT_FMF_File_Manager() )->get_files( $post->ID );
 		$is_new_post   = 'auto-draft' === $post->post_status || 0 === $post->ID;
 		$category_id   = self::get_download_category( $post->ID );
-		$category      = $category_id ? get_term( $category_id, 'isfm_category' ) : null;
-		$category_path = $category_id ? isfm_category_folder_path( $category_id ) : '';
-		require ISFM_PLUGIN_DIR . 'admin/views/meta-box-files.php';
+		$category      = $category_id ? get_term( $category_id, 'isoft_fmf_category' ) : null;
+		$category_path = $category_id ? isoft_fmf_category_folder_path( $category_id ) : '';
+		require ISOFT_FMF_PLUGIN_DIR . 'admin/views/meta-box-files.php';
 	}
 
 	public function render_description( WP_Post $post ): void {
 		$description = $post->post_content;
 		?>
-		<label for="isfm-description" class="screen-reader-text"><?php esc_html_e( 'Description', 'isoft-fm-foundation' ); ?></label>
+		<label for="isoft-fmf-description" class="screen-reader-text"><?php esc_html_e( 'Description', 'isoft-fm-foundation' ); ?></label>
 		<textarea
-			id="isfm-description"
+			id="isoft-fmf-description"
 			name="content"
 			rows="4"
 			class="widefat"
@@ -114,11 +114,11 @@ class ISFM_Admin_Meta_Boxes {
 	 * Render the Access Role dropdown inside the Publish meta box.
 	 */
 	public function render_access_role_in_publish_box( WP_Post $post ): void {
-		if ( 'isfm_file' !== $post->post_type ) {
+		if ( 'isoft_fmf_file' !== $post->post_type ) {
 			return;
 		}
-		$access_role = get_post_meta( $post->ID, '_isfm_access_role', true )
-			?: get_option( 'isfm_default_access_role', 'public' );
+		$access_role = get_post_meta( $post->ID, '_isoft_fmf_access_role', true )
+			?: get_option( 'isoft_fmf_default_access_role', 'public' );
 		$roles       = array(
 			'public'        => __( 'Public (everyone)', 'isoft-fm-foundation' ),
 			'subscriber'    => __( 'Subscriber+', 'isoft-fm-foundation' ),
@@ -128,10 +128,10 @@ class ISFM_Admin_Meta_Boxes {
 			'administrator' => __( 'Administrator only', 'isoft-fm-foundation' ),
 		);
 		?>
-		<div class="misc-pub-section misc-pub-isfm-access">
+		<div class="misc-pub-section misc-pub-isoft-fmf-access">
 			<span class="dashicons dashicons-lock" style="color:#82878c;margin-right:2px;"></span>
-			<label for="isfm-access-role"><strong><?php esc_html_e( 'Access:', 'isoft-fm-foundation' ); ?></strong></label>
-			<select name="_isfm_access_role" id="isfm-access-role" style="margin-left:4px;">
+			<label for="isoft-fmf-access-role"><strong><?php esc_html_e( 'Access:', 'isoft-fm-foundation' ); ?></strong></label>
+			<select name="_isoft_fmf_access_role" id="isoft-fmf-access-role" style="margin-left:4px;">
 				<?php foreach ( $roles as $value => $label ) : ?>
 					<option value="<?php echo esc_attr( $value ); ?>" <?php selected( $access_role, $value ); ?>>
 						<?php echo esc_html( $label ); ?>
@@ -143,93 +143,93 @@ class ISFM_Admin_Meta_Boxes {
 	}
 
 	/**
-	 * Strip post_password for isfm_file posts — our RBAC replaces WP password protection.
+	 * Strip post_password for isoft_fmf_file posts — our RBAC replaces WP password protection.
 	 */
 	public function strip_post_password( array $data, array $postarr ): array {
 		unset( $postarr );
-		if ( 'isfm_file' === ( $data['post_type'] ?? '' ) ) {
+		if ( 'isoft_fmf_file' === ( $data['post_type'] ?? '' ) ) {
 			$data['post_password'] = '';
 		}
 		return $data;
 	}
 
 	public function render_version_info( WP_Post $post ): void {
-		$version        = (string) get_post_meta( $post->ID, '_isfm_version', true );
-		$changelog      = (string) get_post_meta( $post->ID, '_isfm_changelog', true );
-		$license_id     = (int) get_post_meta( $post->ID, '_isfm_license_id', true );
-		$author_name    = (string) get_post_meta( $post->ID, '_isfm_author_name', true );
-		$author_url     = (string) get_post_meta( $post->ID, '_isfm_author_url', true );
-		$date_published = (string) get_post_meta( $post->ID, '_isfm_date_published', true );
-		$require_agree  = (bool) get_post_meta( $post->ID, '_isfm_require_agree', true );
-		$agree_text     = (string) get_post_meta( $post->ID, '_isfm_agree_text', true );
-		$licenses       = ( new ISFM_License_Manager() )->get_all();
-		require ISFM_PLUGIN_DIR . 'admin/views/meta-box-version-info.php';
+		$version        = (string) get_post_meta( $post->ID, '_isoft_fmf_version', true );
+		$changelog      = (string) get_post_meta( $post->ID, '_isoft_fmf_changelog', true );
+		$license_id     = (int) get_post_meta( $post->ID, '_isoft_fmf_license_id', true );
+		$author_name    = (string) get_post_meta( $post->ID, '_isoft_fmf_author_name', true );
+		$author_url     = (string) get_post_meta( $post->ID, '_isoft_fmf_author_url', true );
+		$date_published = (string) get_post_meta( $post->ID, '_isoft_fmf_date_published', true );
+		$require_agree  = (bool) get_post_meta( $post->ID, '_isoft_fmf_require_agree', true );
+		$agree_text     = (string) get_post_meta( $post->ID, '_isoft_fmf_agree_text', true );
+		$licenses       = ( new ISOFT_FMF_License_Manager() )->get_all();
+		require ISOFT_FMF_PLUGIN_DIR . 'admin/views/meta-box-version-info.php';
 	}
 
 	public function render_stats( WP_Post $post ): void {
-		$files           = ( new ISFM_File_Manager() )->get_files( $post->ID );
-		$total_downloads = (int) get_post_meta( $post->ID, '_isfm_download_count', true );
-		require ISFM_PLUGIN_DIR . 'admin/views/meta-box-stats.php';
+		$files           = ( new ISOFT_FMF_File_Manager() )->get_files( $post->ID );
+		$total_downloads = (int) get_post_meta( $post->ID, '_isoft_fmf_download_count', true );
+		require ISOFT_FMF_PLUGIN_DIR . 'admin/views/meta-box-stats.php';
 	}
 
 	// --- Save ---
 
 	public function save( int $post_id, WP_Post $post ): void {
 		unset( $post );
-		if ( ! isset( $_POST['isfm_meta_nonce'] )
-			|| ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['isfm_meta_nonce'] ) ), "isfm_save_meta_{$post_id}" )
+		if ( ! isset( $_POST['isoft_fmf_meta_nonce'] )
+			|| ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['isoft_fmf_meta_nonce'] ) ), "isoft_fmf_save_meta_{$post_id}" )
 		) {
 			return;
 		}
 		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
 			return;
 		}
-		if ( ! current_user_can( 'isfm_edit_own_downloads', $post_id ) ) {
+		if ( ! current_user_can( 'isoft_fmf_edit_own_downloads', $post_id ) ) {
 			return;
 		}
 
 		$valid_roles = array( 'public', 'subscriber', 'contributor', 'author', 'editor', 'administrator' );
 
 		// Access role — rendered in the Publish box via post_submitbox_misc_actions.
-		$default_role = get_option( 'isfm_default_access_role', 'public' );
-		$role         = sanitize_text_field( wp_unslash( $_POST['_isfm_access_role'] ?? $default_role ) );
-		update_post_meta( $post_id, '_isfm_access_role', in_array( $role, $valid_roles, true ) ? $role : $default_role );
+		$default_role = get_option( 'isoft_fmf_default_access_role', 'public' );
+		$role         = sanitize_text_field( wp_unslash( $_POST['_isoft_fmf_access_role'] ?? $default_role ) );
+		update_post_meta( $post_id, '_isoft_fmf_access_role', in_array( $role, $valid_roles, true ) ? $role : $default_role );
 
 		// Agreement — rendered in Version & License box.
-		update_post_meta( $post_id, '_isfm_require_agree', ! empty( $_POST['_isfm_require_agree'] ) ? 1 : 0 );
-		update_post_meta( $post_id, '_isfm_agree_text', wp_kses_post( wp_unslash( $_POST['_isfm_agree_text'] ?? '' ) ) );
+		update_post_meta( $post_id, '_isoft_fmf_require_agree', ! empty( $_POST['_isoft_fmf_require_agree'] ) ? 1 : 0 );
+		update_post_meta( $post_id, '_isoft_fmf_agree_text', wp_kses_post( wp_unslash( $_POST['_isoft_fmf_agree_text'] ?? '' ) ) );
 
 		// TODO v1.0: Featured flag — pin to top of category listing when sort=featured.
 		// TODO v1.0: External Only — prefer external source when download has both local and remote files.
 
-		update_post_meta( $post_id, '_isfm_version', sanitize_text_field( wp_unslash( $_POST['_isfm_version'] ?? '' ) ) );
-		update_post_meta( $post_id, '_isfm_changelog', wp_kses_post( wp_unslash( $_POST['_isfm_changelog'] ?? '' ) ) );
-		update_post_meta( $post_id, '_isfm_license_id', absint( $_POST['_isfm_license_id'] ?? 0 ) );
-		update_post_meta( $post_id, '_isfm_author_name', sanitize_text_field( wp_unslash( $_POST['_isfm_author_name'] ?? '' ) ) );
-		update_post_meta( $post_id, '_isfm_author_url', esc_url_raw( wp_unslash( $_POST['_isfm_author_url'] ?? '' ) ) );
-		update_post_meta( $post_id, '_isfm_date_published', sanitize_text_field( wp_unslash( $_POST['_isfm_date_published'] ?? '' ) ) );
+		update_post_meta( $post_id, '_isoft_fmf_version', sanitize_text_field( wp_unslash( $_POST['_isoft_fmf_version'] ?? '' ) ) );
+		update_post_meta( $post_id, '_isoft_fmf_changelog', wp_kses_post( wp_unslash( $_POST['_isoft_fmf_changelog'] ?? '' ) ) );
+		update_post_meta( $post_id, '_isoft_fmf_license_id', absint( $_POST['_isoft_fmf_license_id'] ?? 0 ) );
+		update_post_meta( $post_id, '_isoft_fmf_author_name', sanitize_text_field( wp_unslash( $_POST['_isoft_fmf_author_name'] ?? '' ) ) );
+		update_post_meta( $post_id, '_isoft_fmf_author_url', esc_url_raw( wp_unslash( $_POST['_isoft_fmf_author_url'] ?? '' ) ) );
+		update_post_meta( $post_id, '_isoft_fmf_date_published', sanitize_text_field( wp_unslash( $_POST['_isoft_fmf_date_published'] ?? '' ) ) );
 	}
 
 	// --- AJAX handlers ---
 
 	public function ajax_delete_file(): void {
-		check_ajax_referer( 'isfm_admin', 'nonce' );
+		check_ajax_referer( 'isoft_fmf_admin', 'nonce' );
 		$file_id = absint( $_POST['file_id'] ?? 0 );
 		if ( ! $file_id ) {
 			wp_send_json_error( array( 'message' => __( 'Invalid data.', 'isoft-fm-foundation' ) ) );
 		}
-		$file = ( new ISFM_File_Manager() )->get_file( $file_id );
+		$file = ( new ISOFT_FMF_File_Manager() )->get_file( $file_id );
 		if ( ! $file || ! current_user_can( 'edit_post', (int) $file->download_id ) ) {
 			wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'isoft-fm-foundation' ) ), 403 );
 		}
-		if ( ! ( new ISFM_File_Manager() )->delete_file( $file_id ) ) {
+		if ( ! ( new ISOFT_FMF_File_Manager() )->delete_file( $file_id ) ) {
 			wp_send_json_error( array( 'message' => __( 'Could not delete file.', 'isoft-fm-foundation' ) ) );
 		}
 		wp_send_json_success();
 	}
 
 	public function ajax_save_order(): void {
-		check_ajax_referer( 'isfm_admin', 'nonce' );
+		check_ajax_referer( 'isoft_fmf_admin', 'nonce' );
 		if ( ! current_user_can( 'edit_posts' ) ) {
 			wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'isoft-fm-foundation' ) ), 403 );
 		}
@@ -241,12 +241,12 @@ class ISFM_Admin_Meta_Boxes {
 		foreach ( $order as $fid => $pos ) {
 			$sanitized[ absint( $fid ) ] = absint( $pos );
 		}
-		( new ISFM_File_Manager() )->update_sort_order( $sanitized );
+		( new ISOFT_FMF_File_Manager() )->update_sort_order( $sanitized );
 		wp_send_json_success();
 	}
 
 	public function ajax_add_external(): void {
-		check_ajax_referer( 'isfm_admin', 'nonce' );
+		check_ajax_referer( 'isoft_fmf_admin', 'nonce' );
 		$download_id = absint( $_POST['download_id'] ?? 0 );
 		$url         = esc_url_raw( wp_unslash( $_POST['url'] ?? '' ) );
 		if ( ! $download_id || ! $url ) {
@@ -255,7 +255,7 @@ class ISFM_Admin_Meta_Boxes {
 		if ( ! current_user_can( 'edit_post', $download_id ) ) {
 			wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'isoft-fm-foundation' ) ), 403 );
 		}
-		$file_id = ( new ISFM_File_Manager() )->add_external_link(
+		$file_id = ( new ISOFT_FMF_File_Manager() )->add_external_link(
 			$download_id,
 			$url,
 			array(
@@ -273,14 +273,14 @@ class ISFM_Admin_Meta_Boxes {
 	 * Update a file record's editable metadata (title + description).
 	 */
 	public function ajax_update_file_meta(): void {
-		check_ajax_referer( 'isfm_admin', 'nonce' );
+		check_ajax_referer( 'isoft_fmf_admin', 'nonce' );
 
 		$file_id = absint( $_POST['file_id'] ?? 0 );
 		if ( ! $file_id ) {
 			wp_send_json_error( array( 'message' => __( 'Invalid file id.', 'isoft-fm-foundation' ) ) );
 		}
 
-		$manager = new ISFM_File_Manager();
+		$manager = new ISOFT_FMF_File_Manager();
 		$file    = $manager->get_file( $file_id );
 		if ( ! $file || ! current_user_can( 'edit_post', (int) $file->download_id ) ) {
 			wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'isoft-fm-foundation' ) ), 403 );
@@ -298,10 +298,10 @@ class ISFM_Admin_Meta_Boxes {
 
 	/**
 	 * Receive a single uploaded file, place it in the download's category
-	 * folder, and insert an isfm_files row.
+	 * folder, and insert an isoft_fmf_files row.
 	 */
 	public function ajax_upload_file(): void {
-		check_ajax_referer( 'isfm_admin', 'nonce' );
+		check_ajax_referer( 'isoft_fmf_admin', 'nonce' );
 
 		$download_id = absint( $_POST['download_id'] ?? 0 );
 		if ( ! $download_id || ! current_user_can( 'edit_post', $download_id ) ) {
@@ -321,14 +321,14 @@ class ISFM_Admin_Meta_Boxes {
 		$upload        = $_FILES['file'];
 		$original_name = sanitize_file_name( wp_unslash( $upload['name'] ) );
 		$upload_size   = isset( $upload['size'] ) ? (int) $upload['size'] : 0;
-		$sanitized     = isfm_sanitize_filename( $original_name );
+		$sanitized     = isoft_fmf_sanitize_filename( $original_name );
 
 		if ( $sanitized['error'] ) {
 			wp_send_json_error( array( 'message' => $sanitized['error'] ) );
 		}
 
 		$slug = $sanitized['slug'];
-		if ( isfm_filename_collision( $slug, $category_id ) ) {
+		if ( isoft_fmf_filename_collision( $slug, $category_id ) ) {
 			wp_send_json_error(
 				array(
 					'message' => sprintf(
@@ -340,15 +340,15 @@ class ISFM_Admin_Meta_Boxes {
 			);
 		}
 
-		ISFM_Category_Folders::ensure( $category_id );
-		$target_abs = isfm_category_fs_path( $category_id ) . '/' . $slug;
+		ISOFT_FMF_Category_Folders::ensure( $category_id );
+		$target_abs = isoft_fmf_category_fs_path( $category_id ) . '/' . $slug;
 
 		require_once ABSPATH . 'wp-admin/includes/file.php';
 		$handled = wp_handle_upload(
 			$_FILES['file'], // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- wp_handle_upload validates.
 			array(
 				'test_form' => false,
-				'action'    => 'isfm_upload_file',
+				'action'    => 'isoft_fmf_upload_file',
 			)
 		);
 		if ( isset( $handled['error'] ) ) {
@@ -372,12 +372,12 @@ class ISFM_Admin_Meta_Boxes {
 			$detected_mime = $ftype['type'] ?: 'application/octet-stream';
 		}
 
-		$rel_path = isfm_category_folder_path( $category_id ) . '/' . $slug;
-		$manager  = new ISFM_File_Manager();
+		$rel_path = isoft_fmf_category_folder_path( $category_id ) . '/' . $slug;
+		$manager  = new ISOFT_FMF_File_Manager();
 		$file_id  = $manager->add_local_file(
 			$download_id,
 			array(
-				'title'     => isfm_autofill_title( $sanitized['original_title'] ),
+				'title'     => isoft_fmf_autofill_title( $sanitized['original_title'] ),
 				'file_name' => $slug,
 				'file_path' => $rel_path,
 				'file_size' => $upload_size,
@@ -396,10 +396,10 @@ class ISFM_Admin_Meta_Boxes {
 
 	/**
 	 * List the physical contents of the download's current category folder,
-	 * flagging which files are already tracked in isfm_files.
+	 * flagging which files are already tracked in isoft_fmf_files.
 	 */
 	public function ajax_browse_category(): void {
-		check_ajax_referer( 'isfm_admin', 'nonce' );
+		check_ajax_referer( 'isoft_fmf_admin', 'nonce' );
 
 		$download_id = absint( $_POST['download_id'] ?? 0 );
 		if ( ! $download_id || ! current_user_can( 'edit_post', $download_id ) ) {
@@ -416,12 +416,12 @@ class ISFM_Admin_Meta_Boxes {
 			);
 		}
 
-		$folder = isfm_category_fs_path( $category_id );
+		$folder = isoft_fmf_category_fs_path( $category_id );
 		if ( ! is_dir( $folder ) ) {
 			wp_send_json_success(
 				array(
 					'files'    => array(),
-					'category' => isfm_category_folder_path( $category_id ),
+					'category' => isoft_fmf_category_folder_path( $category_id ),
 				)
 			);
 		}
@@ -430,12 +430,12 @@ class ISFM_Admin_Meta_Boxes {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin meta box: listing files under the download's category folder; single-request freshness required.
 		$tracked = $wpdb->get_col(
 			$wpdb->prepare(
-				"SELECT file_path FROM {$wpdb->prefix}isfm_files WHERE download_id = %d",
+				"SELECT file_path FROM {$wpdb->prefix}isoft_fmf_files WHERE download_id = %d",
 				$download_id
 			)
 		);
 
-		$rel_base = isfm_category_folder_path( $category_id );
+		$rel_base = isoft_fmf_category_folder_path( $category_id );
 		$items    = array();
 		foreach ( (array) glob( "{$folder}/*" ) as $path ) {
 			if ( ! is_file( $path ) ) {
@@ -460,10 +460,10 @@ class ISFM_Admin_Meta_Boxes {
 	}
 
 	/**
-	 * Import an existing untracked file from disk into the isfm_files table.
+	 * Import an existing untracked file from disk into the isoft_fmf_files table.
 	 */
 	public function ajax_import_file(): void {
-		check_ajax_referer( 'isfm_admin', 'nonce' );
+		check_ajax_referer( 'isoft_fmf_admin', 'nonce' );
 
 		$download_id = absint( $_POST['download_id'] ?? 0 );
 		$rel_path    = sanitize_text_field( wp_unslash( $_POST['rel_path'] ?? '' ) );
@@ -472,19 +472,19 @@ class ISFM_Admin_Meta_Boxes {
 			wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'isoft-fm-foundation' ) ), 403 );
 		}
 
-		// Path traversal guard — resolved path must stay under isfm_files_dir().
-		$base = realpath( isfm_files_dir() );
+		// Path traversal guard — resolved path must stay under isoft_fmf_files_dir().
+		$base = realpath( isoft_fmf_files_dir() );
 		$abs  = realpath( "{$base}/{$rel_path}" );
 		if ( ! $abs || ! $base || ! str_starts_with( $abs, $base ) || ! is_file( $abs ) ) {
 			wp_send_json_error( array( 'message' => __( 'File not found.', 'isoft-fm-foundation' ) ) );
 		}
 
 		$name    = basename( $abs );
-		$manager = new ISFM_File_Manager();
+		$manager = new ISOFT_FMF_File_Manager();
 		$file_id = $manager->add_local_file(
 			$download_id,
 			array(
-				'title'     => isfm_autofill_title( pathinfo( $name, PATHINFO_FILENAME ) ),
+				'title'     => isoft_fmf_autofill_title( pathinfo( $name, PATHINFO_FILENAME ) ),
 				'file_name' => $name,
 				'file_path' => $rel_path,
 				'file_size' => filesize( $abs ),

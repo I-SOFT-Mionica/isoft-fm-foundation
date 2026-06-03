@@ -3,7 +3,7 @@
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Locals passed in by the including class; not actual globals.
 
 // Belt-and-braces capability gate even though the menu page is already capability-gated.
-if ( ! current_user_can( 'isfm_manage_settings' ) ) {
+if ( ! current_user_can( 'isoft_fmf_manage_settings' ) ) {
 	wp_die( esc_html__( 'You do not have permission to manage licenses.', 'isoft-fm-foundation' ), 403 );
 }
 ?>
@@ -24,34 +24,34 @@ if ( ! current_user_can( 'isfm_manage_settings' ) ) {
 
 	<?php
 	if ( in_array( $action, array( 'new', 'edit' ), true ) ) :
-		$license_manager = new ISFM_License_Manager();
+		$license_manager = new ISOFT_FMF_License_Manager();
 		$editing         = $edit_id ? $license_manager->get( $edit_id ) : null;
 		?>
 	<form method="post">
-		<?php wp_nonce_field( 'isfm_license_action' ); ?>
-		<input type="hidden" name="isfm_license_action" value="save" />
+		<?php wp_nonce_field( 'isoft_fmf_license_action' ); ?>
+		<input type="hidden" name="isoft_fmf_license_action" value="save" />
 		<input type="hidden" name="license_id" value="<?php echo esc_attr( $edit_id ); ?>" />
 		<table class="form-table">
 			<tr>
-				<th><label for="isfm-lic-title"><?php esc_html_e( 'Title', 'isoft-fm-foundation' ); ?></label></th>
-				<td><input type="text" name="title" id="isfm-lic-title" value="<?php echo esc_attr( $editing->title ?? '' ); ?>" class="regular-text" required /></td>
+				<th><label for="isoft-fmf-lic-title"><?php esc_html_e( 'Title', 'isoft-fm-foundation' ); ?></label></th>
+				<td><input type="text" name="title" id="isoft-fmf-lic-title" value="<?php echo esc_attr( $editing->title ?? '' ); ?>" class="regular-text" required /></td>
 			</tr>
 			<tr>
-				<th><label for="isfm-lic-slug"><?php esc_html_e( 'Slug', 'isoft-fm-foundation' ); ?></label></th>
-				<td><input type="text" name="slug" id="isfm-lic-slug" value="<?php echo esc_attr( $editing->slug ?? '' ); ?>" class="regular-text" /></td>
+				<th><label for="isoft-fmf-lic-slug"><?php esc_html_e( 'Slug', 'isoft-fm-foundation' ); ?></label></th>
+				<td><input type="text" name="slug" id="isoft-fmf-lic-slug" value="<?php echo esc_attr( $editing->slug ?? '' ); ?>" class="regular-text" /></td>
 			</tr>
 			<tr>
-				<th><label for="isfm-lic-desc"><?php esc_html_e( 'Short Description', 'isoft-fm-foundation' ); ?></label></th>
-				<td><input type="text" name="description" id="isfm-lic-desc" value="<?php echo esc_attr( $editing->description ?? '' ); ?>" class="regular-text" /></td>
+				<th><label for="isoft-fmf-lic-desc"><?php esc_html_e( 'Short Description', 'isoft-fm-foundation' ); ?></label></th>
+				<td><input type="text" name="description" id="isoft-fmf-lic-desc" value="<?php echo esc_attr( $editing->description ?? '' ); ?>" class="regular-text" /></td>
 			</tr>
 			<tr>
-				<th><label for="isfm-lic-url"><?php esc_html_e( 'License URL', 'isoft-fm-foundation' ); ?></label></th>
-				<td><input type="url" name="url" id="isfm-lic-url" value="<?php echo esc_attr( $editing->url ?? '' ); ?>" class="regular-text" placeholder="https://…" /></td>
+				<th><label for="isoft-fmf-lic-url"><?php esc_html_e( 'License URL', 'isoft-fm-foundation' ); ?></label></th>
+				<td><input type="url" name="url" id="isoft-fmf-lic-url" value="<?php echo esc_attr( $editing->url ?? '' ); ?>" class="regular-text" placeholder="https://…" /></td>
 			</tr>
 			<tr>
-				<th><label for="isfm-lic-full-text"><?php esc_html_e( 'Full License Text', 'isoft-fm-foundation' ); ?></label></th>
+				<th><label for="isoft-fmf-lic-full-text"><?php esc_html_e( 'Full License Text', 'isoft-fm-foundation' ); ?></label></th>
 				<td>
-					<textarea name="full_text" id="isfm-lic-full-text" class="widefat" rows="10"><?php echo esc_textarea( $editing->full_text ?? '' ); ?></textarea>
+					<textarea name="full_text" id="isoft-fmf-lic-full-text" class="widefat" rows="10"><?php echo esc_textarea( $editing->full_text ?? '' ); ?></textarea>
 					<p class="description"><?php esc_html_e( 'Shown in the agreement modal when a user downloads a file requiring consent.', 'isoft-fm-foundation' ); ?></p>
 				</td>
 			</tr>
@@ -60,15 +60,15 @@ if ( ! current_user_can( 'isfm_manage_settings' ) ) {
 				<td><label><input type="checkbox" name="is_default" value="1" <?php checked( $editing->is_default ?? 0 ); ?> /> <?php esc_html_e( 'Set as default license for new downloads', 'isoft-fm-foundation' ); ?></label></td>
 			</tr>
 			<tr>
-				<th><label for="isfm-lic-order"><?php esc_html_e( 'Sort Order', 'isoft-fm-foundation' ); ?></label></th>
-				<td><input type="number" name="sort_order" id="isfm-lic-order" value="<?php echo esc_attr( $editing->sort_order ?? 0 ); ?>" class="small-text" min="0" /></td>
+				<th><label for="isoft-fmf-lic-order"><?php esc_html_e( 'Sort Order', 'isoft-fm-foundation' ); ?></label></th>
+				<td><input type="number" name="sort_order" id="isoft-fmf-lic-order" value="<?php echo esc_attr( $editing->sort_order ?? 0 ); ?>" class="small-text" min="0" /></td>
 			</tr>
 		</table>
 		<?php submit_button( $edit_id ? __( 'Update License', 'isoft-fm-foundation' ) : __( 'Add License', 'isoft-fm-foundation' ) ); ?>
 	</form>
 
 	<?php else : ?>
-		<?php $licenses = ( new ISFM_License_Manager() )->get_all(); ?>
+		<?php $licenses = ( new ISOFT_FMF_License_Manager() )->get_all(); ?>
 	<table class="widefat striped">
 		<thead>
 			<tr>
@@ -104,8 +104,8 @@ if ( ! current_user_can( 'isfm_manage_settings' ) ) {
 								"><?php esc_html_e( 'Edit', 'isoft-fm-foundation' ); ?></a>
 					&nbsp;|&nbsp;
 					<form method="post" style="display:inline;" onsubmit="return confirm('<?php esc_attr_e( 'Delete this license?', 'isoft-fm-foundation' ); ?>');">
-						<?php wp_nonce_field( 'isfm_license_action' ); ?>
-						<input type="hidden" name="isfm_license_action" value="delete" />
+						<?php wp_nonce_field( 'isoft_fmf_license_action' ); ?>
+						<input type="hidden" name="isoft_fmf_license_action" value="delete" />
 						<input type="hidden" name="license_id" value="<?php echo esc_attr( $lic->id ); ?>" />
 						<button type="submit" class="button-link" style="color:#a00;"><?php esc_html_e( 'Delete', 'isoft-fm-foundation' ); ?></button>
 					</form>

@@ -28,4 +28,4 @@ $atts = array(
 // HTML is built by our own shortcode handler (each variable is escaped at the
 // template level); wp_kses() here is the explicit boundary escape the WP.org
 // reviewers expect at block-callback level.
-echo wp_kses( do_shortcode( '[isfm_list' . isfm_atts_to_string( $atts ) . ']' ), isfm_allowed_html() );
+echo wp_kses( do_shortcode( '[isoft_fmf_list' . isoft_fmf_atts_to_string( $atts ) . ']' ), isoft_fmf_allowed_html() );

@@ -1,7 +1,7 @@
 <?php
 defined( 'ABSPATH' ) || exit;
 
-class ISFM_Access_Control {
+class ISOFT_FMF_Access_Control {
 
 	/** Role hierarchy from lowest to highest. */
 	private const HIERARCHY = array( 'subscriber', 'contributor', 'author', 'editor', 'administrator' );
@@ -17,11 +17,11 @@ class ISFM_Access_Control {
 	 * Check if the current (or given) user may access a download.
 	 */
 	public function can_access_download( int $download_id, int $user_id = 0 ): bool {
-		$required = get_post_meta( $download_id, '_isfm_access_role', true )
-			?: get_option( 'isfm_default_access_role', 'public' );
+		$required = get_post_meta( $download_id, '_isoft_fmf_access_role', true )
+			?: get_option( 'isoft_fmf_default_access_role', 'public' );
 		$allowed  = $this->user_meets_role( $required, $user_id );
 
-		return (bool) apply_filters( 'isfm_access_check', $allowed, $download_id, $user_id );
+		return (bool) apply_filters( 'isoft_fmf_access_check', $allowed, $download_id, $user_id );
 	}
 
 	/**
@@ -58,7 +58,7 @@ class ISFM_Access_Control {
 	}
 
 	/**
-	 * Return the list of _isfm_access_role values the user qualifies for.
+	 * Return the list of _isoft_fmf_access_role values the user qualifies for.
 	 *
 	 * Anonymous  → ['public']
 	 * Subscriber → ['public','subscriber']
@@ -98,7 +98,7 @@ class ISFM_Access_Control {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Filter all frontend isfm_file queries so restricted downloads are excluded
+	 * Filter all frontend isoft_fmf_file queries so restricted downloads are excluded
 	 * from listings, archives, search results, and shortcode output.
 	 */
 	public function filter_frontend_queries( WP_Query $query ): void {
@@ -107,9 +107,9 @@ class ISFM_Access_Control {
 		}
 
 		$post_type = $query->get( 'post_type' );
-		if ( 'isfm_file' !== $post_type ) {
-			if ( ! is_array( $post_type ) || ! in_array( 'isfm_file', $post_type, true ) ) {
-				if ( ! $query->is_tax( array( 'isfm_category', 'isfm_tag' ) ) && ! $query->is_post_type_archive( 'isfm_file' ) ) {
+		if ( 'isoft_fmf_file' !== $post_type ) {
+			if ( ! is_array( $post_type ) || ! in_array( 'isoft_fmf_file', $post_type, true ) ) {
+				if ( ! $query->is_tax( array( 'isoft_fmf_category', 'isoft_fmf_tag' ) ) && ! $query->is_post_type_archive( 'isoft_fmf_file' ) ) {
 					return;
 				}
 			}
@@ -124,19 +124,19 @@ class ISFM_Access_Control {
 	}
 
 	/**
-	 * SQL-level access filter: LEFT JOIN on _isfm_access_role postmeta and
+	 * SQL-level access filter: LEFT JOIN on _isoft_fmf_access_role postmeta and
 	 * restrict to rows whose value is in the user's accessible set.
 	 *
 	 * Downloads without the meta key (pre-v0.5.1) inherit the global default.
 	 */
 	public function add_access_clauses( array $clauses, WP_Query $query ): array {
 		$post_type    = $query->get( 'post_type' );
-		$is_isfm_file = 'isfm_file' === $post_type
-			|| ( is_array( $post_type ) && in_array( 'isfm_file', $post_type, true ) )
-			|| $query->is_tax( array( 'isfm_category', 'isfm_tag' ) )
-			|| $query->is_post_type_archive( 'isfm_file' );
+		$is_isoft_fmf_file = 'isoft_fmf_file' === $post_type
+			|| ( is_array( $post_type ) && in_array( 'isoft_fmf_file', $post_type, true ) )
+			|| $query->is_tax( array( 'isoft_fmf_category', 'isoft_fmf_tag' ) )
+			|| $query->is_post_type_archive( 'isoft_fmf_file' );
 
-		if ( ! $is_isfm_file ) {
+		if ( ! $is_isoft_fmf_file ) {
 			return $clauses;
 		}
 
@@ -147,10 +147,10 @@ class ISFM_Access_Control {
 		$accessible = $this->current_accessible;
 
 		$clauses['join'] .= $wpdb->prepare(
-			' LEFT JOIN %i AS isfm_ar ON (%i.ID = isfm_ar.post_id AND isfm_ar.meta_key = %s)',
+			' LEFT JOIN %i AS isoft_fmf_ar ON (%i.ID = isoft_fmf_ar.post_id AND isoft_fmf_ar.meta_key = %s)',
 			$wpdb->postmeta,
 			$wpdb->posts,
-			'_isfm_access_role'
+			'_isoft_fmf_access_role'
 		);
 
 		// Build the IN clause with proper escaping.
@@ -159,13 +159,13 @@ class ISFM_Access_Control {
 		$in_clause = $wpdb->prepare( $in_placeholders, ...$accessible );
 
 		// Downloads with NULL or empty meta inherit the global default.
-		$default_role       = get_option( 'isfm_default_access_role', 'public' );
+		$default_role       = get_option( 'isoft_fmf_default_access_role', 'public' );
 		$default_accessible = in_array( $default_role, $accessible, true );
 		$null_branch        = $default_accessible
-			? ' OR isfm_ar.meta_value IS NULL OR isfm_ar.meta_value = \'\''
+			? ' OR isoft_fmf_ar.meta_value IS NULL OR isoft_fmf_ar.meta_value = \'\''
 			: '';
 
-		$clauses['where'] .= " AND (isfm_ar.meta_value IN ({$in_clause}){$null_branch})";
+		$clauses['where'] .= " AND (isoft_fmf_ar.meta_value IN ({$in_clause}){$null_branch})";
 
 		return $clauses;
 	}

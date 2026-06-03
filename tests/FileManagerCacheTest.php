@@ -1,6 +1,6 @@
 <?php
 /**
- * ISFM_File_Manager object-cache behavior.
+ * ISOFT_FMF_File_Manager object-cache behavior.
  *
  * Verifies that read methods hit the cache on the second call and that every
  * write path busts the cache for the affected download/file.
@@ -8,22 +8,22 @@
 
 class FileManagerCacheTest extends WP_UnitTestCase {
 
-	private ISFM_File_Manager $manager;
+	private ISOFT_FMF_File_Manager $manager;
 	private int $download_id;
 
 	public function set_up(): void {
 		parent::set_up();
 		wp_cache_flush();
-		$this->manager     = new ISFM_File_Manager();
-		$this->download_id = (int) isfm_create_draft_download( array( 'title' => 'CacheHost' ) );
+		$this->manager     = new ISOFT_FMF_File_Manager();
+		$this->download_id = (int) isoft_fmf_create_draft_download( array( 'title' => 'CacheHost' ) );
 	}
 
 	private function cache_has_files_for_download(): bool {
-		return false !== wp_cache_get( "files_for_download_{$this->download_id}", ISFM_File_Manager::CACHE_GROUP );
+		return false !== wp_cache_get( "files_for_download_{$this->download_id}", ISOFT_FMF_File_Manager::CACHE_GROUP );
 	}
 
 	private function cache_has_file( int $file_id ): bool {
-		return false !== wp_cache_get( "file_{$file_id}", ISFM_File_Manager::CACHE_GROUP );
+		return false !== wp_cache_get( "file_{$file_id}", ISOFT_FMF_File_Manager::CACHE_GROUP );
 	}
 
 	public function test_get_files_primes_cache(): void {
@@ -35,7 +35,7 @@ class FileManagerCacheTest extends WP_UnitTestCase {
 
 	public function test_get_file_primes_cache(): void {
 		$file_id = $this->manager->add_external_link( $this->download_id, 'https://example.org/b.pdf', array( 'title' => 'B' ) );
-		wp_cache_delete( "file_{$file_id}", ISFM_File_Manager::CACHE_GROUP );
+		wp_cache_delete( "file_{$file_id}", ISOFT_FMF_File_Manager::CACHE_GROUP );
 		$this->assertFalse( $this->cache_has_file( $file_id ) );
 		$this->manager->get_file( $file_id );
 		$this->assertTrue( $this->cache_has_file( $file_id ) );
@@ -100,7 +100,7 @@ class FileManagerCacheTest extends WP_UnitTestCase {
 		$this->manager->get_files( $this->download_id );
 		$this->manager->get_file( $file_id );
 
-		ISFM_File_Manager::bust_cache_for( $this->download_id, $file_id );
+		ISOFT_FMF_File_Manager::bust_cache_for( $this->download_id, $file_id );
 
 		$this->assertFalse( $this->cache_has_files_for_download() );
 		$this->assertFalse( $this->cache_has_file( $file_id ) );

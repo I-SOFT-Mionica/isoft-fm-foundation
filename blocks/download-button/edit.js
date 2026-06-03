@@ -28,7 +28,7 @@ export default function Edit( { attributes, setAttributes } ) {
 	// Load category list once for the filter dropdown.
 	const categories = useSelect(
 		( select ) =>
-			select( coreStore ).getEntityRecords( 'taxonomy', 'isfm_category', {
+			select( coreStore ).getEntityRecords( 'taxonomy', 'isoft_fmf_category', {
 				per_page: 100,
 				_fields: 'id,name',
 				orderby: 'name',
@@ -41,7 +41,7 @@ export default function Edit( { attributes, setAttributes } ) {
 	const selectedPost = useSelect(
 		( select ) =>
 			downloadId
-				? select( coreStore ).getEntityRecord( 'postType', 'isfm_file', downloadId )
+				? select( coreStore ).getEntityRecord( 'postType', 'isoft_fmf_file', downloadId )
 				: null,
 		[ downloadId ]
 	);
