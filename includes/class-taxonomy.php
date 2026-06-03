@@ -164,8 +164,17 @@ class ISFM_Taxonomy {
 	}
 
 	public function save_term_fields( int $term_id ): void {
-		// Nonce verified by WP core term edit form.
-		// phpcs:disable WordPress.Security.NonceVerification.Missing
+		// WP core verifies the matching 'add-tag' / 'update-tag_<id>' nonce
+		// before firing edited_/created_<taxonomy>. Re-verifying here keeps the
+		// auditor and Plugin Check happy.
+		$nonce = isset( $_POST['_wpnonce'] ) ? sanitize_key( wp_unslash( $_POST['_wpnonce'] ) ) : '';
+		if ( ! wp_verify_nonce( $nonce, 'update-tag_' . $term_id ) && ! wp_verify_nonce( $nonce, 'add-tag' ) ) {
+			return;
+		}
+		if ( ! current_user_can( 'manage_categories' ) ) {
+			return;
+		}
+
 		if ( isset( $_POST['isfm_cat_icon'] ) ) {
 			update_term_meta( $term_id, '_isfm_cat_icon', sanitize_text_field( wp_unslash( $_POST['isfm_cat_icon'] ) ) );
 		}
@@ -174,9 +183,8 @@ class ISFM_Taxonomy {
 		// update_term_meta( $term_id, '_isfm_cat_access_role', sanitize_text_field( wp_unslash( $_POST['isfm_cat_access_role'] ) ) );
 		// }
 		if ( isset( $_POST['isfm_cat_sort_order'] ) ) {
-			update_term_meta( $term_id, '_isfm_cat_sort_order', absint( $_POST['isfm_cat_sort_order'] ) );
+			update_term_meta( $term_id, '_isfm_cat_sort_order', absint( wp_unslash( $_POST['isfm_cat_sort_order'] ) ) );
 		}
-		// phpcs:enable WordPress.Security.NonceVerification.Missing
 	}
 
 	// TODO v1.0: Category-level access role — enforce in ISFM_Access_Control.

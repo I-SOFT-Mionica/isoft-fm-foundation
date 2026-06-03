@@ -8,6 +8,11 @@ defined( 'ABSPATH' ) || exit;
 
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Locals passed in by the including class; not actual globals.
 
+// Belt-and-braces capability gate even though the menu page is already capability-gated.
+if ( ! current_user_can( 'isfm_view_logs' ) ) {
+	wp_die( esc_html__( 'You do not have permission to view the download log.', 'isoft-fm-foundation' ), 403 );
+}
+
 // Process bulk actions before output.
 $table->process_bulk_action();
 

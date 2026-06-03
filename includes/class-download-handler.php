@@ -156,18 +156,11 @@ class ISFM_Download_Handler {
 		}
 		$this->send_headers( $headers );
 
-		// phpcs:disable WordPress.WP.AlternativeFunctions -- Streaming binary file to output, WP_Filesystem not applicable.
-		$handle = fopen( $path, 'rb' );
-		if ( false === $handle ) {
-			wp_die( esc_html__( 'Could not read the file.', 'isoft-fm-foundation' ), 500 );
-		}
-		while ( ! feof( $handle ) ) {
-			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Binary file data.
-			echo fread( $handle, 1024 * 1024 );
-			flush();
-		}
-		fclose( $handle );
-		// phpcs:enable WordPress.WP.AlternativeFunctions
+		// Direct binary stream to the client. Cannot route through WP_Filesystem
+		// (it returns strings, not stream chunks) and cannot be HTML-escaped
+		// (the payload is raw file bytes — escaping would corrupt downloads).
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile -- See note above.
+		readfile( $path );
 		exit;
 	}
 

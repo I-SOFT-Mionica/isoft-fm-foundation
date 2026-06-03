@@ -2,6 +2,31 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.9.0] — 2026-05-31
+
+Round-3 WordPress.org review fixes. Every finding addressed; one informational item (the `wp_ajax_delete-tag` "prefix" flag) noted as a false positive — that hook is a core WP action, not our declaration.
+
+### Security
+- **Plugin URI + Author URI** moved to https://github.com/I-SOFT-Mionica/isoft-fm-foundation and https://github.com/I-SOFT-Mionica respectively. The isoft.rs cert subject didn't cover the bare hostname; GitHub URLs are reachable today and the source is canonical there anyway.
+- **`ISFM_Taxonomy::save_term_fields()`** — added explicit `wp_verify_nonce()` against `update-tag_<id>` / `add-tag` plus `current_user_can( 'manage_categories' )` even though `edited_/created_<taxonomy>` only fire after WP core has already verified the nonce. Re-verification keeps static analyzers and reviewers happy.
+- **`ISFM_Category_Folders::ajax_guard_delete()`** — taxonomy gate runs first so non-`isfm_category` deletes pass through untouched (their nonce isn't ours to consume); for our deletes we now call `check_ajax_referer( 'delete-tag_<id>' )` and verify the `delete_term` capability.
+- **`admin/views/licenses-page.php` and `admin/views/log-viewer.php`** — belt-and-braces `current_user_can()` check at the top of each view. The menu pages are already capability-gated but the reviewer wants the check at the data-access layer too.
+- **`ISFM_Category_ACL::enforce_category_on_save()` and `save_profile_field()`** — explicit `wp_verify_nonce()` against `update-post_<id>` / `update-user_<id>` plus `array_map( 'absint', wp_unslash(...) )` sanitization of the posted term/category IDs.
+- **`ISFM_Admin_Meta_Boxes::ajax_upload_file()`** — stopped falling back on `$_FILES['file']['type']` for the stored mime (browser-supplied, trivially spoofable). Now uses `mime_content_type()` against the saved-on-disk file, falling back to `wp_check_filetype()` on the extension. Cached `(int) $upload['size']` once instead of touching `$upload` again after sanitization.
+
+### Output escaping
+- **`ISFM_Admin_Columns::render_column()`** — `wp_kses( ..., array( 'a' => array( 'href' => true ) ) )` around the category-link `implode()`.
+- **`ISFM_Shortcodes`** — `wp_kses_post()` around `paginate_links()`, and `wp_kses( ..., self::allowed_html() )` around the four `echo $this->search_shortcode(...)` / `echo $this->render_download_button(...)` sites. New `allowed_html()` helper holds a narrow allowlist (div/span/p/form/label/input/button/a + the `data-agree-*` attributes the agreement modal needs).
+- **`ISFM_Download_Handler::php_stream()`** — replaced the `fopen`/`fread` loop with `readfile()`. Still can't be HTML-escaped (the payload is raw file bytes), but `readfile` is a single line with a clearer rationale comment.
+- **`admin/views/maintenance-tab.php`** — moved `esc_attr()` into the echo (escape-late) instead of pre-escaping into a `$time_str` variable.
+- **`public/views/download-card.php`** — `wp_kses_post()` around the license agreement HTML block.
+
+### Code
+- **`ISFM_Pdf_Thumbnail::save_as_attachment()`** — dropped the redundant `require_once 'wp-admin/includes/media.php'` (none of its functions are used). The remaining `file.php` and `image.php` requires are now commented with the WP function names that use them immediately after the require, matching the reviewer's stated exception ("require_once to load them and to use a function from that file immediately after loading").
+
+### Docs
+- **`readme.txt`** — new **== Source code ==** section pointing at the GitHub repo and documenting the `npm install && npm run build` flow that produces the minified bundles under `blocks/build/`. Addresses the "no publicly documented resource for your generated/compressed content" finding.
+
 ## [0.8.3] — 2026-05-31
 
 Plugin Check runtime warnings cleared once CI started running them. All three findings came from the same place: `ISFM_Shortcodes::enqueue_assets()` hooked into `wp_enqueue_scripts` unconditionally.

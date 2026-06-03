@@ -1,11 +1,11 @@
 <?php
 /**
  * Plugin Name: I-Soft File Manager: Foundation
- * Plugin URI:  https://isoft.rs/isoft-fm-foundation
+ * Plugin URI:  https://github.com/I-SOFT-Mionica/isoft-fm-foundation
  * Description: Hierarchical file download manager — categories, multi-file entries, secure download handler, audit logging, and role-based access control.
- * Version:     0.8.3
+ * Version:     0.9.0
  * Author:      I-SOFT Mionica
- * Author URI:  https://isoft.rs
+ * Author URI:  https://github.com/I-SOFT-Mionica
  * License:     GPL v2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: isoft-fm-foundation
@@ -16,7 +16,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-const ISFM_VERSION = '0.8.3';
+const ISFM_VERSION = '0.9.0';
 define( 'ISFM_PLUGIN_FILE', __FILE__ );
 define( 'ISFM_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'ISFM_PLUGIN_URL', plugin_dir_url( __FILE__ ) );

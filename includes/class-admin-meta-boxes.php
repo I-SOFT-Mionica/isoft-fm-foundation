@@ -317,8 +317,10 @@ class ISFM_Admin_Meta_Boxes {
 			wp_send_json_error( array( 'message' => __( 'Assign a category to this download and save before uploading files.', 'isoft-fm-foundation' ) ) );
 		}
 
-		$upload        = $_FILES['file']; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- File upload handled by WP move_uploaded_file.
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- wp_handle_upload() validates the raw $_FILES entry below; individual fields used here are sanitized before use.
+		$upload        = $_FILES['file'];
 		$original_name = sanitize_file_name( wp_unslash( $upload['name'] ) );
+		$upload_size   = isset( $upload['size'] ) ? (int) $upload['size'] : 0;
 		$sanitized     = isfm_sanitize_filename( $original_name );
 
 		if ( $sanitized['error'] ) {
@@ -361,6 +363,15 @@ class ISFM_Admin_Meta_Boxes {
 			wp_send_json_error( array( 'message' => __( 'Failed to save the uploaded file.', 'isoft-fm-foundation' ) ) );
 		}
 
+		// Mime resolution: prefer server-side magic-byte detection, fall back
+		// to WP's extension map. Never trust $_FILES['type'] (browser-supplied,
+		// trivially spoofable).
+		$detected_mime = function_exists( 'mime_content_type' ) ? mime_content_type( $target_abs ) : false;
+		if ( ! $detected_mime ) {
+			$ftype         = wp_check_filetype( $slug );
+			$detected_mime = $ftype['type'] ?: 'application/octet-stream';
+		}
+
 		$rel_path = isfm_category_folder_path( $category_id ) . '/' . $slug;
 		$manager  = new ISFM_File_Manager();
 		$file_id  = $manager->add_local_file(
@@ -369,8 +380,8 @@ class ISFM_Admin_Meta_Boxes {
 				'title'     => isfm_autofill_title( $sanitized['original_title'] ),
 				'file_name' => $slug,
 				'file_path' => $rel_path,
-				'file_size' => (int) $upload['size'],
-				'file_mime' => function_exists( 'mime_content_type' ) ? ( mime_content_type( $target_abs ) ?: $upload['type'] ) : $upload['type'],
+				'file_size' => $upload_size,
+				'file_mime' => $detected_mime,
 				'file_hash' => hash_file( 'sha256', $target_abs ),
 			)
 		);

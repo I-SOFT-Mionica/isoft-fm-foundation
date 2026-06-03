@@ -189,7 +189,7 @@ class ISFM_Shortcodes {
 		ob_start();
 
 		if ( filter_var( $atts['show_search'], FILTER_VALIDATE_BOOLEAN ) ) {
-			echo $this->search_shortcode( array( 'category' => $atts['category'] ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			echo wp_kses( $this->search_shortcode( array( 'category' => $atts['category'] ) ), self::allowed_html() );
 		}
 
 		if ( ! $query->have_posts() ) {
@@ -212,11 +212,12 @@ class ISFM_Shortcodes {
 
 			wp_reset_postdata();
 
-			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- paginate_links() returns safe HTML.
-			echo paginate_links(
-				array(
-					'total'   => $query->max_num_pages,
-					'current' => max( 1, get_query_var( 'paged' ) ),
+			echo wp_kses_post(
+				paginate_links(
+					array(
+						'total'   => $query->max_num_pages,
+						'current' => max( 1, get_query_var( 'paged' ) ),
+					)
 				)
 			);
 
@@ -331,7 +332,7 @@ class ISFM_Shortcodes {
 			}
 			$first_file = $files[0] ?? null;
 			if ( $first_file && $access->can_access_download( $post_id ) ) {
-				echo ' ' . $this->render_download_button( $first_file, $post_id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				echo ' ' . wp_kses( $this->render_download_button( $first_file, $post_id ), self::allowed_html() );
 			}
 			echo '</div>';
 		} else {
@@ -748,7 +749,7 @@ class ISFM_Shortcodes {
 			echo '<td>';
 			$first = $files[0] ?? null;
 			if ( $first && $access->can_access_download( $post_id ) ) {
-				echo $this->render_download_button( $first, $post_id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				echo wp_kses( $this->render_download_button( $first, $post_id ), self::allowed_html() );
 			} elseif ( ! is_user_logged_in() ) {
 				echo '<a href="' . esc_url( wp_login_url( get_permalink() ) ) . '" class="wp-element-button isfm-download-btn">' . esc_html__( 'Login', 'isoft-fm-foundation' ) . '</a>';
 			} else {
@@ -758,5 +759,48 @@ class ISFM_Shortcodes {
 		}
 
 		echo '</tbody></table>';
+	}
+
+	/**
+	 * KSES allowlist for the HTML fragments that our shortcode methods
+	 * build internally with escaping (search form + download button). Kept
+	 * intentionally narrow.
+	 */
+	private static function allowed_html(): array {
+		return array(
+			'div'    => array( 'class' => true ),
+			'span'   => array( 'class' => true ),
+			'p'      => array( 'class' => true ),
+			'form'   => array(
+				'class'  => true,
+				'method' => true,
+				'action' => true,
+			),
+			'label'  => array(
+				'class' => true,
+				'for'   => true,
+			),
+			'input'  => array(
+				'type'        => true,
+				'name'        => true,
+				'value'       => true,
+				'id'          => true,
+				'class'       => true,
+				'placeholder' => true,
+			),
+			'button' => array(
+				'type'  => true,
+				'class' => true,
+			),
+			'a'      => array(
+				'href'                  => true,
+				'class'                 => true,
+				'rel'                   => true,
+				'target'                => true,
+				'data-agree-content'    => true,
+				'data-agree-title'      => true,
+				'data-license-required' => true,
+			),
+		);
 	}
 }
