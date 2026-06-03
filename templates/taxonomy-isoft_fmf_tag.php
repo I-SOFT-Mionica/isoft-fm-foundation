@@ -1,7 +1,7 @@
 <?php
 /**
- * Tag archive template for 'isfm_tag'.
- * Theme-overridable: place a copy at {theme}/isoft-fm-foundation/taxonomy-isfm_tag.php
+ * Tag archive template for 'isoft_fmf_tag'.
+ * Theme-overridable: place a copy at {theme}/isoft-fm-foundation/taxonomy-isoft_fmf_tag.php
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -9,11 +9,11 @@ defined( 'ABSPATH' ) || exit;
 
 get_header();
 
-$settings = isfm_get_settings();
+$settings = isoft_fmf_get_settings();
 $tag      = get_queried_object();
 ?>
-<div class="isfm-tag-archive">
-	<header class="isfm-tag-archive__header">
+<div class="isoft-fmf-tag-archive">
+	<header class="isoft-fmf-tag-archive__header">
 		<h1 class="page-title">
 			<?php
 			printf(
@@ -29,14 +29,14 @@ $tag      = get_queried_object();
 	</header>
 
 	<?php if ( have_posts() ) : ?>
-	<div class="isfm-tag-archive__downloads isfm-grid isfm-grid--cols-3">
+	<div class="isoft-fmf-tag-archive__downloads isoft-fmf-grid isoft-fmf-grid--cols-3">
 		<?php
 		while ( have_posts() ) :
 			the_post();
 			?>
 			<?php
 			$post = get_post();
-			require ISFM_PLUGIN_DIR . 'public/views/download-card.php';
+			require ISOFT_FMF_PLUGIN_DIR . 'public/views/download-card.php';
 			?>
 		<?php endwhile; ?>
 	</div>

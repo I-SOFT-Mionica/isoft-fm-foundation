@@ -2,14 +2,14 @@
 /**
  * Download Log viewer — Phase 4.
  *
- * @var ISFM_Log_Table $table  Prepared list table instance.
+ * @var ISOFT_FMF_Log_Table $table  Prepared list table instance.
  */
 defined( 'ABSPATH' ) || exit;
 
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Locals passed in by the including class; not actual globals.
 
 // Belt-and-braces capability gate even though the menu page is already capability-gated.
-if ( ! current_user_can( 'isfm_view_logs' ) ) {
+if ( ! current_user_can( 'isoft_fmf_view_logs' ) ) {
 	wp_die( esc_html__( 'You do not have permission to view the download log.', 'isoft-fm-foundation' ), 403 );
 }
 
@@ -24,7 +24,7 @@ $search          = isset( $_REQUEST['s'] ) ? sanitize_text_field( wp_unslash( $_
 // All downloads for filter dropdown.
 $all_downloads = get_posts(
 	array(
-		'post_type'      => 'isfm_file',
+		'post_type'      => 'isoft_fmf_file',
 		'post_status'    => 'any',
 		'posts_per_page' => -1,
 		'orderby'        => 'title',
@@ -33,17 +33,17 @@ $all_downloads = get_posts(
 	)
 );
 
-$base_url = admin_url( 'edit.php?post_type=isfm_file&page=isfm-log' );
+$base_url = admin_url( 'edit.php?post_type=isoft_fmf_file&page=isoft-fmf-log' );
 ?>
 <div class="wrap">
 	<h1 class="wp-heading-inline"><?php esc_html_e( 'Download Log', 'isoft-fm-foundation' ); ?></h1>
 
-	<?php if ( current_user_can( 'isfm_export_logs' ) ) : ?>
-		<a href="<?php echo esc_url( $base_url . '&isfm_action=export_csv' . ( $filter_download ? '&filter_download=' . $filter_download : '' ) . ( $search ? '&s=' . rawurlencode( $search ) : '' ) ); ?>"
+	<?php if ( current_user_can( 'isoft_fmf_export_logs' ) ) : ?>
+		<a href="<?php echo esc_url( $base_url . '&isoft_fmf_action=export_csv' . ( $filter_download ? '&filter_download=' . $filter_download : '' ) . ( $search ? '&s=' . rawurlencode( $search ) : '' ) ); ?>"
 			class="page-title-action">
 			<?php esc_html_e( 'Export CSV', 'isoft-fm-foundation' ); ?>
 		</a>
-		<a href="<?php echo esc_url( $base_url . '&isfm_action=export_json' . ( $filter_download ? '&filter_download=' . $filter_download : '' ) . ( $search ? '&s=' . rawurlencode( $search ) : '' ) ); ?>"
+		<a href="<?php echo esc_url( $base_url . '&isoft_fmf_action=export_json' . ( $filter_download ? '&filter_download=' . $filter_download : '' ) . ( $search ? '&s=' . rawurlencode( $search ) : '' ) ); ?>"
 			class="page-title-action">
 			<?php esc_html_e( 'Export JSON', 'isoft-fm-foundation' ); ?>
 		</a>
@@ -51,7 +51,7 @@ $base_url = admin_url( 'edit.php?post_type=isfm_file&page=isfm-log' );
 
 	<hr class="wp-header-end">
 
-	<?php if ( ! get_option( 'isfm_enable_logging', true ) ) : ?>
+	<?php if ( ! get_option( 'isoft_fmf_enable_logging', true ) ) : ?>
 		<div class="notice notice-warning inline">
 			<p><?php esc_html_e( 'Download logging is currently disabled. Enable it in Settings → General.', 'isoft-fm-foundation' ); ?></p>
 		</div>
@@ -70,9 +70,9 @@ $base_url = admin_url( 'edit.php?post_type=isfm_file&page=isfm-log' );
 	// phpcs:enable WordPress.Security.NonceVerification.Recommended
 	?>
 
-	<form method="get" class="isfm-log-filters">
-		<input type="hidden" name="post_type" value="isfm_file" />
-		<input type="hidden" name="page" value="isfm-log" />
+	<form method="get" class="isoft-fmf-log-filters">
+		<input type="hidden" name="post_type" value="isoft_fmf_file" />
+		<input type="hidden" name="page" value="isoft-fmf-log" />
 
 		<div class="alignleft actions">
 			<select name="filter_download">
@@ -87,12 +87,12 @@ $base_url = admin_url( 'edit.php?post_type=isfm_file&page=isfm-log' );
 			<?php submit_button( __( 'Filter', 'isoft-fm-foundation' ), 'action', 'filter_action', false ); ?>
 		</div>
 
-		<?php $table->search_box( __( 'Search log', 'isoft-fm-foundation' ), 'isfm_log_search' ); ?>
+		<?php $table->search_box( __( 'Search log', 'isoft-fm-foundation' ), 'isoft_fmf_log_search' ); ?>
 	</form>
 
 	<form method="post">
-		<input type="hidden" name="post_type" value="isfm_file" />
-		<input type="hidden" name="page" value="isfm-log" />
+		<input type="hidden" name="post_type" value="isoft_fmf_file" />
+		<input type="hidden" name="page" value="isoft-fmf-log" />
 		<?php if ( $filter_download ) : ?>
 			<input type="hidden" name="filter_download" value="<?php echo absint( $filter_download ); ?>" />
 		<?php endif; ?>
@@ -103,19 +103,19 @@ $base_url = admin_url( 'edit.php?post_type=isfm_file&page=isfm-log' );
 		<?php $table->display(); ?>
 	</form>
 
-	<?php if ( current_user_can( 'isfm_manage_settings' ) ) : ?>
+	<?php if ( current_user_can( 'isoft_fmf_manage_settings' ) ) : ?>
 		<hr>
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"
 				onsubmit="return confirm('<?php echo esc_js( __( 'This will permanently delete log entries older than the configured retention period. Continue?', 'isoft-fm-foundation' ) ); ?>')">
-			<?php wp_nonce_field( 'isfm_purge_logs' ); ?>
-			<input type="hidden" name="action" value="isfm_purge_logs" />
+			<?php wp_nonce_field( 'isoft_fmf_purge_logs' ); ?>
+			<input type="hidden" name="action" value="isoft_fmf_purge_logs" />
 			<?php submit_button( __( 'Purge old log entries', 'isoft-fm-foundation' ), 'delete', 'submit', false ); ?>
 			<span class="description">
 				<?php
 				printf(
 					/* translators: %d: retention days setting */
 					esc_html__( 'Deletes entries older than %d days (configured in Settings).', 'isoft-fm-foundation' ),
-					(int) get_option( 'isfm_log_retention_days', 365 )
+					(int) get_option( 'isoft_fmf_log_retention_days', 365 )
 				);
 				?>
 			</span>

@@ -3,21 +3,21 @@
  * Scheduled tasks for I-Soft File Manager: Foundation.
  *
  * Jobs:
- *   isfm_daily_cron — runs at 01:00 site time:
+ *   isoft_fmf_daily_cron — runs at 01:00 site time:
  *     1. Recalculates HOT flag (top 10 downloads last 7 days from daily table).
  *     2. Purges daily rows older than 8 days (keep one extra day as buffer).
  *     3. Purges log entries beyond the configured retention period.
  */
 defined( 'ABSPATH' ) || exit;
 
-class ISFM_Cron {
+class ISOFT_FMF_Cron {
 
-	private const HOOK = 'isfm_daily_cron';
+	private const HOOK = 'isoft_fmf_daily_cron';
 
 	public function register_hooks(): void {
 		add_action( 'init', array( $this, 'schedule' ) );
 		add_action( self::HOOK, array( $this, 'run' ) );
-		add_action( 'isfm_deactivate', array( $this, 'unschedule' ) );
+		add_action( 'isoft_fmf_deactivate', array( $this, 'unschedule' ) );
 	}
 
 	// -------------------------------------------------------------------------
@@ -51,9 +51,9 @@ class ISFM_Cron {
 	public function run(): void {
 		$this->recalculate_hot();
 		$this->purge_daily_old();
-		( new ISFM_Download_Logger() )->purge_old_logs();
+		( new ISOFT_FMF_Download_Logger() )->purge_old_logs();
 
-		do_action( 'isfm_daily_cron_complete' );
+		do_action( 'isoft_fmf_daily_cron_complete' );
 	}
 
 	// -------------------------------------------------------------------------
@@ -71,7 +71,7 @@ class ISFM_Cron {
 		$hot_ids = $wpdb->get_col(
 			$wpdb->prepare(
 				"SELECT download_id
-				   FROM {$wpdb->prefix}isfm_download_daily
+				   FROM {$wpdb->prefix}isoft_fmf_download_daily
 				  WHERE log_date >= DATE_SUB(CURDATE(), INTERVAL %d DAY)
 				  GROUP BY download_id
 				  ORDER BY SUM(count) DESC
@@ -82,22 +82,22 @@ class ISFM_Cron {
 
 		$hot_ids = array_map( 'intval', $hot_ids ?: array() );
 
-		// Clear HOT flag on all isfm_file posts.
+		// Clear HOT flag on all isoft_fmf_file posts.
 		$wpdb->query(
 			"DELETE FROM {$wpdb->postmeta}
-			  WHERE meta_key = '_isfm_is_hot'"
+			  WHERE meta_key = '_isoft_fmf_is_hot'"
 		);
 
 		// Set HOT flag on the winners.
 		foreach ( $hot_ids as $post_id ) {
-			update_post_meta( $post_id, '_isfm_is_hot', 1 );
+			update_post_meta( $post_id, '_isoft_fmf_is_hot', 1 );
 		}
 
 		// Store the ranked list with counts for the stats dashboard.
 		$hot_with_counts = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT download_id, SUM(count) AS weekly_count
-				   FROM {$wpdb->prefix}isfm_download_daily
+				   FROM {$wpdb->prefix}isoft_fmf_download_daily
 				  WHERE log_date >= DATE_SUB(CURDATE(), INTERVAL %d DAY)
 				  GROUP BY download_id
 				  ORDER BY weekly_count DESC
@@ -106,11 +106,11 @@ class ISFM_Cron {
 			)
 		);
 
-		update_option( 'isfm_hot_downloads', $hot_with_counts, false );
-		update_option( 'isfm_hot_calculated_at', current_time( 'mysql' ), false );
+		update_option( 'isoft_fmf_hot_downloads', $hot_with_counts, false );
+		update_option( 'isoft_fmf_hot_calculated_at', current_time( 'mysql' ), false );
 		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 
-		do_action( 'isfm_hot_recalculated', $hot_ids );
+		do_action( 'isoft_fmf_hot_recalculated', $hot_ids );
 	}
 
 	// -------------------------------------------------------------------------
@@ -124,7 +124,7 @@ class ISFM_Cron {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Daily cron cleanup on custom daily-counts table.
 		$wpdb->query(
 			$wpdb->prepare(
-				"DELETE FROM {$wpdb->prefix}isfm_download_daily
+				"DELETE FROM {$wpdb->prefix}isoft_fmf_download_daily
 				  WHERE log_date < DATE_SUB(CURDATE(), INTERVAL %d DAY)",
 				8
 			)

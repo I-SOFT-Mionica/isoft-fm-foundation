@@ -1,7 +1,7 @@
 <?php
 defined( 'ABSPATH' ) || exit;
 
-class ISFM_Blocks {
+class ISOFT_FMF_Blocks {
 
 	public function register_hooks(): void {
 		add_action( 'init', array( $this, 'register' ) );
@@ -24,7 +24,7 @@ class ISFM_Blocks {
 
 	public function register(): void {
 		foreach ( array( 'download-list', 'download-button', 'category-grid' ) as $block ) {
-			$result = register_block_type( ISFM_PLUGIN_DIR . 'blocks/' . $block );
+			$result = register_block_type( ISOFT_FMF_PLUGIN_DIR . 'blocks/' . $block );
 
 			// Make @wordpress/i18n __() calls in the block's editor script
 			// consume translations from our /languages/ directory. WP serves
@@ -35,7 +35,7 @@ class ISFM_Blocks {
 					wp_set_script_translations(
 						$handle,
 						'isoft-fm-foundation',
-						ISFM_PLUGIN_DIR . 'languages'
+						ISOFT_FMF_PLUGIN_DIR . 'languages'
 					);
 				}
 			}
@@ -50,7 +50,7 @@ class ISFM_Blocks {
 	public function register_block_template(): void {
 		if ( function_exists( 'register_block_template' ) ) {
 			register_block_template(
-				'isoft-fm-foundation//single-isfm_file',
+				'isoft-fm-foundation//single-isoft_fmf_file',
 				array(
 					'title'       => __( 'Single Download', 'isoft-fm-foundation' ),
 					'description' => __( 'Template for individual download entries.', 'isoft-fm-foundation' ),

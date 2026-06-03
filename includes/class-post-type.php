@@ -1,7 +1,7 @@
 <?php
 defined( 'ABSPATH' ) || exit;
 
-class ISFM_Post_Type {
+class ISOFT_FMF_Post_Type {
 
 	public function register_hooks(): void {
 		add_action( 'init', array( $this, 'register' ) );
@@ -11,14 +11,14 @@ class ISFM_Post_Type {
 	}
 
 	/**
-	 * Transliterate Cyrillic in isfm_file post slugs to Latin.
+	 * Transliterate Cyrillic in isoft_fmf_file post slugs to Latin.
 	 * sanitize_title() URL-percent-encodes non-ASCII, so by the time we see
 	 * post_name it may be either raw Cyrillic or %XX sequences — urldecode
 	 * first before inspecting.
 	 */
 	public function latinize_slug( array $data, array $postarr ): array {
 		unset( $postarr );
-		if ( 'isfm_file' !== ( $data['post_type'] ?? '' ) ) {
+		if ( 'isoft_fmf_file' !== ( $data['post_type'] ?? '' ) ) {
 			return $data;
 		}
 
@@ -29,7 +29,7 @@ class ISFM_Post_Type {
 
 		$decoded = urldecode( $source );
 		if ( preg_match( '/\p{Cyrillic}/u', $decoded ) ) {
-			$data['post_name'] = sanitize_title( isfm_cyrillic_to_latin( $decoded ) );
+			$data['post_name'] = sanitize_title( isoft_fmf_cyrillic_to_latin( $decoded ) );
 		}
 		return $data;
 	}
@@ -52,7 +52,7 @@ class ISFM_Post_Type {
 		);
 
 		register_post_type(
-			'isfm_file',
+			'isoft_fmf_file',
 			array(
 				'labels'             => $labels,
 				'public'             => true,
@@ -60,16 +60,16 @@ class ISFM_Post_Type {
 				'show_ui'            => true,
 				'show_in_menu'       => true,
 				'query_var'          => true,
-				'rewrite'            => array( 'slug' => get_option( 'isfm_archive_slug', 'downloads' ) ),
+				'rewrite'            => array( 'slug' => get_option( 'isoft_fmf_archive_slug', 'downloads' ) ),
 				'capability_type'    => 'post',  // Standard WP caps — no custom mapping.
 				'map_meta_cap'       => true,    // Custom caps used only for settings/logs/export.
-				'has_archive'        => get_option( 'isfm_archive_slug', 'downloads' ),
+				'has_archive'        => get_option( 'isoft_fmf_archive_slug', 'downloads' ),
 				'hierarchical'       => false,
 				'menu_position'      => 26,
 				'menu_icon'          => 'dashicons-download',
 				'supports'           => array( 'title', 'thumbnail', 'excerpt', 'revisions', 'author' ),
 				'show_in_rest'       => true,
-				'rest_base'          => 'isfm-downloads',
+				'rest_base'          => 'isoft-fmf-downloads',
 			)
 		);
 
@@ -77,7 +77,7 @@ class ISFM_Post_Type {
 		add_filter(
 			'use_block_editor_for_post_type',
 			function ( bool $use, string $post_type ): bool {
-				return $post_type === 'isfm_file' ? false : $use;
+				return $post_type === 'isoft_fmf_file' ? false : $use;
 			},
 			10,
 			2
@@ -87,11 +87,11 @@ class ISFM_Post_Type {
 	/**
 	 * Flush rewrite rules once after activation (or whenever the flag is set).
 	 * Runs at init priority 999 — after the CPT is already registered — so the
-	 * 'isfm_file' rewrite rules are included in the flushed set.
+	 * 'isoft_fmf_file' rewrite rules are included in the flushed set.
 	 */
 	public function maybe_flush_rewrite_rules(): void {
-		if ( get_option( 'isfm_flush_rewrite_rules' ) ) {
-			delete_option( 'isfm_flush_rewrite_rules' );
+		if ( get_option( 'isoft_fmf_flush_rewrite_rules' ) ) {
+			delete_option( 'isoft_fmf_flush_rewrite_rules' );
 			flush_rewrite_rules();
 		}
 	}
@@ -102,13 +102,13 @@ class ISFM_Post_Type {
 	 * classic PHP templates.
 	 */
 	public function append_download_content( string $content ): string {
-		if ( ! is_singular( 'isfm_file' ) ) {
+		if ( ! is_singular( 'isoft_fmf_file' ) ) {
 			return $content;
 		}
 
 		// In FSE themes the loop context differs — get_post() is reliable here.
 		$post = get_post();
-		if ( ! $post || $post->post_type !== 'isfm_file' ) {
+		if ( ! $post || $post->post_type !== 'isoft_fmf_file' ) {
 			return $content;
 		}
 
@@ -119,11 +119,11 @@ class ISFM_Post_Type {
 		}
 		$appended[ $post->ID ] = true;
 
-		$files    = ( new ISFM_File_Manager() )->get_files( $post->ID );
-		$settings = isfm_get_settings();
+		$files    = ( new ISOFT_FMF_File_Manager() )->get_files( $post->ID );
+		$settings = isoft_fmf_get_settings();
 
 		ob_start();
-		require ISFM_PLUGIN_DIR . 'public/views/download-single.php';
+		require ISOFT_FMF_PLUGIN_DIR . 'public/views/download-single.php';
 		return $content . ob_get_clean();
 	}
 }

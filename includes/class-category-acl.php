@@ -4,7 +4,7 @@
  *
  * Rules:
  *   - Admins (`manage_options`) are unrestricted.
- *   - Other users are assigned one or more explicit isfm_category term ids.
+ *   - Other users are assigned one or more explicit isoft_fmf_category term ids.
  *   - Assignments inherit downwards: user allowed on "Skupština Opštine"
  *     can write anywhere in its subtree.
  *   - Read-side is unchanged for PUBLISHED downloads — anyone can see them.
@@ -12,13 +12,13 @@
  *     covers the download's category (enforced separately; this class only
  *     exposes the check).
  *
- * Storage: user meta `_isfm_allowed_categories` = array<int> of explicit ids.
+ * Storage: user meta `_isoft_fmf_allowed_categories` = array<int> of explicit ids.
  */
 defined( 'ABSPATH' ) || exit;
 
-class ISFM_Category_ACL {
+class ISOFT_FMF_Category_ACL {
 
-	private const string USER_META_KEY = '_isfm_allowed_categories';
+	private const string USER_META_KEY = '_isoft_fmf_allowed_categories';
 
 	/** In-request memoization of effective (expanded) allowed sets per user. */
 	private static array $effective_cache = array();
@@ -32,7 +32,7 @@ class ISFM_Category_ACL {
 		add_filter( 'map_meta_cap', array( $this, 'map_meta_cap' ), 10, 4 );
 
 		// Reject category-change saves when the target is outside the user's reach.
-		add_action( 'save_post_isfm_file', array( $this, 'enforce_category_on_save' ), 1, 3 );
+		add_action( 'save_post_isoft_fmf_file', array( $this, 'enforce_category_on_save' ), 1, 3 );
 
 		// Admin list filter — hide downloads the user can't write.
 		add_action( 'pre_get_posts', array( $this, 'filter_admin_list' ) );
@@ -88,7 +88,7 @@ class ISFM_Category_ACL {
 		$set      = array();
 		foreach ( $explicit as $term_id ) {
 			$set[ $term_id ] = true;
-			$children        = get_term_children( $term_id, 'isfm_category' );
+			$children        = get_term_children( $term_id, 'isoft_fmf_category' );
 			if ( ! is_wp_error( $children ) ) {
 				foreach ( $children as $child_id ) {
 					$set[ (int) $child_id ] = true;
@@ -116,7 +116,7 @@ class ISFM_Category_ACL {
 		if ( self::is_unrestricted( $user_id ) ) {
 			return true;
 		}
-		$terms = wp_get_object_terms( $download_id, 'isfm_category', array( 'fields' => 'ids' ) );
+		$terms = wp_get_object_terms( $download_id, 'isoft_fmf_category', array( 'fields' => 'ids' ) );
 		if ( is_wp_error( $terms ) || empty( $terms ) ) {
 			// No category assigned yet (new draft / auto-draft). Allow access
 			// so the edit screen opens; save-time enforcement will reject any
@@ -141,7 +141,7 @@ class ISFM_Category_ACL {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Gate edit_post / delete_post / publish_post on isfm_file posts by category ACL.
+	 * Gate edit_post / delete_post / publish_post on isoft_fmf_file posts by category ACL.
 	 * We *add* to the required caps list — so anyone who already failed the
 	 * base check still fails. This only restricts further, never loosens.
 	 */
@@ -154,7 +154,7 @@ class ISFM_Category_ACL {
 			return $caps;
 		}
 		$post_id = (int) $args[0];
-		if ( 'isfm_file' !== get_post_type( $post_id ) ) {
+		if ( 'isoft_fmf_file' !== get_post_type( $post_id ) ) {
 			return $caps;
 		}
 		if ( self::is_unrestricted( $user_id ) ) {
@@ -174,7 +174,7 @@ class ISFM_Category_ACL {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * On save_post_isfm_file: reject the save if the posted isfm_category assignment
+	 * On save_post_isoft_fmf_file: reject the save if the posted isoft_fmf_category assignment
 	 * contains a category the user has no write access to.
 	 *
 	 * Source (pre-save category) enforcement is handled entirely by
@@ -205,7 +205,7 @@ class ISFM_Category_ACL {
 		}
 
 		// Only act when the classic editor actually posted a category choice.
-		if ( ! isset( $_POST['tax_input']['isfm_category'] ) ) {
+		if ( ! isset( $_POST['tax_input']['isoft_fmf_category'] ) ) {
 			return;
 		}
 
@@ -214,7 +214,7 @@ class ISFM_Category_ACL {
 		// below is both the unslash (backslashes can't survive int cast)
 		// and the sanitization for numeric IDs.
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- See note above.
-		$raw    = $_POST['tax_input']['isfm_category'];
+		$raw    = $_POST['tax_input']['isoft_fmf_category'];
 		$posted = is_array( $raw ) ? array_map( 'absint', $raw ) : array( absint( $raw ) );
 		foreach ( $posted as $term_id ) {
 			if ( $term_id <= 0 ) {
@@ -244,7 +244,7 @@ class ISFM_Category_ACL {
 		if ( ! is_admin() || ! $query->is_main_query() ) {
 			return;
 		}
-		if ( 'isfm_file' !== $query->get( 'post_type' ) ) {
+		if ( 'isoft_fmf_file' !== $query->get( 'post_type' ) ) {
 			return;
 		}
 
@@ -262,7 +262,7 @@ class ISFM_Category_ACL {
 
 		$tax_query   = (array) $query->get( 'tax_query' );
 		$tax_query[] = array(
-			'taxonomy' => 'isfm_category',
+			'taxonomy' => 'isoft_fmf_category',
 			'field'    => 'term_id',
 			'terms'    => $effective,
 			'operator' => 'IN',
@@ -275,7 +275,7 @@ class ISFM_Category_ACL {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Remove unpublished `isfm_file` downloads from frontend queries unless the
+	 * Remove unpublished `isoft_fmf_file` downloads from frontend queries unless the
 	 * current user's allowed-category set covers them.
 	 *
 	 * Published downloads are untouched — they remain world-readable. This
@@ -288,11 +288,11 @@ class ISFM_Category_ACL {
 			return; // Handled by filter_admin_list().
 		}
 
-		// Only care about isfm_file queries.
+		// Only care about isoft_fmf_file queries.
 		$post_type = $query->get( 'post_type' );
-		if ( 'isfm_file' !== $post_type && ! ( is_array( $post_type ) && in_array( 'isfm_file', $post_type, true ) ) ) {
+		if ( 'isoft_fmf_file' !== $post_type && ! ( is_array( $post_type ) && in_array( 'isoft_fmf_file', $post_type, true ) ) ) {
 			// Untyped query on a taxonomy archive also counts.
-			if ( ! $query->is_tax( array( 'isfm_category', 'isfm_tag' ) ) && ! $query->is_post_type_archive( 'isfm_file' ) ) {
+			if ( ! $query->is_tax( array( 'isoft_fmf_category', 'isoft_fmf_tag' ) ) && ! $query->is_post_type_archive( 'isoft_fmf_file' ) ) {
 				return;
 			}
 		}
@@ -314,7 +314,7 @@ class ISFM_Category_ACL {
 		 * a single pass, so we drop to a SQL posts_where/posts_join filter
 		 * scoped to this one query.
 		 */
-		$query->set( 'isfm_acl_effective_categories', $effective );
+		$query->set( 'isoft_fmf_acl_effective_categories', $effective );
 		add_filter( 'posts_clauses', array( $this, 'filter_posts_clauses' ), 10, 2 );
 	}
 
@@ -324,7 +324,7 @@ class ISFM_Category_ACL {
 	 */
 	public function filter_posts_clauses( array $clauses, WP_Query $query ): array {
 		// Only act on the query we flagged.
-		$effective = $query->get( 'isfm_acl_effective_categories' );
+		$effective = $query->get( 'isoft_fmf_acl_effective_categories' );
 		if ( null === $effective || '' === $effective ) {
 			return $clauses;
 		}
@@ -345,7 +345,7 @@ class ISFM_Category_ACL {
 			SELECT tr.object_id
 			  FROM {$wpdb->term_relationships} tr
 			  JOIN {$wpdb->term_taxonomy} tt ON tr.term_taxonomy_id = tt.term_taxonomy_id
-			 WHERE tt.taxonomy = 'isfm_category'
+			 WHERE tt.taxonomy = 'isoft_fmf_category'
 			   AND tt.term_id IN ({$ids_sql})
 		";
 
@@ -362,31 +362,31 @@ class ISFM_Category_ACL {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Filter get_terms() results to hide isfm_category terms the user can't
+	 * Filter get_terms() results to hide isoft_fmf_category terms the user can't
 	 * write. This makes the classic editor's Categories metabox only show
 	 * terms the user is actually allowed to pick.
 	 *
 	 * Scope is intentionally narrow:
-	 *   - Only fires in admin on post.php / post-new.php for isfm_file posts.
-	 *   - Only isfm_category queries.
+	 *   - Only fires in admin on post.php / post-new.php for isoft_fmf_file posts.
+	 *   - Only isoft_fmf_category queries.
 	 *   - Only for restricted users (admins bypass).
 	 *
 	 * We do NOT filter taxonomy term admin pages (edit-tags.php) because
-	 * term-management uses a separate capability (isfm_manage_categories)
+	 * term-management uses a separate capability (isoft_fmf_manage_categories)
 	 * and should remain full-view for anyone who has it.
 	 */
 	public function filter_category_metabox_terms( array $args, array $taxonomies ): array {
 		if ( ! is_admin() ) {
 			return $args;
 		}
-		if ( ! in_array( 'isfm_category', $taxonomies, true ) ) {
+		if ( ! in_array( 'isoft_fmf_category', $taxonomies, true ) ) {
 			return $args;
 		}
 
 		// Only apply on the download edit screen — not on edit-tags.php or
 		// on AJAX calls from other contexts.
 		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
-		if ( ! $screen || 'isfm_file' !== $screen->post_type || 'post' !== $screen->base ) {
+		if ( ! $screen || 'isoft_fmf_file' !== $screen->post_type || 'post' !== $screen->base ) {
 			return $args;
 		}
 
@@ -420,7 +420,7 @@ class ISFM_Category_ACL {
 		if ( ! in_array( $hook, array( 'profile.php', 'user-edit.php' ), true ) ) {
 			return;
 		}
-		wp_enqueue_style( 'isfm-admin', ISFM_PLUGIN_URL . 'admin/css/admin-style.css', array(), ISFM_VERSION );
+		wp_enqueue_style( 'isoft-fmf-admin', ISOFT_FMF_PLUGIN_URL . 'admin/css/admin-style.css', array(), ISOFT_FMF_VERSION );
 	}
 
 	public function render_profile_field( WP_User $user ): void {
@@ -437,7 +437,7 @@ class ISFM_Category_ACL {
 		<p class="description">
 			<?php esc_html_e( 'This user can create, edit and delete downloads in the selected categories and all their descendants. Leave empty to restrict them completely (admins are always unrestricted).', 'isoft-fm-foundation' ); ?>
 		</p>
-		<div class="isfm-acl-tree">
+		<div class="isoft-fmf-acl-tree">
 			<?php $this->render_tree_nodes( $tree, $selected ); ?>
 		</div>
 		<?php
@@ -458,7 +458,7 @@ class ISFM_Category_ACL {
 		// absint() on each element below is both the unslash (numeric input
 		// can't carry magic-quote backslashes) and the sanitization.
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- See note above.
-		$raw = isset( $_POST['isfm_allowed_categories'] ) ? $_POST['isfm_allowed_categories'] : array();
+		$raw = isset( $_POST['isoft_fmf_allowed_categories'] ) ? $_POST['isoft_fmf_allowed_categories'] : array();
 		$ids = is_array( $raw ) ? array_map( 'absint', $raw ) : array();
 		$ids = array_values( array_filter( $ids, fn( int $i ): bool => $i > 0 ) );
 		update_user_meta( $user_id, self::USER_META_KEY, $ids );
@@ -472,14 +472,14 @@ class ISFM_Category_ACL {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Build a parent→children adjacency list for isfm_category.
+	 * Build a parent→children adjacency list for isoft_fmf_category.
 	 *
 	 * @return array<int,array{term:WP_Term, children:int[]}>
 	 */
 	private function build_category_tree(): array {
 		$terms = get_terms(
 			array(
-				'taxonomy'   => 'isfm_category',
+				'taxonomy'   => 'isoft_fmf_category',
 				'hide_empty' => false,
 				'orderby'    => 'name',
 			)
@@ -516,14 +516,14 @@ class ISFM_Category_ACL {
 			return;
 		}
 
-		echo '<ul class="isfm-acl-tree__list">';
+		echo '<ul class="isoft-fmf-acl-tree__list">';
 		foreach ( $roots as $node ) {
 			$term       = $node['term'];
 			$has_kids   = ! empty( $node['children'] );
 			$is_checked = isset( $selected[ (int) $term->term_id ] );
-			$field_id   = 'isfm-acl-' . (int) $term->term_id;
+			$field_id   = 'isoft-fmf-acl-' . (int) $term->term_id;
 
-			echo '<li class="isfm-acl-tree__item">';
+			echo '<li class="isoft-fmf-acl-tree__item">';
 
 			if ( $has_kids ) {
 				// <details open> when this branch (or a descendant) is selected.
@@ -531,7 +531,7 @@ class ISFM_Category_ACL {
 				echo '<details' . ( $open ? ' open' : '' ) . '>';
 				echo '<summary>';
 				printf(
-					'<label for="%1$s"><input type="checkbox" id="%1$s" name="isfm_allowed_categories[]" value="%2$d"%3$s /> %4$s</label>',
+					'<label for="%1$s"><input type="checkbox" id="%1$s" name="isoft_fmf_allowed_categories[]" value="%2$d"%3$s /> %4$s</label>',
 					esc_attr( $field_id ),
 					(int) $term->term_id,
 					checked( $is_checked, true, false ),
@@ -542,7 +542,7 @@ class ISFM_Category_ACL {
 				echo '</details>';
 			} else {
 				printf(
-					'<label for="%1$s"><input type="checkbox" id="%1$s" name="isfm_allowed_categories[]" value="%2$d"%3$s /> %4$s</label>',
+					'<label for="%1$s"><input type="checkbox" id="%1$s" name="isoft_fmf_allowed_categories[]" value="%2$d"%3$s /> %4$s</label>',
 					esc_attr( $field_id ),
 					(int) $term->term_id,
 					checked( $is_checked, true, false ),

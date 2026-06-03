@@ -2,7 +2,7 @@
 /**
  * WP_List_Table subclass for the Broken Links screen.
  *
- * Lists every isfm_files row with is_missing = 1 together with enough
+ * Lists every isoft_fmf_files row with is_missing = 1 together with enough
  * context for the recovery dialog to run move-back / reassign / split /
  * reupload / detach actions.
  */
@@ -12,7 +12,7 @@ if ( ! class_exists( 'WP_List_Table' ) ) {
 	require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
 }
 
-class ISFM_Broken_Links_Table extends WP_List_Table {
+class ISOFT_FMF_Broken_Links_Table extends WP_List_Table {
 
 	public function __construct() {
 		parent::__construct(
@@ -78,7 +78,7 @@ class ISFM_Broken_Links_Table extends WP_List_Table {
 	protected function column_actions( object $item ): string {
 		$file_id = (int) $item->id;
 		return sprintf(
-			'<button type="button" class="button isfm-recover-btn" data-file-id="%d">%s</button>',
+			'<button type="button" class="button isoft-fmf-recover-btn" data-file-id="%d">%s</button>',
 			$file_id,
 			esc_html__( 'Recover…', 'isoft-fm-foundation' )
 		);
@@ -100,7 +100,7 @@ class ISFM_Broken_Links_Table extends WP_List_Table {
 		// phpcs:enable
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table lookup for admin Broken Links screen.
-		$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}isfm_files WHERE is_missing = 1" );
+		$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}isoft_fmf_files WHERE is_missing = 1" );
 
 		// Two separate prepared statements keep ORDER BY direction out of any interpolation path.
 		if ( $ascending ) {
@@ -108,7 +108,7 @@ class ISFM_Broken_Links_Table extends WP_List_Table {
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
 					"SELECT f.*, p.post_title AS download_title
-					   FROM {$wpdb->prefix}isfm_files f
+					   FROM {$wpdb->prefix}isoft_fmf_files f
 					   LEFT JOIN {$wpdb->posts} p ON p.ID = f.download_id
 					  WHERE f.is_missing = 1
 					  ORDER BY f.missing_since ASC
@@ -122,7 +122,7 @@ class ISFM_Broken_Links_Table extends WP_List_Table {
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
 					"SELECT f.*, p.post_title AS download_title
-					   FROM {$wpdb->prefix}isfm_files f
+					   FROM {$wpdb->prefix}isoft_fmf_files f
 					   LEFT JOIN {$wpdb->posts} p ON p.ID = f.download_id
 					  WHERE f.is_missing = 1
 					  ORDER BY f.missing_since DESC
@@ -136,7 +136,7 @@ class ISFM_Broken_Links_Table extends WP_List_Table {
 		// Enrich each row with category name (one term per download — uses primary category).
 		foreach ( $rows as $row ) {
 			$row->category_name = '';
-			$terms              = get_the_terms( (int) $row->download_id, 'isfm_category' );
+			$terms              = get_the_terms( (int) $row->download_id, 'isoft_fmf_category' );
 			if ( $terms && ! is_wp_error( $terms ) ) {
 				$row->category_name = $terms[0]->name;
 			}

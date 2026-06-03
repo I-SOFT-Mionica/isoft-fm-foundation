@@ -2,10 +2,10 @@
 (function ($) {
 	'use strict';
 
-	const dialog = $('#isfm-recover-dialog');
-	const $status = dialog.find('.isfm-recover-status');
-	const $summary = dialog.find('.isfm-recover-summary');
-	const $title = dialog.find('#isfm-recover-title');
+	const dialog = $('#isoft-fmf-recover-dialog');
+	const $status = dialog.find('.isoft-fmf-recover-status');
+	const $summary = dialog.find('.isoft-fmf-recover-summary');
+	const $title = dialog.find('#isoft-fmf-recover-title');
 	let currentFileId = 0;
 
 	function open() {
@@ -16,7 +16,7 @@
 		$status.removeClass('is-error').text('');
 		$summary.empty();
 		dialog.find('[data-action]').hide();
-		dialog.find('.isfm-recover-cross-cat').attr('hidden', true);
+		dialog.find('.isoft-fmf-recover-cross-cat').attr('hidden', true);
 		currentFileId = 0;
 	}
 	function setStatus(msg, isError) {
@@ -25,7 +25,7 @@
 
 	function ajax(action, data, files) {
 		const formData = new FormData();
-		formData.append('action', 'isfm_recover_' + action);
+		formData.append('action', 'isoft_fmf_recover_' + action);
 		formData.append('nonce', isfmBrokenLinks.nonce);
 		formData.append('file_id', currentFileId);
 		Object.keys(data || {}).forEach((k) => formData.append(k, data[k]));
@@ -61,7 +61,7 @@
 				setStatus('', false);
 
 				if (d.candidate_found && d.is_cross_cat) {
-					dialog.find('.isfm-recover-cross-cat').removeAttr('hidden');
+					dialog.find('.isoft-fmf-recover-cross-cat').removeAttr('hidden');
 					$summary.append(
 						'<p>File found in folder: <code>' + $('<i>').text(d.candidate_folder || '').html() + '</code></p>'
 					);
@@ -118,18 +118,18 @@
 			});
 	}
 
-	$(document).on('click', '.isfm-recover-btn', function (e) {
+	$(document).on('click', '.isoft-fmf-recover-btn', function (e) {
 		e.preventDefault();
 		probe(parseInt($(this).data('file-id'), 10));
 	});
 
-	dialog.on('click', '.isfm-recover-close, .isfm-recover-dialog__backdrop', close);
+	dialog.on('click', '.isoft-fmf-recover-close, .isoft-fmf-recover-dialog__backdrop', close);
 
 	dialog.on('click', '[data-action]', function () {
 		runAction($(this).data('action'));
 	});
 
-	dialog.on('change', '.isfm-recover-file', function () {
+	dialog.on('change', '.isoft-fmf-recover-file', function () {
 		if (this.files && this.files.length) {
 			runReupload(this.files);
 		}

@@ -1,20 +1,20 @@
 <?php
 defined( 'ABSPATH' ) || exit;
 
-class ISFM_Pdf_Thumbnail {
+class ISOFT_FMF_Pdf_Thumbnail {
 
 	public function register_hooks(): void {
-		add_action( 'isfm_file_uploaded', array( $this, 'maybe_generate' ), 10, 2 );
+		add_action( 'isoft_fmf_file_uploaded', array( $this, 'maybe_generate' ), 10, 2 );
 		add_action( 'admin_notices', array( $this, 'maybe_show_notice' ) );
 	}
 
 	public function maybe_generate( int $file_id, int $download_id ): void {
-		$settings = isfm_get_settings();
+		$settings = isoft_fmf_get_settings();
 		if ( ! $settings['enable_pdf_thumbnails'] ) {
 			return;
 		}
 
-		$file = ( new ISFM_File_Manager() )->get_file( $file_id );
+		$file = ( new ISOFT_FMF_File_Manager() )->get_file( $file_id );
 		if ( ! $file || 'application/pdf' !== $file->file_mime || empty( $file->file_path ) ) {
 			return;
 		}
@@ -22,18 +22,18 @@ class ISFM_Pdf_Thumbnail {
 			return;
 		}
 
-		$pdf_path = isfm_files_dir() . '/' . $file->file_path;
+		$pdf_path = isoft_fmf_files_dir() . '/' . $file->file_path;
 		if ( ! file_exists( $pdf_path ) ) {
 			return;
 		}
 
-		$backend = apply_filters( 'isfm_pdf_thumbnail_backend', $this->detect_backend() );
+		$backend = apply_filters( 'isoft_fmf_pdf_thumbnail_backend', $this->detect_backend() );
 		if ( ! $backend ) {
 			return;
 		}
 
 		$args = apply_filters(
-			'isfm_pdf_thumbnail_args',
+			'isoft_fmf_pdf_thumbnail_args',
 			array(
 				'width'   => $settings['pdf_thumb_width'],
 				'height'  => $settings['pdf_thumb_height'],
@@ -49,7 +49,7 @@ class ISFM_Pdf_Thumbnail {
 		$attachment_id = $this->save_as_attachment( $thumb_path, $download_id );
 		if ( $attachment_id ) {
 			set_post_thumbnail( $download_id, $attachment_id );
-			do_action( 'isfm_pdf_thumbnail_generated', $download_id, $file_id, $attachment_id );
+			do_action( 'isoft_fmf_pdf_thumbnail_generated', $download_id, $file_id, $attachment_id );
 		}
 	}
 
@@ -61,7 +61,7 @@ class ISFM_Pdf_Thumbnail {
 	}
 
 	private function render( string $pdf_path, array $args ): ?string {
-		$out = sys_get_temp_dir() . '/isfm_thumb_' . md5( $pdf_path . microtime() ) . '.jpg';
+		$out = sys_get_temp_dir() . '/isoft_fmf_thumb_' . md5( $pdf_path . microtime() ) . '.jpg';
 
 		try {
 			$im = new \Imagick();
@@ -119,7 +119,7 @@ class ISFM_Pdf_Thumbnail {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
-		if ( get_option( 'isfm_pdf_notice_dismissed' ) ) {
+		if ( get_option( 'isoft_fmf_pdf_notice_dismissed' ) ) {
 			return;
 		}
 		if ( ! $this->detect_backend() ) {

@@ -1,7 +1,7 @@
 <?php
 defined( 'ABSPATH' ) || exit;
 
-class ISFM_Extension_Api {
+class ISOFT_FMF_Extension_Api {
 
 	/** @var array<string,array> Registered extensions keyed by slug. */
 	private static array $extensions = array();
@@ -14,14 +14,14 @@ class ISFM_Extension_Api {
 	}
 
 	public function fire_init(): void {
-		do_action( 'isfm_extensions_init' );
+		do_action( 'isoft_fmf_extensions_init' );
 	}
 
 	public function render_admin_notices(): void {
-		if ( ! current_user_can( 'isfm_manage_settings' ) ) {
+		if ( ! current_user_can( 'isoft_fmf_manage_settings' ) ) {
 			return;
 		}
-		$notices = get_option( 'isfm_admin_notices', array() );
+		$notices = get_option( 'isoft_fmf_admin_notices', array() );
 		if ( ! $notices ) {
 			return;
 		}
@@ -32,11 +32,11 @@ class ISFM_Extension_Api {
 				esc_html( $n['message'] )
 			);
 		}
-		delete_option( 'isfm_admin_notices' );
+		delete_option( 'isoft_fmf_admin_notices' );
 	}
 
 	/**
-	 * Register an extension. Called by Sentinel/Orbit inside 'isfm_extensions_init'.
+	 * Register an extension. Called by Sentinel/Orbit inside 'isoft_fmf_extensions_init'.
 	 *
 	 * @param array{slug:string,name:string,version:string} $args
 	 */

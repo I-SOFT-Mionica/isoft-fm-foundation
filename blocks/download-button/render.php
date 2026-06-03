@@ -12,18 +12,18 @@ defined( 'ABSPATH' ) || exit;
 $download_id = absint( $attributes['downloadId'] ?? 0 );
 
 if ( ! $download_id ) {
-	echo '<p class="isfm-block-placeholder">' . esc_html__( 'Select a download in the block settings.', 'isoft-fm-foundation' ) . '</p>';
+	echo '<p class="isoft-fmf-block-placeholder">' . esc_html__( 'Select a download in the block settings.', 'isoft-fm-foundation' ) . '</p>';
 	return;
 }
 
 $post = get_post( $download_id );
-if ( ! $post || $post->post_type !== 'isfm_file' || $post->post_status !== 'publish' ) {
-	echo '<p class="isfm-block-placeholder">' . esc_html__( 'Download not found.', 'isoft-fm-foundation' ) . '</p>';
+if ( ! $post || $post->post_type !== 'isoft_fmf_file' || $post->post_status !== 'publish' ) {
+	echo '<p class="isoft-fmf-block-placeholder">' . esc_html__( 'Download not found.', 'isoft-fm-foundation' ) . '</p>';
 	return;
 }
 
-$settings = isfm_get_settings();
+$settings = isoft_fmf_get_settings();
 
 ob_start();
-require ISFM_PLUGIN_DIR . 'public/views/download-card.php';
-echo wp_kses( ob_get_clean(), isfm_allowed_html() );
+require ISOFT_FMF_PLUGIN_DIR . 'public/views/download-card.php';
+echo wp_kses( ob_get_clean(), isoft_fmf_allowed_html() );

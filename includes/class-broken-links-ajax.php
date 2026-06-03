@@ -2,26 +2,26 @@
 /**
  * AJAX handlers for the Broken Links recovery dialog.
  *
- * Actions exposed to the browser (each nonce-protected with 'isfm_broken_links'):
- *   isfm_recover_probe       — look up file + cross-category inode hunt, return dialog data.
- *   isfm_recover_move_back   — move a candidate file back to the expected path.
- *   isfm_recover_reassign    — reassign the download (and all its files) to the new category.
- *   isfm_recover_split       — detach this file into a new draft download in its new category.
- *   isfm_recover_reupload    — accept an uploaded replacement and update the DB row.
- *   isfm_recover_detach      — drop the isfm_files row (physical file untouched).
+ * Actions exposed to the browser (each nonce-protected with 'isoft_fmf_broken_links'):
+ *   isoft_fmf_recover_probe       — look up file + cross-category inode hunt, return dialog data.
+ *   isoft_fmf_recover_move_back   — move a candidate file back to the expected path.
+ *   isoft_fmf_recover_reassign    — reassign the download (and all its files) to the new category.
+ *   isoft_fmf_recover_split       — detach this file into a new draft download in its new category.
+ *   isoft_fmf_recover_reupload    — accept an uploaded replacement and update the DB row.
+ *   isoft_fmf_recover_detach      — drop the isoft_fmf_files row (physical file untouched).
  */
 defined( 'ABSPATH' ) || exit;
 
 // Every public handle_* method calls $this->guard() as its first statement, which runs
-// check_ajax_referer( 'isfm_broken_links', 'nonce' ) — so every $_POST/$_FILES read below is
+// check_ajax_referer( 'isoft_fmf_broken_links', 'nonce' ) — so every $_POST/$_FILES read below is
 // nonce-verified at the top of the method. The sniff can't follow the indirection.
-// Every $wpdb->update writes to the plugin's custom isfm_files table and the manager cache
+// Every $wpdb->update writes to the plugin's custom isoft_fmf_files table and the manager cache
 // is invalidated either via refresh_inode()/mark_healthy() helpers or explicit bust_cache_for()
 // calls at the call site.
 // phpcs:disable WordPress.Security.NonceVerification.Missing
 // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
 // phpcs:disable WordPress.DB.DirectDatabaseQuery.NoCaching
-class ISFM_Broken_Links_Ajax {
+class ISOFT_FMF_Broken_Links_Ajax {
 
 	public function register_hooks(): void {
 		$actions = array(
@@ -33,7 +33,7 @@ class ISFM_Broken_Links_Ajax {
 			'detach',
 		);
 		foreach ( $actions as $action ) {
-			add_action( "wp_ajax_isfm_recover_{$action}", array( $this, "handle_{$action}" ) );
+			add_action( "wp_ajax_isoft_fmf_recover_{$action}", array( $this, "handle_{$action}" ) );
 		}
 	}
 
@@ -42,14 +42,14 @@ class ISFM_Broken_Links_Ajax {
 	// -------------------------------------------------------------------------
 
 	private function guard(): void {
-		if ( ! current_user_can( 'isfm_manage_settings' ) ) {
+		if ( ! current_user_can( 'isoft_fmf_manage_settings' ) ) {
 			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'isoft-fm-foundation' ) ), 403 );
 		}
-		check_ajax_referer( 'isfm_broken_links', 'nonce' );
+		check_ajax_referer( 'isoft_fmf_broken_links', 'nonce' );
 	}
 
 	private function get_file_or_die( int $file_id ): object {
-		$file = ( new ISFM_File_Manager() )->get_file( $file_id );
+		$file = ( new ISOFT_FMF_File_Manager() )->get_file( $file_id );
 		if ( ! $file ) {
 			wp_send_json_error( array( 'message' => __( 'File record not found.', 'isoft-fm-foundation' ) ), 404 );
 		}
@@ -57,7 +57,7 @@ class ISFM_Broken_Links_Ajax {
 	}
 
 	private function get_download_category_id( int $download_id ): int {
-		$terms = get_the_terms( $download_id, 'isfm_category' );
+		$terms = get_the_terms( $download_id, 'isoft_fmf_category' );
 		if ( ! $terms || is_wp_error( $terms ) ) {
 			return 0;
 		}
@@ -74,7 +74,7 @@ class ISFM_Broken_Links_Ajax {
 	}
 
 	private function refresh_inode( int $file_id, string $abs_path ): void {
-		if ( ! (bool) get_option( 'isfm_integrity_use_inode', 1 ) ) {
+		if ( ! (bool) get_option( 'isoft_fmf_integrity_use_inode', 1 ) ) {
 			return;
 		}
 		$ino = @fileinode( $abs_path );
@@ -83,19 +83,19 @@ class ISFM_Broken_Links_Ajax {
 		}
 		global $wpdb;
 		$wpdb->update(
-			"{$wpdb->prefix}isfm_files",
+			"{$wpdb->prefix}isoft_fmf_files",
 			array( 'inode' => (int) $ino ),
 			array( 'id' => $file_id ),
 			array( '%d' ),
 			array( '%d' )
 		);
-		wp_cache_delete( "file_{$file_id}", ISFM_File_Manager::CACHE_GROUP );
+		wp_cache_delete( "file_{$file_id}", ISOFT_FMF_File_Manager::CACHE_GROUP );
 	}
 
 	private function mark_healthy( int $file_id, int $download_id ): void {
 		global $wpdb;
 		$wpdb->update(
-			"{$wpdb->prefix}isfm_files",
+			"{$wpdb->prefix}isoft_fmf_files",
 			array(
 				'is_missing'    => 0,
 				'missing_since' => null,
@@ -104,14 +104,14 @@ class ISFM_Broken_Links_Ajax {
 			array( '%d', '%s' ),
 			array( '%d' )
 		);
-		ISFM_File_Manager::bust_cache_for( $download_id, $file_id );
+		ISOFT_FMF_File_Manager::bust_cache_for( $download_id, $file_id );
 
 		// Auto-republish only if we were the ones who unpublished it.
-		$auto = get_post_meta( $download_id, '_isfm_auto_unpublished_at', true );
+		$auto = get_post_meta( $download_id, '_isoft_fmf_auto_unpublished_at', true );
 		if ( $auto ) {
 			$still_broken = (int) $wpdb->get_var(
 				$wpdb->prepare(
-					"SELECT COUNT(*) FROM {$wpdb->prefix}isfm_files
+					"SELECT COUNT(*) FROM {$wpdb->prefix}isoft_fmf_files
 					  WHERE download_id = %d
 					    AND file_type   = 'local'
 					    AND is_missing  = 1",
@@ -125,7 +125,7 @@ class ISFM_Broken_Links_Ajax {
 						'post_status' => 'publish',
 					)
 				);
-				delete_post_meta( $download_id, '_isfm_auto_unpublished_at' );
+				delete_post_meta( $download_id, '_isoft_fmf_auto_unpublished_at' );
 			}
 		}
 	}
@@ -142,14 +142,14 @@ class ISFM_Broken_Links_Ajax {
 
 		$download_id  = (int) $file->download_id;
 		$expected_cat = $this->get_download_category_id( $download_id );
-		$expected_dir = $expected_cat ? isfm_category_folder_path( $expected_cat ) : '';
+		$expected_dir = $expected_cat ? isoft_fmf_category_folder_path( $expected_cat ) : '';
 
-		$candidate     = ISFM_File_Integrity::find_by_inode_anywhere( $file );
+		$candidate     = ISOFT_FMF_File_Integrity::find_by_inode_anywhere( $file );
 		$candidate_rel = null;
 		$candidate_cat = null;
 		if ( $candidate ) {
 			$candidate_rel = ltrim(
-				str_replace( '\\', '/', substr( $candidate, strlen( isfm_files_dir() ) ) ),
+				str_replace( '\\', '/', substr( $candidate, strlen( isoft_fmf_files_dir() ) ) ),
 				'/'
 			);
 			// Extract the category folder from the relative path.
@@ -183,7 +183,7 @@ class ISFM_Broken_Links_Ajax {
 		$file_id = isset( $_POST['file_id'] ) ? absint( $_POST['file_id'] ) : 0;
 		$file    = $this->get_file_or_die( $file_id );
 
-		$candidate = ISFM_File_Integrity::find_by_inode_anywhere( $file );
+		$candidate = ISOFT_FMF_File_Integrity::find_by_inode_anywhere( $file );
 		if ( ! $candidate ) {
 			wp_send_json_error( array( 'message' => __( 'Could not locate the file on disk.', 'isoft-fm-foundation' ) ), 404 );
 		}
@@ -193,7 +193,7 @@ class ISFM_Broken_Links_Ajax {
 			wp_send_json_error( array( 'message' => __( 'This download has no category — cannot determine target folder.', 'isoft-fm-foundation' ) ), 400 );
 		}
 
-		$target_dir = isfm_category_fs_path( $expected_cat );
+		$target_dir = isoft_fmf_category_fs_path( $expected_cat );
 		if ( ! is_dir( $target_dir ) ) {
 			wp_mkdir_p( $target_dir );
 		}
@@ -208,13 +208,13 @@ class ISFM_Broken_Links_Ajax {
 		}
 
 		$new_rel = ltrim(
-			str_replace( '\\', '/', substr( $target_abs, strlen( isfm_files_dir() ) ) ),
+			str_replace( '\\', '/', substr( $target_abs, strlen( isoft_fmf_files_dir() ) ) ),
 			'/'
 		);
 
 		global $wpdb;
 		$wpdb->update(
-			"{$wpdb->prefix}isfm_files",
+			"{$wpdb->prefix}isoft_fmf_files",
 			array(
 				'file_path' => $new_rel,
 				'file_name' => basename( $target_abs ),
@@ -242,12 +242,12 @@ class ISFM_Broken_Links_Ajax {
 		$download_id = (int) $file->download_id;
 
 		// Locate the cross-category candidate, infer the new category from its folder.
-		$candidate = ISFM_File_Integrity::find_by_inode_anywhere( $file );
+		$candidate = ISOFT_FMF_File_Integrity::find_by_inode_anywhere( $file );
 		if ( ! $candidate ) {
 			wp_send_json_error( array( 'message' => __( 'Could not locate the file on disk.', 'isoft-fm-foundation' ) ), 404 );
 		}
 		$candidate_rel = ltrim(
-			str_replace( '\\', '/', substr( $candidate, strlen( isfm_files_dir() ) ) ),
+			str_replace( '\\', '/', substr( $candidate, strlen( isoft_fmf_files_dir() ) ) ),
 			'/'
 		);
 		$new_cat_path  = dirname( $candidate_rel );
@@ -258,7 +258,7 @@ class ISFM_Broken_Links_Ajax {
 				array(
 					'message' => sprintf(
 						/* translators: %s: folder path */
-						__( 'No isfm_category term matches the folder "%s". Create the category first, then retry.', 'isoft-fm-foundation' ),
+						__( 'No isoft_fmf_category term matches the folder "%s". Create the category first, then retry.', 'isoft-fm-foundation' ),
 						$new_cat_path
 					),
 				),
@@ -271,7 +271,7 @@ class ISFM_Broken_Links_Ajax {
 		global $wpdb;
 		$others_broken = (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$wpdb->prefix}isfm_files
+				"SELECT COUNT(*) FROM {$wpdb->prefix}isoft_fmf_files
 				  WHERE download_id = %d
 				    AND file_type   = 'local'
 				    AND is_missing  = 1
@@ -287,7 +287,7 @@ class ISFM_Broken_Links_Ajax {
 			);
 		}
 
-		$new_dir = isfm_category_fs_path( $new_term->term_id );
+		$new_dir = isoft_fmf_category_fs_path( $new_term->term_id );
 		if ( ! is_dir( $new_dir ) ) {
 			wp_mkdir_p( $new_dir );
 		}
@@ -295,7 +295,7 @@ class ISFM_Broken_Links_Ajax {
 		// Move every other (healthy) file on the download into the new folder.
 		$siblings = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT * FROM {$wpdb->prefix}isfm_files
+				"SELECT * FROM {$wpdb->prefix}isoft_fmf_files
 				  WHERE download_id = %d
 				    AND file_type   = 'local'
 				    AND id         <> %d",
@@ -305,7 +305,7 @@ class ISFM_Broken_Links_Ajax {
 		) ?: array();
 
 		foreach ( $siblings as $sib ) {
-			$old_abs = isfm_files_dir() . '/' . $sib->file_path;
+			$old_abs = isoft_fmf_files_dir() . '/' . $sib->file_path;
 			if ( ! is_readable( $old_abs ) ) {
 				continue; // Already gone; we'd have refused earlier if it were flagged.
 			}
@@ -326,23 +326,23 @@ class ISFM_Broken_Links_Ajax {
 				wp_send_json_error( array( 'message' => __( 'Filesystem move failed during sibling move. No changes committed to the DB.', 'isoft-fm-foundation' ) ), 500 );
 			}
 			$new_rel = ltrim(
-				str_replace( '\\', '/', substr( $new_abs, strlen( isfm_files_dir() ) ) ),
+				str_replace( '\\', '/', substr( $new_abs, strlen( isoft_fmf_files_dir() ) ) ),
 				'/'
 			);
 			$wpdb->update(
-				"{$wpdb->prefix}isfm_files",
+				"{$wpdb->prefix}isoft_fmf_files",
 				array( 'file_path' => $new_rel ),
 				array( 'id' => (int) $sib->id ),
 				array( '%s' ),
 				array( '%d' )
 			);
 			$this->refresh_inode( (int) $sib->id, $new_abs );
-			ISFM_File_Manager::bust_cache_for( $download_id, (int) $sib->id );
+			ISOFT_FMF_File_Manager::bust_cache_for( $download_id, (int) $sib->id );
 		}
 
 		// The original missing file is already in the new folder — just update its row.
 		$wpdb->update(
-			"{$wpdb->prefix}isfm_files",
+			"{$wpdb->prefix}isoft_fmf_files",
 			array(
 				'file_path' => $candidate_rel,
 				'file_name' => basename( $candidate ),
@@ -354,7 +354,7 @@ class ISFM_Broken_Links_Ajax {
 		$this->refresh_inode( $file_id, $candidate );
 
 		// Reassign the post's taxonomy term.
-		wp_set_object_terms( $download_id, array( (int) $new_term->term_id ), 'isfm_category', false );
+		wp_set_object_terms( $download_id, array( (int) $new_term->term_id ), 'isoft_fmf_category', false );
 
 		$this->mark_healthy( $file_id, $download_id );
 
@@ -370,13 +370,13 @@ class ISFM_Broken_Links_Ajax {
 	}
 
 	/**
-	 * Walk isfm_category terms and find the one whose folder path matches $path.
+	 * Walk isoft_fmf_category terms and find the one whose folder path matches $path.
 	 * Linear but cheap — category counts are in the hundreds, not millions.
 	 */
 	private function find_term_by_folder_path( string $path ): ?object {
 		$terms = get_terms(
 			array(
-				'taxonomy'   => 'isfm_category',
+				'taxonomy'   => 'isoft_fmf_category',
 				'hide_empty' => false,
 			)
 		);
@@ -384,7 +384,7 @@ class ISFM_Broken_Links_Ajax {
 			return null;
 		}
 		foreach ( $terms as $term ) {
-			if ( isfm_category_folder_path( (int) $term->term_id ) === $path ) {
+			if ( isoft_fmf_category_folder_path( (int) $term->term_id ) === $path ) {
 				return $term;
 			}
 		}
@@ -401,12 +401,12 @@ class ISFM_Broken_Links_Ajax {
 		$file_id = isset( $_POST['file_id'] ) ? absint( $_POST['file_id'] ) : 0;
 		$file    = $this->get_file_or_die( $file_id );
 
-		$candidate = ISFM_File_Integrity::find_by_inode_anywhere( $file );
+		$candidate = ISOFT_FMF_File_Integrity::find_by_inode_anywhere( $file );
 		if ( ! $candidate ) {
 			wp_send_json_error( array( 'message' => __( 'Could not locate the file on disk.', 'isoft-fm-foundation' ) ), 404 );
 		}
 		$candidate_rel = ltrim(
-			str_replace( '\\', '/', substr( $candidate, strlen( isfm_files_dir() ) ) ),
+			str_replace( '\\', '/', substr( $candidate, strlen( isoft_fmf_files_dir() ) ) ),
 			'/'
 		);
 		$new_cat_path  = dirname( $candidate_rel );
@@ -416,7 +416,7 @@ class ISFM_Broken_Links_Ajax {
 				array(
 					'message' => sprintf(
 						/* translators: %s: folder path */
-						__( 'No isfm_category term matches the folder "%s". Create the category first, then retry.', 'isoft-fm-foundation' ),
+						__( 'No isoft_fmf_category term matches the folder "%s". Create the category first, then retry.', 'isoft-fm-foundation' ),
 						$new_cat_path
 					),
 				),
@@ -425,7 +425,7 @@ class ISFM_Broken_Links_Ajax {
 		}
 
 		$old_download_id = (int) $file->download_id;
-		$new_post_id     = isfm_create_draft_download(
+		$new_post_id     = isoft_fmf_create_draft_download(
 			array(
 				'title'       => $file->title ?: $file->file_name,
 				'description' => sprintf(
@@ -442,7 +442,7 @@ class ISFM_Broken_Links_Ajax {
 
 		global $wpdb;
 		$wpdb->update(
-			"{$wpdb->prefix}isfm_files",
+			"{$wpdb->prefix}isoft_fmf_files",
 			array(
 				'download_id' => $new_post_id,
 				'file_path'   => $candidate_rel,
@@ -453,7 +453,7 @@ class ISFM_Broken_Links_Ajax {
 			array( '%d' )
 		);
 		$this->refresh_inode( $file_id, $candidate );
-		ISFM_File_Manager::bust_cache_for( $old_download_id );
+		ISOFT_FMF_File_Manager::bust_cache_for( $old_download_id );
 		$this->mark_healthy( $file_id, $new_post_id );
 
 		// The OLD download may now be missing-only if this was its last file. Re-evaluate
@@ -489,7 +489,7 @@ class ISFM_Broken_Links_Ajax {
 		if ( ! $expected_cat ) {
 			wp_send_json_error( array( 'message' => __( 'This download has no category.', 'isoft-fm-foundation' ) ), 400 );
 		}
-		$target_dir = isfm_category_fs_path( $expected_cat );
+		$target_dir = isoft_fmf_category_fs_path( $expected_cat );
 		if ( ! is_dir( $target_dir ) ) {
 			wp_mkdir_p( $target_dir );
 		}
@@ -500,7 +500,7 @@ class ISFM_Broken_Links_Ajax {
 			$_FILES['replacement'], // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- wp_handle_upload validates.
 			array(
 				'test_form' => false,
-				'action'    => 'isfm_recover_reupload',
+				'action'    => 'isoft_fmf_recover_reupload',
 			)
 		);
 		if ( isset( $upload['error'] ) ) {
@@ -516,13 +516,13 @@ class ISFM_Broken_Links_Ajax {
 		$new_hash = hash_file( 'sha256', $target_abs ) ?: '';
 		$new_size = (int) filesize( $target_abs );
 		$new_rel  = ltrim(
-			str_replace( '\\', '/', substr( $target_abs, strlen( isfm_files_dir() ) ) ),
+			str_replace( '\\', '/', substr( $target_abs, strlen( isoft_fmf_files_dir() ) ) ),
 			'/'
 		);
 
 		global $wpdb;
 		$wpdb->update(
-			"{$wpdb->prefix}isfm_files",
+			"{$wpdb->prefix}isoft_fmf_files",
 			array(
 				'file_path' => $new_rel,
 				'file_size' => $new_size,
@@ -548,7 +548,7 @@ class ISFM_Broken_Links_Ajax {
 		$file_id = isset( $_POST['file_id'] ) ? absint( $_POST['file_id'] ) : 0;
 		$file    = $this->get_file_or_die( $file_id );
 
-		( new ISFM_File_Manager() )->delete_file( $file_id );
+		( new ISOFT_FMF_File_Manager() )->delete_file( $file_id );
 
 		// If that was the last missing file on the post, maybe republish.
 		$this->mark_healthy( $file_id, (int) $file->download_id );

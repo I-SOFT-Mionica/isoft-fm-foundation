@@ -18,10 +18,10 @@ export default function Edit( { attributes, setAttributes } ) {
 	const { category, includeSubcategories, tag, limit, orderby, order, layout, showSearch } = attributes;
 	const blockProps = useBlockProps();
 
-	// Fetch categories from the WP data store (hits /wp/v2/isfm_category)
+	// Fetch categories from the WP data store (hits /wp/v2/isoft_fmf_category)
 	const categories = useSelect(
 		( select ) =>
-			select( coreStore ).getEntityRecords( 'taxonomy', 'isfm_category', {
+			select( coreStore ).getEntityRecords( 'taxonomy', 'isoft_fmf_category', {
 				per_page: -1,
 				orderby: 'name',
 				order: 'asc',
@@ -33,7 +33,7 @@ export default function Edit( { attributes, setAttributes } ) {
 	// Fetch tags
 	const tags = useSelect(
 		( select ) =>
-			select( coreStore ).getEntityRecords( 'taxonomy', 'isfm_tag', {
+			select( coreStore ).getEntityRecords( 'taxonomy', 'isoft_fmf_tag', {
 				per_page: 100,
 				orderby: 'name',
 				order: 'asc',

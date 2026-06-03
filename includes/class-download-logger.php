@@ -1,13 +1,13 @@
 <?php
 defined( 'ABSPATH' ) || exit;
 
-class ISFM_Download_Logger {
+class ISOFT_FMF_Download_Logger {
 
 	private string $table;
 
 	public function __construct() {
 		global $wpdb;
-		$this->table = $wpdb->prefix . 'isfm_download_log';
+		$this->table = $wpdb->prefix . 'isoft_fmf_download_log';
 	}
 
 	/**
@@ -18,7 +18,7 @@ class ISFM_Download_Logger {
 	public function log( int $download_id, int $file_id ): ?int {
 		global $wpdb;
 
-		$settings = isfm_get_settings();
+		$settings = isoft_fmf_get_settings();
 		if ( ! $settings['enable_logging'] ) {
 			return null;
 		}
@@ -50,7 +50,7 @@ class ISFM_Download_Logger {
 			array_push( $format, '%s', '%s', '%s' );
 		}
 
-		$data = apply_filters( 'isfm_log_entry_data', $data );
+		$data = apply_filters( 'isoft_fmf_log_entry_data', $data );
 
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Write-path logger on custom log tables; never cached.
 		if ( false === $wpdb->insert( $this->table, $data, $format ) ) {
@@ -62,7 +62,7 @@ class ISFM_Download_Logger {
 		// Increment daily bucket — used by HOT cron, avoids full log scans.
 		$wpdb->query(
 			$wpdb->prepare(
-				"INSERT INTO {$wpdb->prefix}isfm_download_daily (download_id, log_date, count)
+				"INSERT INTO {$wpdb->prefix}isoft_fmf_download_daily (download_id, log_date, count)
 				 VALUES (%d, %s, 1)
 				 ON DUPLICATE KEY UPDATE count = count + 1",
 				$download_id,
@@ -82,7 +82,7 @@ class ISFM_Download_Logger {
 	public function purge_old_logs(): int {
 		global $wpdb;
 
-		$days = (int) isfm_get_settings()['log_retention_days'];
+		$days = (int) isoft_fmf_get_settings()['log_retention_days'];
 		if ( 0 === $days ) {
 			return 0;
 		}
@@ -97,7 +97,7 @@ class ISFM_Download_Logger {
 		);
 
 		if ( $deleted > 0 ) {
-			do_action( 'isfm_log_purged', $deleted );
+			do_action( 'isoft_fmf_log_purged', $deleted );
 		}
 
 		return $deleted;

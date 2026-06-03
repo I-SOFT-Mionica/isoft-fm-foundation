@@ -3,20 +3,20 @@
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Locals passed in by the including class; not actual globals. ?>
 <table class="form-table">
 	<tr>
-		<th><label for="isfm-version"><?php esc_html_e( 'Version', 'isoft-fm-foundation' ); ?></label></th>
-		<td><input type="text" name="_isfm_version" id="isfm-version" value="<?php echo esc_attr( $version ); ?>" class="regular-text" placeholder="1.0.0" /></td>
+		<th><label for="isoft-fmf-version"><?php esc_html_e( 'Version', 'isoft-fm-foundation' ); ?></label></th>
+		<td><input type="text" name="_isoft_fmf_version" id="isoft-fmf-version" value="<?php echo esc_attr( $version ); ?>" class="regular-text" placeholder="1.0.0" /></td>
 	</tr>
 	<tr>
-		<th><label for="isfm-changelog"><?php esc_html_e( 'Changelog', 'isoft-fm-foundation' ); ?></label></th>
+		<th><label for="isoft-fmf-changelog"><?php esc_html_e( 'Changelog', 'isoft-fm-foundation' ); ?></label></th>
 		<td>
-			<textarea name="_isfm_changelog" id="isfm-changelog" class="widefat" rows="5"><?php echo esc_textarea( $changelog ); ?></textarea>
+			<textarea name="_isoft_fmf_changelog" id="isoft-fmf-changelog" class="widefat" rows="5"><?php echo esc_textarea( $changelog ); ?></textarea>
 			<p class="description"><?php esc_html_e( "What's new in this version.", 'isoft-fm-foundation' ); ?></p>
 		</td>
 	</tr>
 	<tr>
-		<th><label for="isfm-license"><?php esc_html_e( 'License', 'isoft-fm-foundation' ); ?></label></th>
+		<th><label for="isoft-fmf-license"><?php esc_html_e( 'License', 'isoft-fm-foundation' ); ?></label></th>
 		<td>
-			<select name="_isfm_license_id" id="isfm-license">
+			<select name="_isoft_fmf_license_id" id="isoft-fmf-license">
 				<option value="0"><?php esc_html_e( '— None —', 'isoft-fm-foundation' ); ?></option>
 				<?php foreach ( $licenses as $lic ) : ?>
 					<option value="<?php echo esc_attr( $lic->id ); ?>" <?php selected( $license_id, $lic->id ); ?>>
@@ -31,31 +31,31 @@
 		<th><?php esc_html_e( 'Require Agreement', 'isoft-fm-foundation' ); ?></th>
 		<td>
 			<label>
-				<input type="checkbox" name="_isfm_require_agree" value="1" <?php checked( $require_agree ); ?> />
+				<input type="checkbox" name="_isoft_fmf_require_agree" value="1" <?php checked( $require_agree ); ?> />
 				<?php esc_html_e( 'Require user to agree before downloading', 'isoft-fm-foundation' ); ?>
 			</label>
 			<p class="description"><?php esc_html_e( 'Uses the assigned license full text, or the custom text below.', 'isoft-fm-foundation' ); ?></p>
 		</td>
 	</tr>
 	<tr>
-		<th><label for="isfm-agree-text"><?php esc_html_e( 'Agreement Text', 'isoft-fm-foundation' ); ?></label></th>
+		<th><label for="isoft-fmf-agree-text"><?php esc_html_e( 'Agreement Text', 'isoft-fm-foundation' ); ?></label></th>
 		<td>
-			<textarea name="_isfm_agree_text" id="isfm-agree-text" class="widefat" rows="4"><?php echo esc_textarea( $agree_text ); ?></textarea>
+			<textarea name="_isoft_fmf_agree_text" id="isoft-fmf-agree-text" class="widefat" rows="4"><?php echo esc_textarea( $agree_text ); ?></textarea>
 			<p class="description"><?php esc_html_e( 'Shown in the agreement modal if no license is assigned.', 'isoft-fm-foundation' ); ?></p>
 		</td>
 	</tr>
 	<tr>
-		<th><label for="isfm-author-name"><?php esc_html_e( 'Author Name', 'isoft-fm-foundation' ); ?></label></th>
-		<td><input type="text" name="_isfm_author_name" id="isfm-author-name" value="<?php echo esc_attr( $author_name ); ?>" class="regular-text" /></td>
+		<th><label for="isoft-fmf-author-name"><?php esc_html_e( 'Author Name', 'isoft-fm-foundation' ); ?></label></th>
+		<td><input type="text" name="_isoft_fmf_author_name" id="isoft-fmf-author-name" value="<?php echo esc_attr( $author_name ); ?>" class="regular-text" /></td>
 	</tr>
 	<tr>
-		<th><label for="isfm-author-url"><?php esc_html_e( 'Author URL', 'isoft-fm-foundation' ); ?></label></th>
-		<td><input type="url" name="_isfm_author_url" id="isfm-author-url" value="<?php echo esc_attr( $author_url ); ?>" class="regular-text" placeholder="https://…" /></td>
+		<th><label for="isoft-fmf-author-url"><?php esc_html_e( 'Author URL', 'isoft-fm-foundation' ); ?></label></th>
+		<td><input type="url" name="_isoft_fmf_author_url" id="isoft-fmf-author-url" value="<?php echo esc_attr( $author_url ); ?>" class="regular-text" placeholder="https://…" /></td>
 	</tr>
 	<tr>
-		<th><label for="isfm-date-published"><?php esc_html_e( 'Date Published', 'isoft-fm-foundation' ); ?></label></th>
+		<th><label for="isoft-fmf-date-published"><?php esc_html_e( 'Date Published', 'isoft-fm-foundation' ); ?></label></th>
 		<td>
-			<input type="date" name="_isfm_date_published" id="isfm-date-published" value="<?php echo esc_attr( $date_published ); ?>" />
+			<input type="date" name="_isoft_fmf_date_published" id="isoft-fmf-date-published" value="<?php echo esc_attr( $date_published ); ?>" />
 			<p class="description"><?php esc_html_e( 'Original publication date of the document (may differ from the WordPress post date).', 'isoft-fm-foundation' ); ?></p>
 		</td>
 	</tr>

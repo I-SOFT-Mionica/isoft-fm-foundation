@@ -1,7 +1,7 @@
 <?php
 /**
- * Archive template for the 'isfm_file' post type.
- * Theme-overridable: place a copy at {theme}/isoft-fm-foundation/archive-isfm_file.php
+ * Archive template for the 'isoft_fmf_file' post type.
+ * Theme-overridable: place a copy at {theme}/isoft-fm-foundation/archive-isoft_fmf_file.php
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -9,22 +9,22 @@ defined( 'ABSPATH' ) || exit;
 
 get_header();
 
-$settings = isfm_get_settings();
+$settings = isoft_fmf_get_settings();
 ?>
-<div class="isfm-archive">
+<div class="isoft-fmf-archive">
 	<?php if ( have_posts() ) : ?>
-		<header class="isfm-archive__header">
+		<header class="isoft-fmf-archive__header">
 			<h1 class="page-title"><?php esc_html_e( 'Downloads', 'isoft-fm-foundation' ); ?></h1>
 		</header>
 
-		<div class="isfm-archive__content isfm-grid isfm-grid--cols-3">
+		<div class="isoft-fmf-archive__content isoft-fmf-grid isoft-fmf-grid--cols-3">
 			<?php
 			while ( have_posts() ) :
 				the_post();
 				?>
 				<?php
 				$post = get_post();
-				require ISFM_PLUGIN_DIR . 'public/views/download-card.php';
+				require ISOFT_FMF_PLUGIN_DIR . 'public/views/download-card.php';
 				?>
 			<?php endwhile; ?>
 		</div>

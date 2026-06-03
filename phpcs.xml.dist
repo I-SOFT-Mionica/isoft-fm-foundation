@@ -40,7 +40,7 @@
 		<exclude name="WordPress.PHP.YodaConditions.NotYoda"/>
 		<exclude name="Universal.Operators.DisallowShortTernary.Found"/>
 
-		<!-- Custom capabilities — the plugin registers its own caps via ISFM_Activator. -->
+		<!-- Custom capabilities — the plugin registers its own caps via ISOFT_FMF_Activator. -->
 		<exclude name="WordPress.WP.Capabilities.Unknown"/>
 
 		<!-- Direct DB queries + caching: this is a download/log plugin; data freshness matters. Individual queries still use prepare(). -->
@@ -64,16 +64,15 @@
 		<exclude name="Universal.NamingConventions.NoReservedKeywordParameterNames"/>
 	</rule>
 
-	<!-- Allow short prefix ISFM_ / isfm_ for classes, functions, options, etc. -->
+	<!-- Plugin prefix list. ISOFT_FMF_ / isoft_fmf_ is 8 chars (well past the 4-char minimum). -->
 	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
 		<properties>
 			<property name="prefixes" type="array">
-				<element value="ISFM_"/>
-				<element value="isfm_"/>
-				<element value="ISFM"/>
+				<element value="ISOFT_FMF_"/>
+				<element value="isoft_fmf_"/>
+				<element value="ISOFT_FMF"/>
 			</property>
 		</properties>
-		<exclude name="WordPress.NamingConventions.PrefixAllGlobals.ShortPrefixPassed"/>
 	</rule>
 
 	<!-- View/template files are included from class methods; their "globals" are actually local vars. -->

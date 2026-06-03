@@ -2,16 +2,16 @@
 ( function () {
 	'use strict';
 
-	var overlay = document.getElementById( 'isfm-agree-overlay' );
+	var overlay = document.getElementById( 'isoft-fmf-agree-overlay' );
 	if ( ! overlay ) {
 		return;
 	}
 
-	var title       = document.getElementById( 'isfm-agree-title' );
-	var body        = document.getElementById( 'isfm-agree-body' );
-	var checkbox    = document.getElementById( 'isfm-agree-checkbox' );
-	var proceed     = document.getElementById( 'isfm-agree-proceed' );
-	var cancel      = document.getElementById( 'isfm-agree-cancel' );
+	var title       = document.getElementById( 'isoft-fmf-agree-title' );
+	var body        = document.getElementById( 'isoft-fmf-agree-body' );
+	var checkbox    = document.getElementById( 'isoft-fmf-agree-checkbox' );
+	var proceed     = document.getElementById( 'isoft-fmf-agree-proceed' );
+	var cancel      = document.getElementById( 'isoft-fmf-agree-cancel' );
 	var pendingHref = '';
 
 	// -------------------------------------------------------------------------
@@ -20,7 +20,7 @@
 	document.addEventListener(
 		'click',
 		function ( e ) {
-			var btn = e.target.closest( '.isfm-requires-agree' );
+			var btn = e.target.closest( '.isoft-fmf-requires-agree' );
 			if ( ! btn ) {
 				return;
 			}

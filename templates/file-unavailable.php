@@ -2,20 +2,20 @@
 /**
  * End-user page shown when a requested download file is missing from disk.
  *
- * Set by ISFM_File_Integrity::render_unavailable_page():
- *   $isfm_unavailable_post_id  int
- *   $isfm_unavailable_mode     'unpublished'|'partial'
+ * Set by ISOFT_FMF_File_Integrity::render_unavailable_page():
+ *   $isoft_fmf_unavailable_post_id  int
+ *   $isoft_fmf_unavailable_mode     'unpublished'|'partial'
  */
 defined( 'ABSPATH' ) || exit;
 
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Locals passed in by the including class; not actual globals.
 
-$post_id = isset( $isfm_unavailable_post_id ) ? (int) $isfm_unavailable_post_id : 0;
-$mode    = isset( $isfm_unavailable_mode ) ? (string) $isfm_unavailable_mode : 'partial';
+$post_id = isset( $isoft_fmf_unavailable_post_id ) ? (int) $isoft_fmf_unavailable_post_id : 0;
+$mode    = isset( $isoft_fmf_unavailable_mode ) ? (string) $isoft_fmf_unavailable_mode : 'partial';
 
 $post_title   = $post_id ? get_the_title( $post_id ) : '';
 $admin_email  = (string) get_option( 'admin_email' );
-$archive_url  = get_post_type_archive_link( 'isfm_file' ) ?: home_url( '/' );
+$archive_url  = get_post_type_archive_link( 'isoft_fmf_file' ) ?: home_url( '/' );
 $mail_subject = sprintf(
 	/* translators: 1: post title, 2: post id */
 	__( 'I-Soft File Manager: Foundation: file unavailable — %1$s (#%2$d)', 'isoft-fm-foundation' ),
@@ -33,8 +33,8 @@ $mailto = 'mailto:' . rawurlencode( $admin_email )
 
 get_header();
 ?>
-<main id="primary" class="site-main isfm-unavailable">
-	<div class="isfm-unavailable__inner" style="max-width:640px;margin:3em auto;padding:2em;text-align:center;">
+<main id="primary" class="site-main isoft-fmf-unavailable">
+	<div class="isoft-fmf-unavailable__inner" style="max-width:640px;margin:3em auto;padding:2em;text-align:center;">
 		<h1 style="font-size:1.6em;margin-bottom:.6em;">
 			<?php esc_html_e( 'This file is temporarily unavailable', 'isoft-fm-foundation' ); ?>
 		</h1>
