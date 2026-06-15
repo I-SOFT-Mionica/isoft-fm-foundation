@@ -55,5 +55,13 @@
 			<p><?php esc_html_e( 'Sync files from Google Shared Drives. Departments drop files into a shared folder — Orbit picks them up and creates draft downloads for review.', 'isoft-fm-foundation' ); ?></p>
 			<p><a href="https://isoft.rs/orbit" target="_blank" rel="noopener" class="button" aria-disabled="true"><?php esc_html_e( 'Learn More', 'isoft-fm-foundation' ); ?></a></p>
 		</div>
+		<div class="card" style="max-width:360px;">
+			<h3>
+				I-Soft File Manager: Foundation Nomad
+				<span class="isoft-fmf-soon-badge"><?php esc_html_e( 'Coming soon', 'isoft-fm-foundation' ); ?></span>
+			</h3>
+			<p><?php esc_html_e( 'One-shot importer from jDownloads. Reads the legacy categories, downloads, files, and counter rows directly from the database and rebuilds them in the Foundation data model. Preserves slug paths so URLs and category folder names stay stable across the cutover.', 'isoft-fm-foundation' ); ?></p>
+			<p><a href="https://isoft.rs/nomad" target="_blank" rel="noopener" class="button" aria-disabled="true"><?php esc_html_e( 'Learn More', 'isoft-fm-foundation' ); ?></a></p>
+		</div>
 	</div>
 </div>
