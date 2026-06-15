@@ -12,6 +12,7 @@
 .editorconfig
 .DS_Store
 Thumbs.db
+.wordpress-org
 
 # ── Developer tooling ──────────────────────────────────────────────────
 node_modules
