@@ -2,6 +2,13 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.10.0] — Unreleased
+
+Feature batch for the v1.0 push. Each item is shipping as its own PR; this section accumulates bullets as they land.
+
+### Added
+- **Nomad addon announcement.** New "I-Soft File Manager: Foundation Nomad" entry on the Extensions tab (alongside Sentinel + Orbit) describing the planned one-shot jDownloads importer. The readme FAQ that previously claimed "a migration tool is planned but not yet shipped" now points at Nomad explicitly. Splitting the importer into its own plugin keeps Foundation core lean (jDownloads-aware code only runs when Nomad is installed) and gives the importer its own WP.org release cycle.
+
 ## [0.9.1] — 2026-06-04
 
 Plugin prefix bumped from `isfm` (4 chars) to `isoft_fmf` (8 chars). Driven by the round-3 reviewer comment ("don't try to use two- or three-letter prefixes anymore. We host almost 100,000 plugins on WordPress.org alone... you're likely to encounter conflicts"). `isfm` met the stated 4-char minimum but the reviewer's tone telegraphed that the floor and the comfortable target aren't the same number.

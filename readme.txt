@@ -41,6 +41,7 @@ This design exists so automation tools can sync files in and out without having 
 
 * **I-Soft File Manager: Foundation Sentinel** — server-side automation. Monitors category folders for new files, creates draft download entries, and supports rclone mirroring, SFTP bulk upload, and WP-cron folder scans.
 * **I-Soft File Manager: Foundation Orbit** — Google Shared Drive sync. Departments drop files into shared folders; Orbit imports them as drafts for review.
+* **I-Soft File Manager: Foundation Nomad** — one-shot importer from jDownloads. Reads the legacy tables directly and rebuilds categories, downloads, files, and counters in Foundation's data model, preserving the slug tree so URLs and category folder names stay stable.
 
 == Installation ==
 
@@ -66,7 +67,7 @@ The Media Library flattens everything into `wp-content/uploads/YYYY/MM/`, which 
 
 = Can I migrate from jDownloads? =
 
-A migration tool is planned but not yet shipped. The data model is intentionally close to jDownloads to make this possible.
+Yes — but via a separate companion plugin, **I-Soft File Manager: Foundation Nomad** (coming soon). Foundation's data model is intentionally close to jDownloads to make a one-shot import practical; Nomad reads the legacy tables directly and rebuilds the category tree, downloads, files, and counters into Foundation, preserving slug paths so existing URLs keep working. Watch the Extensions tab in Settings for the release.
 
 = How do I restrict a user to only some categories? =
 
