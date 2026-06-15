@@ -61,6 +61,12 @@ class ISOFT_FMF_Download_Handler {
 			}
 		}
 
+		// User-agent blocklist (scrapers, known bad bots).
+		if ( isoft_fmf_user_agent_blocked() ) {
+			do_action( 'isoft_fmf_user_agent_blocked', isoft_fmf_client_ip(), $download_id );
+			wp_die( esc_html__( 'Your client is not permitted to download files from this site.', 'isoft-fm-foundation' ), 403 );
+		}
+
 		// Rate limit — per-IP throttle using short-lived transients.
 		$rate_limit = (int) get_option( 'isoft_fmf_rate_limit_per_hour', 0 );
 		if ( $rate_limit > 0 ) {
