@@ -76,6 +76,7 @@ add_action(
 
 		// Download routing (frontend)
 		( new ISOFT_FMF_Download_Handler() )->register_hooks();
+		( new ISOFT_FMF_Bundle_Handler() )->register_hooks();
 
 		// Access control — query-level RBAC filtering on frontend.
 		( new ISOFT_FMF_Access_Control() )->register_hooks();

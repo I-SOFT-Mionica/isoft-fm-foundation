@@ -87,6 +87,9 @@
 	margin: 0 0 .25em;
 }
 
+.isoft-fmf-bundle-btn-wrap { margin: .25em 0 .5em; }
+.isoft-fmf-bundle-btn .dashicons { vertical-align: middle; margin-right: .25em; }
+
 .isoft-fmf-file-item {
 	display: flex;
 	align-items: center;

@@ -83,4 +83,44 @@ class HelpersTest extends WP_UnitTestCase {
 
 		$this->assertSame( 'skupstina/saziv-2025', isoft_fmf_category_folder_path( $child['term_id'] ) );
 	}
+
+	public function test_get_download_url_includes_id_and_nonce(): void {
+		$url = isoft_fmf_get_download_url( 42 );
+		$this->assertStringContainsString( 'isoft_fmf_download=42', $url );
+		$this->assertStringContainsString( 'nonce=', $url );
+		$parts = wp_parse_url( $url );
+		parse_str( $parts['query'] ?? '', $args );
+		$this->assertSame( 1, wp_verify_nonce( $args['nonce'] ?? '', 'isoft_fmf_download_42' ) );
+	}
+
+	public function test_get_bundle_url_uses_distinct_nonce_action_from_download(): void {
+		$url = isoft_fmf_get_bundle_url( 42 );
+		$this->assertStringContainsString( 'isoft_fmf_bundle=42', $url );
+		$parts = wp_parse_url( $url );
+		parse_str( $parts['query'] ?? '', $args );
+
+		// Bundle nonce verifies against isoft_fmf_bundle_<id>, not the download nonce.
+		$this->assertSame( 1, wp_verify_nonce( $args['nonce'] ?? '', 'isoft_fmf_bundle_42' ) );
+		$this->assertFalse( wp_verify_nonce( $args['nonce'] ?? '', 'isoft_fmf_download_42' ) );
+	}
+
+	public function test_client_ip_returns_null_when_no_headers_set(): void {
+		foreach ( array( 'HTTP_CF_CONNECTING_IP', 'HTTP_X_FORWARDED_FOR', 'HTTP_X_REAL_IP', 'REMOTE_ADDR' ) as $h ) {
+			unset( $_SERVER[ $h ] );
+		}
+		$this->assertNull( isoft_fmf_client_ip() );
+	}
+
+	public function test_client_ip_prefers_cloudflare_then_xff_then_remote(): void {
+		$_SERVER['REMOTE_ADDR']           = '10.0.0.1';
+		$_SERVER['HTTP_X_FORWARDED_FOR']  = '203.0.113.7, 10.0.0.1';
+		$_SERVER['HTTP_CF_CONNECTING_IP'] = '198.51.100.4';
+		$this->assertSame( '198.51.100.4', isoft_fmf_client_ip() );
+
+		unset( $_SERVER['HTTP_CF_CONNECTING_IP'] );
+		$this->assertSame( '203.0.113.7', isoft_fmf_client_ip() );
+
+		unset( $_SERVER['HTTP_X_FORWARDED_FOR'] );
+		$this->assertSame( '10.0.0.1', isoft_fmf_client_ip() );
+	}
 }

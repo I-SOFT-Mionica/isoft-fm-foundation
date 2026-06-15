@@ -156,6 +156,25 @@
 					<label><input type="checkbox" name="isoft_fmf_show_date" value="1" <?php checked( get_option( 'isoft_fmf_show_date', 1 ) ); ?> /> <?php esc_html_e( 'Date', 'isoft-fm-foundation' ); ?></label>
 				</td>
 			</tr>
+			<tr>
+				<th><?php esc_html_e( 'ZIP Bundle', 'isoft-fm-foundation' ); ?></th>
+				<td>
+					<label>
+						<input type="checkbox" name="isoft_fmf_enable_zip_bundle" value="1" <?php checked( get_option( 'isoft_fmf_enable_zip_bundle', 0 ) ); ?>
+							<?php disabled( ! class_exists( 'ZipArchive' ) ); ?> />
+						<?php esc_html_e( 'Show a "Download all as ZIP" button on multi-file downloads', 'isoft-fm-foundation' ); ?>
+					</label>
+					<?php if ( ! class_exists( 'ZipArchive' ) ) : ?>
+						<p class="description" style="color:#b32d2e;">
+							<?php esc_html_e( 'Requires the PHP zip extension. Ask your host to install php-zip (or rebuild PHP with --enable-zip) to use this feature.', 'isoft-fm-foundation' ); ?>
+						</p>
+					<?php else : ?>
+						<p class="description">
+							<?php esc_html_e( 'Only local files are bundled — external-URL files are skipped. Each bundle counts as one rate-limit hit.', 'isoft-fm-foundation' ); ?>
+						</p>
+					<?php endif; ?>
+				</td>
+			</tr>
 		</table>
 
 		<hr>
