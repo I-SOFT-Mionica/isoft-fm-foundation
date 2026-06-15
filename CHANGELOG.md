@@ -8,6 +8,11 @@ Feature batch for the v1.0 push. Each item is shipping as its own PR; this secti
 
 ### Added
 - **Nomad addon announcement.** New "I-Soft File Manager: Foundation Nomad" entry on the Extensions tab (alongside Sentinel + Orbit) describing the planned one-shot jDownloads importer. The readme FAQ that previously claimed "a migration tool is planned but not yet shipped" now points at Nomad explicitly. Splitting the importer into its own plugin keeps Foundation core lean (jDownloads-aware code only runs when Nomad is installed) and gives the importer its own WP.org release cycle.
+- **ZIP bundle for multi-file downloads.** New `ISOFT_FMF_Bundle_Handler` serves every local file attached to a download as a single archive at `?isoft_fmf_bundle=<post_id>&nonce=<...>`. Off by default; toggle is on Settings → Display ("Show a 'Download all as ZIP' button on multi-file downloads"). When enabled, multi-file cards render a button above the file list: `Download all (N files, X MB) as ZIP`. External-URL files are skipped (can't archive a URL); missing files are skipped; per-file basename collisions are deduplicated with the file ID. Reuses the existing access-control, hotlink, and rate-limit checks — one bundle counts as one rate-limit hit and produces one audit-log entry with `file_id = 0`. New `isoft_fmf_before_bundle_download` and `isoft_fmf_after_bundle_download` actions plus an `isoft_fmf_bundle_headers` filter for hosts that need custom Content-Disposition. Requires the PHP `zip` extension — the Settings checkbox is disabled with a red explainer when ZipArchive isn't available, and the button is hidden on the front end in the same case.
+
+### Changed
+- **`isoft_fmf_client_ip()` extracted to a public helper** in `includes/functions.php`. The download and bundle handlers now share one IP-detection path (Cloudflare → X-Forwarded-For → X-Real-IP → REMOTE_ADDR) instead of carrying duplicate private methods. The pre-extract copy in `ISOFT_FMF_Download_Handler` is removed.
+- **`isoft_fmf_get_bundle_url( $download_id )`** added next to `isoft_fmf_get_download_url( $file_id )` for consistency.
 
 ## [0.9.1] — 2026-06-04
 

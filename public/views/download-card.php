@@ -24,6 +24,18 @@ $license    = ( $require_agree && $license_id ) ? ( new ISOFT_FMF_License_Manage
 $agree_text = $license ? wp_kses_post( $license->full_text ) : wp_kses_post( (string) get_post_meta( $post->ID, '_isoft_fmf_agree_text', true ) );
 $btn_text   = $settings['default_button_text'] ?: __( 'Download', 'isoft-fm-foundation' );
 
+// ZIP-bundle button is opt-in via Settings → Display and only renders
+// when there are 2+ local files the user can actually access. External
+// files are skipped (can't ZIP a URL).
+$bundle_enabled   = $can_access
+	&& get_option( 'isoft_fmf_enable_zip_bundle', 0 )
+	&& class_exists( 'ZipArchive' );
+$bundleable_files = $bundle_enabled
+	? array_filter( $files, fn( $f ): bool => 'external' !== $f->file_type && empty( $f->is_missing ) )
+	: array();
+$show_bundle_btn  = $bundle_enabled && count( $bundleable_files ) >= 2;
+$bundle_size      = $show_bundle_btn ? array_sum( array_column( $bundleable_files, 'file_size' ) ) : 0;
+
 ?>
 <article class="isoft-fmf-download-card" id="isoft-fmf-download-<?php echo esc_attr( $post->ID ); ?>">
 
@@ -34,6 +46,23 @@ $btn_text   = $settings['default_button_text'] ?: __( 'Download', 'isoft-fm-foun
 			<span class="isoft-fmf-badge isoft-fmf-badge--hot">HOT</span>
 		<?php endif; ?>
 	</h3>
+	<?php endif; ?>
+
+	<?php if ( $show_bundle_btn ) : ?>
+	<div class="isoft-fmf-bundle-btn-wrap">
+		<a href="<?php echo esc_url( isoft_fmf_get_bundle_url( (int) $post->ID ) ); ?>"
+			class="wp-element-button isoft-fmf-bundle-btn">
+			<span class="dashicons dashicons-download" aria-hidden="true"></span>
+			<?php
+			printf(
+				/* translators: 1: number of files, 2: total size of those files */
+				esc_html__( 'Download all (%1$d files, %2$s) as ZIP', 'isoft-fm-foundation' ),
+				count( $bundleable_files ),
+				esc_html( size_format( $bundle_size ) )
+			);
+			?>
+		</a>
+	</div>
 	<?php endif; ?>
 
 	<?php

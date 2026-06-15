@@ -64,10 +64,10 @@ class ISOFT_FMF_Download_Handler {
 		// Rate limit — per-IP throttle using short-lived transients.
 		$rate_limit = (int) get_option( 'isoft_fmf_rate_limit_per_hour', 0 );
 		if ( $rate_limit > 0 ) {
-			$ip_hash = 'isoft_fmf_rl_' . md5( $this->client_ip() ?? 'unknown' );
+			$ip_hash = 'isoft_fmf_rl_' . md5( isoft_fmf_client_ip() ?? 'unknown' );
 			$hits    = (int) get_transient( $ip_hash );
 			if ( $hits >= $rate_limit ) {
-				do_action( 'isoft_fmf_rate_limit_exceeded', $this->client_ip(), $rate_limit );
+				do_action( 'isoft_fmf_rate_limit_exceeded', isoft_fmf_client_ip(), $rate_limit );
 				wp_die( esc_html__( 'Download limit exceeded. Please try again later.', 'isoft-fm-foundation' ), 429 );
 			}
 			set_transient( $ip_hash, $hits + 1, HOUR_IN_SECONDS );
@@ -168,22 +168,6 @@ class ISOFT_FMF_Download_Handler {
 		foreach ( $headers as $name => $value ) {
 			header( "{$name}: {$value}" );
 		}
-	}
-
-	private function client_ip(): ?string {
-		foreach ( array( 'HTTP_CF_CONNECTING_IP', 'HTTP_X_FORWARDED_FOR', 'HTTP_X_REAL_IP', 'REMOTE_ADDR' ) as $header ) {
-			if ( empty( $_SERVER[ $header ] ) ) {
-				continue;
-			}
-			$ip = sanitize_text_field( wp_unslash( $_SERVER[ $header ] ) );
-			if ( str_contains( $ip, ',' ) ) {
-				$ip = trim( explode( ',', $ip )[0] );
-			}
-			if ( filter_var( $ip, FILTER_VALIDATE_IP ) ) {
-				return $ip;
-			}
-		}
-		return null;
 	}
 
 	private function resolve_path( object $file ): ?string {

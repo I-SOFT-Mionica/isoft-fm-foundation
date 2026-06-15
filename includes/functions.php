@@ -626,3 +626,38 @@ function isoft_fmf_get_download_url( int $file_id ): string {
 		home_url( '/' )
 	);
 }
+
+/**
+ * Build a secure, nonce-protected URL that streams every local file
+ * attached to the given download as a single ZIP archive.
+ */
+function isoft_fmf_get_bundle_url( int $download_id ): string {
+	return add_query_arg(
+		array(
+			'isoft_fmf_bundle' => $download_id,
+			'nonce'            => wp_create_nonce( 'isoft_fmf_bundle_' . $download_id ),
+		),
+		home_url( '/' )
+	);
+}
+
+/**
+ * Best-effort client IP — checks reverse-proxy headers (Cloudflare,
+ * generic X-Forwarded-For, etc.) before falling back to REMOTE_ADDR.
+ * Returns null if no header parses as a valid IP.
+ */
+function isoft_fmf_client_ip(): ?string {
+	foreach ( array( 'HTTP_CF_CONNECTING_IP', 'HTTP_X_FORWARDED_FOR', 'HTTP_X_REAL_IP', 'REMOTE_ADDR' ) as $header ) {
+		if ( empty( $_SERVER[ $header ] ) ) {
+			continue;
+		}
+		$ip = sanitize_text_field( wp_unslash( $_SERVER[ $header ] ) );
+		if ( str_contains( $ip, ',' ) ) {
+			$ip = trim( explode( ',', $ip )[0] );
+		}
+		if ( filter_var( $ip, FILTER_VALIDATE_IP ) ) {
+			return $ip;
+		}
+	}
+	return null;
+}
