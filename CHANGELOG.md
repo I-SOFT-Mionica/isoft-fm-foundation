@@ -2,6 +2,12 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.10.2] — 2026-06-16
+
+### Fixed
+- **Category Grid block "Show children of" picker hangs on the spinner.** The block fetched top-level categories with `getEntityRecords( 'taxonomy', 'isoft_fmf_category', { parent: 0, ... } )`. WP's core-data resolver memoises queries by serialised params and has known quirks with numeric-zero keys — depending on the WP / Gutenberg version, either the resolver doesn't fire or the response never lands in the cache slot the selector reads. Either way the selector returns `undefined` forever and the `! topCategories` check keeps the spinner up. The Download List block uses the same REST endpoint without the `parent: 0` filter and works, which confirmed where the differential was. Fix: drop the REST-side filter, fetch all categories in one call, filter top-level client-side. The block also surfaces an empty-state message ("No top-level categories found…") when the site has no categories at all, so the panel stops being indistinguishable from "still loading."
+- Bundled blocks rebuilt to reflect the source change (`npm run build`); `blocks/build/category-grid.js` regenerated.
+
 ## [0.10.1] — 2026-06-16
 
 ### Fixed

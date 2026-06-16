@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.0
 Requires PHP: 8.4
-Stable tag: 0.10.1
+Stable tag: 0.10.2
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -161,6 +161,9 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 5. Download handler settings — security, logging, and serve method.
 
 == Changelog ==
+
+= 0.10.2 =
+* **Fixed: Category Grid block stuck on the loading spinner** for the "Show children of" picker. The block fetched top-level terms via a REST query with `parent: 0`, which trips a known core-data resolver quirk around numeric-zero query keys — the selector returned undefined forever. Switched to fetching all categories in one call (same as the Download List block) and filtering top-level on the client. Also added a "No top-level categories found" message so the panel surfaces an empty state instead of an unusable spinner.
 
 = 0.10.1 =
 * **Fixed: fatal error when clicking "Download all as ZIP".** `wp_tempnam()` lives in `wp-admin/includes/file.php` and isn't loaded on the front end where the bundle handler runs. Swapped for PHP's built-in `tempnam( sys_get_temp_dir(), ... )` which has the same semantics and is always available. No other 0.10.0 frontend code path was affected.

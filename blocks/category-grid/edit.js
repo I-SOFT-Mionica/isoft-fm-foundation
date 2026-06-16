@@ -18,22 +18,29 @@ export default function Edit( { attributes, setAttributes } ) {
 	const { parent, columns, showCount, showDescription } = attributes;
 	const blockProps = useBlockProps();
 
-	// Top-level categories for the parent picker
-	const topCategories = useSelect(
+	// Fetch every category in one call and filter top-level on the client.
+	// Earlier we asked the REST endpoint with `parent: 0`, but core-data's
+	// resolver memoises queries by stringified params and has known issues
+	// with the numeric-zero key — the selector returns undefined forever
+	// and the panel hangs on the spinner. Matches the download-list query
+	// shape, which doesn't trigger the bug.
+	const allCategories = useSelect(
 		( select ) =>
 			select( coreStore ).getEntityRecords( 'taxonomy', 'isoft_fmf_category', {
 				per_page: -1,
-				parent: 0,
-				_fields: 'id,name',
+				_fields: 'id,name,parent',
 				orderby: 'name',
 				order: 'asc',
 			} ),
 		[]
 	);
 
+	const isLoading = allCategories === null || allCategories === undefined;
+	const topCategories = ( allCategories ?? [] ).filter( ( c ) => c.parent === 0 );
+
 	const parentOptions = [
 		{ label: __( '— Top level —', 'isoft-fm-foundation' ), value: 0 },
-		...( topCategories ?? [] ).map( ( cat ) => ( {
+		...topCategories.map( ( cat ) => ( {
 			label: cat.name,
 			value: cat.id,
 		} ) ),
@@ -43,8 +50,15 @@ export default function Edit( { attributes, setAttributes } ) {
 		<>
 			<InspectorControls>
 				<PanelBody title={ __( 'Categories', 'isoft-fm-foundation' ) }>
-					{ ! topCategories ? (
+					{ isLoading ? (
 						<Spinner />
+					) : topCategories.length === 0 ? (
+						<p style={ { margin: 0, fontSize: '12px', opacity: 0.8 } }>
+							{ __(
+								'No top-level categories found. Create one under Downloads → Categories first.',
+								'isoft-fm-foundation'
+							) }
+						</p>
 					) : (
 						<SelectControl
 							label={ __( 'Show children of', 'isoft-fm-foundation' ) }
