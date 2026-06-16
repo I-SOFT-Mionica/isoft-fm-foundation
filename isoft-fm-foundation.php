@@ -80,6 +80,7 @@ add_action(
 
 		// Access control — query-level RBAC filtering on frontend.
 		( new ISOFT_FMF_Access_Control() )->register_hooks();
+		( new ISOFT_FMF_Featured() )->register_hooks();
 
 		// File integrity — serve-time detection + daily cron.
 		( new ISOFT_FMF_File_Integrity() )->register_hooks();
