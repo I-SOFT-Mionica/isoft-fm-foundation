@@ -642,6 +642,35 @@ function isoft_fmf_get_bundle_url( int $download_id ): string {
 }
 
 /**
+ * Returns true when the requesting client's User-Agent matches any
+ * line in the `isoft_fmf_block_user_agents` option (newline-separated,
+ * case-insensitive substring match). Empty lines and the empty
+ * User-Agent always return false — the admin can't accidentally block
+ * every visitor by saving a blank textarea.
+ */
+function isoft_fmf_user_agent_blocked(): bool {
+	$blocklist = get_option( 'isoft_fmf_block_user_agents', '' );
+	if ( '' === trim( (string) $blocklist ) ) {
+		return false;
+	}
+	$ua = isset( $_SERVER['HTTP_USER_AGENT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) : '';
+	if ( '' === $ua ) {
+		return false;
+	}
+	$ua_lower = strtolower( $ua );
+	foreach ( preg_split( '/\r\n|\r|\n/', (string) $blocklist ) as $line ) {
+		$line = trim( $line );
+		if ( '' === $line ) {
+			continue;
+		}
+		if ( str_contains( $ua_lower, strtolower( $line ) ) ) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
  * Best-effort client IP — checks reverse-proxy headers (Cloudflare,
  * generic X-Forwarded-For, etc.) before falling back to REMOTE_ADDR.
  * Returns null if no header parses as a valid IP.

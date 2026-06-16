@@ -288,6 +288,15 @@
 				<th><?php esc_html_e( 'Hotlink Protection', 'isoft-fm-foundation' ); ?></th>
 				<td><label><input type="checkbox" name="isoft_fmf_hotlink_protection" value="1" <?php checked( get_option( 'isoft_fmf_hotlink_protection', 0 ) ); ?> /> <?php esc_html_e( 'Block downloads from external referers', 'isoft-fm-foundation' ); ?></label></td>
 			</tr>
+			<tr>
+				<th><label for="isoft-fmf-ua-blocklist"><?php esc_html_e( 'User-Agent Blocklist', 'isoft-fm-foundation' ); ?></label></th>
+				<td>
+					<textarea name="isoft_fmf_block_user_agents" id="isoft-fmf-ua-blocklist" rows="6" class="large-text code" placeholder="curl&#10;wget&#10;HeadlessChrome&#10;SemrushBot"><?php echo esc_textarea( get_option( 'isoft_fmf_block_user_agents', '' ) ); ?></textarea>
+					<p class="description">
+						<?php esc_html_e( 'One pattern per line. Each line matches as a case-insensitive substring against the request User-Agent header — e.g. "curl" blocks "curl/7.88.1". Empty lines and requests with no User-Agent header are not blocked.', 'isoft-fm-foundation' ); ?>
+					</p>
+				</td>
+			</tr>
 		</table>
 
 		<?php elseif ( 'advanced' === $active_tab ) : ?>

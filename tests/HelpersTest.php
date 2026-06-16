@@ -111,6 +111,42 @@ class HelpersTest extends WP_UnitTestCase {
 		$this->assertNull( isoft_fmf_client_ip() );
 	}
 
+	public function test_user_agent_blocked_returns_false_when_option_empty(): void {
+		delete_option( 'isoft_fmf_block_user_agents' );
+		$_SERVER['HTTP_USER_AGENT'] = 'Mozilla/5.0';
+		$this->assertFalse( isoft_fmf_user_agent_blocked() );
+
+		update_option( 'isoft_fmf_block_user_agents', '   ' );
+		$this->assertFalse( isoft_fmf_user_agent_blocked() );
+	}
+
+	public function test_user_agent_blocked_returns_false_when_request_has_no_ua(): void {
+		update_option( 'isoft_fmf_block_user_agents', "curl\nwget" );
+		unset( $_SERVER['HTTP_USER_AGENT'] );
+		$this->assertFalse( isoft_fmf_user_agent_blocked() );
+	}
+
+	public function test_user_agent_blocked_matches_substring_case_insensitive(): void {
+		update_option( 'isoft_fmf_block_user_agents', "curl\nwget\nHeadlessChrome" );
+		$_SERVER['HTTP_USER_AGENT'] = 'curl/7.88.1';
+		$this->assertTrue( isoft_fmf_user_agent_blocked() );
+
+		$_SERVER['HTTP_USER_AGENT'] = 'CURL/7.88.1';
+		$this->assertTrue( isoft_fmf_user_agent_blocked(), 'Match should be case-insensitive' );
+
+		$_SERVER['HTTP_USER_AGENT'] = 'Mozilla/5.0 (X11; Linux x86_64) HeadlessChrome/120.0.6099.71';
+		$this->assertTrue( isoft_fmf_user_agent_blocked() );
+
+		$_SERVER['HTTP_USER_AGENT'] = 'Mozilla/5.0 (X11; Linux x86_64)';
+		$this->assertFalse( isoft_fmf_user_agent_blocked() );
+	}
+
+	public function test_user_agent_blocked_ignores_blank_lines_in_blocklist(): void {
+		update_option( 'isoft_fmf_block_user_agents', "\n\n  \n" );
+		$_SERVER['HTTP_USER_AGENT'] = 'Mozilla/5.0';
+		$this->assertFalse( isoft_fmf_user_agent_blocked(), 'Blank-only blocklist must not match every request' );
+	}
+
 	public function test_client_ip_prefers_cloudflare_then_xff_then_remote(): void {
 		$_SERVER['REMOTE_ADDR']           = '10.0.0.1';
 		$_SERVER['HTTP_X_FORWARDED_FOR']  = '203.0.113.7, 10.0.0.1';
