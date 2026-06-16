@@ -147,6 +147,18 @@ class ISOFT_FMF_Bundle_Handler {
 
 		// Single audit-log entry for the whole bundle. file_id = 0 sentinel.
 		$log_id = ( new ISOFT_FMF_Download_Logger() )->log( $download_id, 0 );
+
+		// Per-file counter increment, gated on Settings → General → Count downloads.
+		// Each file in the bundle gets +1; the post-level cached total is the
+		// SUM of all per-file counters (see ISOFT_FMF_File_Manager::increment_count)
+		// so the parent-level counter goes up by the file count automatically.
+		if ( isoft_fmf_get_settings()['enable_counting'] ) {
+			$manager = new ISOFT_FMF_File_Manager();
+			foreach ( $files as $file ) {
+				$manager->increment_count( (int) $file->id, $download_id );
+			}
+		}
+
 		do_action( 'isoft_fmf_after_bundle_download', $log_id, $download_id, $added );
 
 		$slug      = get_post_field( 'post_name', $download_id ) ?: "download-{$download_id}";
