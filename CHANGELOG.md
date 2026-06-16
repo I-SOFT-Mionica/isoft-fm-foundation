@@ -2,6 +2,11 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.10.5] — 2026-06-16
+
+### Fixed
+- **ZIP bundle downloads weren't incrementing the per-file or post-level counters.** `ISOFT_FMF_Bundle_Handler::stream_bundle()` wrote the audit-log entry but skipped the counter call — so a user clicking "Download all" got every file but no statistics moved. Added a per-file `increment_count()` loop right after the audit log, gated on `isoft_fmf_get_settings()['enable_counting']`. The post-level `_isoft_fmf_download_count` meta is the SUM of per-file counters (see `ISOFT_FMF_File_Manager::increment_count`), so the parent meta moves up by `count( $files )` automatically — no separate parent-level increment needed.
+
 ## [0.10.4] — 2026-06-16
 
 ### Changed
