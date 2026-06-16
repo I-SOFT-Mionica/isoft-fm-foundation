@@ -12,9 +12,9 @@ defined( 'ABSPATH' ) || exit;
 
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Locals passed in by the including class; not actual globals.
 
-$access        = new ISOFT_FMF_Access_Control();
-$can_access    = $access->can_access_download( $post->ID );
-$files         = ( new ISOFT_FMF_File_Manager() )->get_files( $post->ID );
+$access     = new ISOFT_FMF_Access_Control();
+$can_access = $access->can_access_download( $post->ID );
+$files      = ( new ISOFT_FMF_File_Manager() )->get_files( $post->ID );
 
 // "External only" — hide local files when the admin wants the external URL
 // to be the canonical click target. Local files remain in storage (good for

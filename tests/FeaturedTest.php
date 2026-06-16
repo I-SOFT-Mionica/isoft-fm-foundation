@@ -23,12 +23,17 @@ class FeaturedTest extends WP_UnitTestCase {
 	}
 
 	private function make_download( string $title, string $date_offset, bool $featured ): int {
-		$id = (int) isoft_fmf_create_draft_download( array( 'title' => $title ) );
+		$id   = (int) isoft_fmf_create_draft_download( array( 'title' => $title ) );
+		$date = gmdate( 'Y-m-d H:i:s', strtotime( $date_offset ) );
+		// Setting post_date alone is unreliable inside the test transaction —
+		// WP recalculates post_date_gmt only when post_status transitions
+		// publish-to-publish on an already-published post. Set both explicitly.
 		wp_update_post(
 			array(
-				'ID'          => $id,
-				'post_status' => 'publish',
-				'post_date'   => gmdate( 'Y-m-d H:i:s', strtotime( $date_offset ) ),
+				'ID'            => $id,
+				'post_status'   => 'publish',
+				'post_date'     => $date,
+				'post_date_gmt' => $date,
 			)
 		);
 		if ( $featured ) {
