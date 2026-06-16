@@ -102,9 +102,11 @@ class CategoryAclTest extends WP_UnitTestCase {
 		$this->assertSame( 'subscriber', $this->access->effective_role_for( $id ) );
 
 		// Tighten the category — every download inheriting from it should
-		// move with it via the edited_isoft_fmf_category hook.
+		// move with it. Calling the access-control hook directly avoids
+		// firing the unrelated Category_Folders::on_edited callback that
+		// shares the same WP action and expects two arguments.
 		update_term_meta( $cat, '_isoft_fmf_cat_access_role', 'editor' );
-		do_action( 'edited_isoft_fmf_category', $cat );
+		$this->access->on_category_edited( $cat );
 
 		$this->assertSame( 'editor', $this->access->effective_role_for( $id ) );
 	}

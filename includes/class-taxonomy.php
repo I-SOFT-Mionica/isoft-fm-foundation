@@ -172,11 +172,9 @@ class ISOFT_FMF_Taxonomy {
 			update_term_meta( $term_id, '_isoft_fmf_cat_icon', sanitize_text_field( wp_unslash( $_POST['isoft_fmf_cat_icon'] ) ) );
 		}
 		if ( isset( $_POST['isoft_fmf_cat_access_role'] ) ) {
-			update_term_meta(
-				$term_id,
-				'_isoft_fmf_cat_access_role',
-				self::sanitize_cat_access_role( wp_unslash( $_POST['isoft_fmf_cat_access_role'] ) )
-			);
+			// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- self::sanitize_cat_access_role() rejects any value not in the role allow-list before it reaches term meta.
+			$cat_role = wp_unslash( $_POST['isoft_fmf_cat_access_role'] );
+			update_term_meta( $term_id, '_isoft_fmf_cat_access_role', self::sanitize_cat_access_role( $cat_role ) );
 		}
 		if ( isset( $_POST['isoft_fmf_cat_sort_order'] ) ) {
 			update_term_meta( $term_id, '_isoft_fmf_cat_sort_order', absint( wp_unslash( $_POST['isoft_fmf_cat_sort_order'] ) ) );
