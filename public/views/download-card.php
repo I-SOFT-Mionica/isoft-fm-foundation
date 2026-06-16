@@ -58,25 +58,19 @@ $bundle_size      = $show_bundle_btn ? array_sum( array_column( $bundleable_file
 
 	<?php
 	if ( $show_bundle_btn ) :
-		$bundle_full_label = sprintf(
-			/* translators: 1: number of files, 2: total size of those files */
-			__( 'Download all (%1$d files, %2$s) as ZIP', 'isoft-fm-foundation' ),
-			count( $bundleable_files ),
-			size_format( $bundle_size )
-		);
-		$bundle_short_label = sprintf(
+		$bundle_label = sprintf(
 			/* translators: %s: total size of bundled files */
-			__( 'Download all · %s', 'isoft-fm-foundation' ),
+			__( 'Download all (%s)', 'isoft-fm-foundation' ),
 			size_format( $bundle_size )
 		);
 		?>
 	<div class="isoft-fmf-bundle-btn-wrap">
 		<a href="<?php echo esc_url( isoft_fmf_get_bundle_url( (int) $post->ID ) ); ?>"
 			class="isoft-fmf-bundle-btn"
-			title="<?php echo esc_attr( $bundle_full_label ); ?>"
-			aria-label="<?php echo esc_attr( $bundle_full_label ); ?>">
+			title="<?php echo esc_attr( $bundle_label ); ?>"
+			aria-label="<?php echo esc_attr( $bundle_label ); ?>">
 			<span class="isoft-fmf-bundle-btn__icon dashicons dashicons-download" aria-hidden="true"></span>
-			<span class="isoft-fmf-bundle-btn__label"><?php echo esc_html( $bundle_short_label ); ?></span>
+			<span class="isoft-fmf-bundle-btn__label"><?php echo esc_html( $bundle_label ); ?></span>
 		</a>
 	</div>
 	<?php endif; ?>
