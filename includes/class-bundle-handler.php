@@ -97,7 +97,12 @@ class ISOFT_FMF_Bundle_Handler {
 	 * @param object[] $files Local-only file rows from ISOFT_FMF_File_Manager.
 	 */
 	private function stream_bundle( int $download_id, array $files ): void {
-		$tmp = wp_tempnam( 'isoft_fmf_bundle_' );
+		// wp_tempnam() lives in wp-admin/includes/file.php and isn't loaded on
+		// the front-end, where this handler runs (template_redirect). PHP's
+		// built-in tempnam() has the same semantics — atomic create with a
+		// unique suffix under the OS temp dir — and is always available.
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_tempnam -- See note above; wp_tempnam() not available here.
+		$tmp = tempnam( sys_get_temp_dir(), 'isoft_fmf_bundle_' );
 		if ( ! $tmp ) {
 			wp_die( esc_html__( 'Could not create a temporary file for the ZIP bundle.', 'isoft-fm-foundation' ), 500 );
 		}

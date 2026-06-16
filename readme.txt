@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.0
 Requires PHP: 8.4
-Stable tag: 0.10.0
+Stable tag: 0.10.1
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -161,6 +161,9 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 5. Download handler settings — security, logging, and serve method.
 
 == Changelog ==
+
+= 0.10.1 =
+* **Fixed: fatal error when clicking "Download all as ZIP".** `wp_tempnam()` lives in `wp-admin/includes/file.php` and isn't loaded on the front end where the bundle handler runs. Swapped for PHP's built-in `tempnam( sys_get_temp_dir(), ... )` which has the same semantics and is always available. No other 0.10.0 frontend code path was affected.
 
 = 0.10.0 =
 * **Category-level access role + per-download Inherit.** Categories can now declare their own access role (Public / Subscriber+ / Contributor+ / Author+ / Editor+ / Administrator only) — the field is on the add / edit category screens. Downloads get a new "— Inherit from category —" option in the access dropdown (the default for new downloads); when set, the download takes the most-restrictive role across its assigned categories. Explicit per-download roles still win. Resolution is cached in `_isoft_fmf_effective_access_role` post meta so the listing-query filter stays flat. Existing downloads are backfilled on upgrade.

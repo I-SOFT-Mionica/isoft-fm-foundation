@@ -2,6 +2,11 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.10.1] — 2026-06-16
+
+### Fixed
+- **`ISOFT_FMF_Bundle_Handler::stream_bundle()` fatal on the front end.** `wp_tempnam()` is defined in `wp-admin/includes/file.php`, which WordPress only auto-loads in admin context. Clicking "Download all as ZIP" hit `Call to undefined function wp_tempnam()` during `template_redirect`. Swapped for PHP's built-in `tempnam( sys_get_temp_dir(), ... )` — same atomic-create / unique-suffix semantics, always available. The other admin-only function calls in the codebase (`wp_handle_upload`, `wp_upload_bits`, `wp_generate_attachment_metadata`) are all in admin-only execution paths that already `require_once` the relevant `wp-admin/includes/*.php` before calling — only this one slipped through because the bundle endpoint runs as a public template-redirect handler.
+
 ## [0.10.0] — 2026-06-16
 
 Feature batch for the v1.0 push — five PRs that close out the last set of dangling settings and meta keys registered as placeholders since 0.5.x.
