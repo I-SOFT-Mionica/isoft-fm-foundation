@@ -2,6 +2,11 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.10.4] — 2026-06-16
+
+### Changed
+- **ZIP-bundle button label trimmed** to `Download all (<size>)`. The previous wording duplicated information that's already obvious from context (file count is visible in the rows directly under the button; "as ZIP" is implied by the icon + action). Same string now used for the visible hover label and the `title=` / `aria-label=` attributes, collapsing the two-string scheme from 0.10.3 to one. One canonical translatable string.
+
 ## [0.10.3] — 2026-06-16
 
 ### Changed

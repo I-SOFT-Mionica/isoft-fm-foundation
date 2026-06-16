@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.0
 Requires PHP: 8.4
-Stable tag: 0.10.3
+Stable tag: 0.10.4
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -161,6 +161,9 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 5. Download handler settings — security, logging, and serve method.
 
 == Changelog ==
+
+= 0.10.4 =
+* **Bundle button label shortened** to "Download all (162 KB)" — dropped the redundant "(N files, …) as ZIP" wording. Same label now used for the visible hover state and the tooltip / aria-label, so there's one canonical string to translate.
 
 = 0.10.3 =
 * **"Download all as ZIP" button restyled** as a compact icon-only chip in the top-right of multi-file cards. On hover or keyboard focus the icon swaps for "Download all · 162 KB" so the size stays a one-glance read; the full "(2 files, 162 KB) as ZIP" label is preserved on the native tooltip and the `aria-label` for assistive tech. Fixes the long-label-overlapping-title visual on narrow cards.
