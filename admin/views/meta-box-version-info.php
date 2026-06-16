@@ -14,6 +14,24 @@
 		</td>
 	</tr>
 	<tr>
+		<th><?php esc_html_e( 'Listing Flags', 'isoft-fm-foundation' ); ?></th>
+		<td>
+			<label>
+				<input type="checkbox" name="_isoft_fmf_featured" value="1" <?php checked( $featured ); ?> />
+				<span class="dashicons dashicons-star-filled" style="color:#f0b849;vertical-align:middle;"></span>
+				<?php esc_html_e( 'Featured — pin to the top of every download listing', 'isoft-fm-foundation' ); ?>
+			</label>
+			<br>
+			<label>
+				<input type="checkbox" name="_isoft_fmf_external_only" value="1" <?php checked( $external_only ); ?> />
+				<?php esc_html_e( 'External only — hide local files on the download card; show external links only', 'isoft-fm-foundation' ); ?>
+			</label>
+			<p class="description">
+				<?php esc_html_e( 'Use "External only" when local files exist as backups but the external URL should be the canonical one users click.', 'isoft-fm-foundation' ); ?>
+			</p>
+		</td>
+	</tr>
+	<tr>
 		<th><label for="isoft-fmf-license"><?php esc_html_e( 'License', 'isoft-fm-foundation' ); ?></label></th>
 		<td>
 			<select name="_isoft_fmf_license_id" id="isoft-fmf-license">

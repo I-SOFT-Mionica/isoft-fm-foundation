@@ -12,9 +12,17 @@ defined( 'ABSPATH' ) || exit;
 
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Locals passed in by the including class; not actual globals.
 
-$access        = new ISOFT_FMF_Access_Control();
-$can_access    = $access->can_access_download( $post->ID );
-$files         = ( new ISOFT_FMF_File_Manager() )->get_files( $post->ID );
+$access     = new ISOFT_FMF_Access_Control();
+$can_access = $access->can_access_download( $post->ID );
+$files      = ( new ISOFT_FMF_File_Manager() )->get_files( $post->ID );
+
+// "External only" — hide local files when the admin wants the external URL
+// to be the canonical click target. Local files remain in storage (good for
+// archival / backups) but never render on the card.
+if ( get_post_meta( $post->ID, '_isoft_fmf_external_only', true ) ) {
+	$files = array_values( array_filter( $files, fn( $f ): bool => 'external' === $f->file_type ) );
+}
+
 $require_agree = (bool) get_post_meta( $post->ID, '_isoft_fmf_require_agree', true );
 $access_role   = get_post_meta( $post->ID, '_isoft_fmf_access_role', true ) ?: 'public';
 // HOT = set by nightly cron at 01:00 (top 10 downloads last 7 days), stored in post meta.

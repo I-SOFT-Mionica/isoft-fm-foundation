@@ -162,6 +162,8 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 		$date_published = (string) get_post_meta( $post->ID, '_isoft_fmf_date_published', true );
 		$require_agree  = (bool) get_post_meta( $post->ID, '_isoft_fmf_require_agree', true );
 		$agree_text     = (string) get_post_meta( $post->ID, '_isoft_fmf_agree_text', true );
+		$featured       = (bool) get_post_meta( $post->ID, '_isoft_fmf_featured', true );
+		$external_only  = (bool) get_post_meta( $post->ID, '_isoft_fmf_external_only', true );
 		$licenses       = ( new ISOFT_FMF_License_Manager() )->get_all();
 		require ISOFT_FMF_PLUGIN_DIR . 'admin/views/meta-box-version-info.php';
 	}
@@ -199,8 +201,9 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 		update_post_meta( $post_id, '_isoft_fmf_require_agree', ! empty( $_POST['_isoft_fmf_require_agree'] ) ? 1 : 0 );
 		update_post_meta( $post_id, '_isoft_fmf_agree_text', wp_kses_post( wp_unslash( $_POST['_isoft_fmf_agree_text'] ?? '' ) ) );
 
-		// TODO v1.0: Featured flag — pin to top of category listing when sort=featured.
-		// TODO v1.0: External Only — prefer external source when download has both local and remote files.
+		// Listing flags — both rendered in the Version & License box.
+		update_post_meta( $post_id, '_isoft_fmf_featured', ! empty( $_POST['_isoft_fmf_featured'] ) ? 1 : 0 );
+		update_post_meta( $post_id, '_isoft_fmf_external_only', ! empty( $_POST['_isoft_fmf_external_only'] ) ? 1 : 0 );
 
 		update_post_meta( $post_id, '_isoft_fmf_version', sanitize_text_field( wp_unslash( $_POST['_isoft_fmf_version'] ?? '' ) ) );
 		update_post_meta( $post_id, '_isoft_fmf_changelog', wp_kses_post( wp_unslash( $_POST['_isoft_fmf_changelog'] ?? '' ) ) );
