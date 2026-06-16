@@ -117,9 +117,16 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 		if ( 'isoft_fmf_file' !== $post->post_type ) {
 			return;
 		}
-		$access_role = get_post_meta( $post->ID, '_isoft_fmf_access_role', true )
-			?: get_option( 'isoft_fmf_default_access_role', 'public' );
-		$roles       = array(
+		// Empty meta on a brand-new download defaults to 'inherit', which
+		// falls through to the assigned category's role (or, failing that,
+		// the global default). Existing downloads keep whatever literal role
+		// they were saved with.
+		$access_role = get_post_meta( $post->ID, '_isoft_fmf_access_role', true );
+		if ( '' === $access_role ) {
+			$access_role = 'inherit';
+		}
+		$roles = array(
+			'inherit'       => __( '— Inherit from category —', 'isoft-fm-foundation' ),
 			'public'        => __( 'Public (everyone)', 'isoft-fm-foundation' ),
 			'subscriber'    => __( 'Subscriber+', 'isoft-fm-foundation' ),
 			'contributor'   => __( 'Contributor+', 'isoft-fm-foundation' ),
@@ -190,7 +197,9 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 			return;
 		}
 
-		$valid_roles = array( 'public', 'subscriber', 'contributor', 'author', 'editor', 'administrator' );
+		// 'inherit' is the sentinel that defers to the category role (resolved
+		// in ISOFT_FMF_Access_Control); the rest are the literal role keys.
+		$valid_roles = array( 'inherit', 'public', 'subscriber', 'contributor', 'author', 'editor', 'administrator' );
 
 		// Access role — rendered in the Publish box via post_submitbox_misc_actions.
 		$default_role = get_option( 'isoft_fmf_default_access_role', 'public' );
