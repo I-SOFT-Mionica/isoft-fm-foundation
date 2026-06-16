@@ -69,6 +69,20 @@ The deploy workflow's pre-flight step fails loud if any disagree. WordPress.org 
 
 This bit us at 0.10.0 with the ZIP bundle handler — see CHANGELOG.
 
+## Keep skills in sync with reality
+
+Skills are playbooks for the next session, not historical records. When a change has shipped and is **confirmed working in real use** — manual test on Local, successful deploy, user confirmation; not just CI green — update the relevant skill if it:
+
+- Establishes a new pattern future work should follow
+- Reveals a trap future work could fall into
+- Contradicts something a skill currently says
+
+Routine fixes don't need a skill update. The bar: would a future agent be better served by this lesson?
+
+The update can ride along on the change's branch (when discovered during the work) or land as a follow-up commit / PR (when the lesson surfaces only after merge). The 0.10.1 bundle-handler fatal is the canonical example — wrote the fix, *then* updated `wp-conventions` so the `wp_tempnam`-is-admin-only trap doesn't bite the next agent.
+
+Same principle applies to the auto-memory files below for state changes (a release ships, a decision shifts, a deploy pattern changes). Skills hold procedure; memory holds state.
+
 ## Persistent context (auto-memory)
 
 Project-specific facts — history, architecture decisions, submission status, dev tools — live in the auto-memory at `~/.claude/projects/d--i-Downloads-wordpress/memory/`. The index file `MEMORY.md` is loaded into every session; individual memory files are loaded on relevance.
