@@ -2,6 +2,11 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.10.3] — 2026-06-16
+
+### Changed
+- **"Download all as ZIP" bundle button restyled** as a compact icon-only chip aligned to the top-right of multi-file download cards. On hover or keyboard focus the icon (`dashicons-download`) swaps for a short label — `Download all · <size>` — so the per-card surface stays uncluttered while still surfacing the bundle size on intent. The full "(N files, X MB) as ZIP" string is preserved on the native `title` tooltip and the `aria-label` for assistive tech. Fixes the long-label-overlapping-the-card-title visual on narrow / sidebar contexts, reported during the 0.10.2 manual testing pass. New CSS rules `.isoft-fmf-bundle-btn`, `.isoft-fmf-bundle-btn__icon`, `.isoft-fmf-bundle-btn__label` in `public/css/public-style.css`. Dropped `wp-element-button` from the bundle button — deliberate visual de-emphasis vs the per-file Download buttons, which remain the primary CTAs.
+
 ## [0.10.2] — 2026-06-16
 
 ### Fixed
