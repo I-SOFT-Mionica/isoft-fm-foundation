@@ -90,16 +90,16 @@ class ISOFT_FMF_Taxonomy {
 				'show_in_rest'      => true,
 			)
 		);
-		// TODO v1.0: Category-level access role — enforce in ISOFT_FMF_Access_Control.
-		// register_term_meta(
-		// 'isoft_fmf_category',
-		// '_isoft_fmf_cat_access_role',
-		// [
-		// 'type'              => 'string',
-		// 'single'            => true,
-		// 'sanitize_callback' => 'sanitize_text_field',
-		// ]
-		// );
+		register_term_meta(
+			'isoft_fmf_category',
+			'_isoft_fmf_cat_access_role',
+			array(
+				'type'              => 'string',
+				'single'            => true,
+				'sanitize_callback' => array( self::class, 'sanitize_cat_access_role' ),
+				'show_in_rest'      => true,
+			)
+		);
 		register_term_meta(
 			'isoft_fmf_category',
 			'_isoft_fmf_cat_sort_order',
@@ -118,15 +118,11 @@ class ISOFT_FMF_Taxonomy {
 			<input type="text" name="isoft_fmf_cat_icon" id="isoft-fmf-cat-icon" value="" />
 			<p class="description"><?php esc_html_e( 'Dashicon name (e.g. dashicons-folder) or image URL.', 'isoft-fm-foundation' ); ?></p>
 		</div>
-		<?php // TODO v1.0: Category-level access role — enforce in ISOFT_FMF_Access_Control. ?>
-		<?php
-		/*
 		<div class="form-field">
 			<label for="isoft-fmf-cat-access-role"><?php esc_html_e( 'Access Role', 'isoft-fm-foundation' ); ?></label>
 			<?php $this->render_access_role_select( '', 'isoft_fmf_cat_access_role', 'isoft-fmf-cat-access-role' ); ?>
+			<p class="description"><?php esc_html_e( 'Default access role for downloads in this category. A download keeps the category role only when its own role is set to "Inherit from category".', 'isoft-fm-foundation' ); ?></p>
 		</div>
-		*/
-		?>
 		<div class="form-field">
 			<label for="isoft-fmf-cat-sort-order"><?php esc_html_e( 'Sort Order', 'isoft-fm-foundation' ); ?></label>
 			<input type="number" name="isoft_fmf_cat_sort_order" id="isoft-fmf-cat-sort-order" value="0" min="0" />
@@ -135,9 +131,8 @@ class ISOFT_FMF_Taxonomy {
 	}
 
 	public function edit_term_fields( WP_Term $term ): void {
-		$icon = get_term_meta( $term->term_id, '_isoft_fmf_cat_icon', true );
-		// TODO v1.0: Category-level access role — enforce in ISOFT_FMF_Access_Control.
-		// $role = get_term_meta( $term->term_id, '_isoft_fmf_cat_access_role', true );
+		$icon       = get_term_meta( $term->term_id, '_isoft_fmf_cat_icon', true );
+		$role       = (string) get_term_meta( $term->term_id, '_isoft_fmf_cat_access_role', true );
 		$sort_order = (int) get_term_meta( $term->term_id, '_isoft_fmf_cat_sort_order', true );
 		?>
 		<tr class="form-field">
@@ -147,15 +142,13 @@ class ISOFT_FMF_Taxonomy {
 				<p class="description"><?php esc_html_e( 'Dashicon name or image URL.', 'isoft-fm-foundation' ); ?></p>
 			</td>
 		</tr>
-		<?php // TODO v1.0: Category-level access role — enforce in ISOFT_FMF_Access_Control. ?>
-		<?php
-		/*
 		<tr class="form-field">
 			<th><label for="isoft-fmf-cat-access-role"><?php esc_html_e( 'Access Role', 'isoft-fm-foundation' ); ?></label></th>
-			<td><?php $this->render_access_role_select( $role, 'isoft_fmf_cat_access_role', 'isoft-fmf-cat-access-role' ); ?></td>
+			<td>
+				<?php $this->render_access_role_select( $role, 'isoft_fmf_cat_access_role', 'isoft-fmf-cat-access-role' ); ?>
+				<p class="description"><?php esc_html_e( 'Default access role for downloads in this category. A download keeps the category role only when its own role is set to "Inherit from category".', 'isoft-fm-foundation' ); ?></p>
+			</td>
 		</tr>
-		*/
-		?>
 		<tr class="form-field">
 			<th><label for="isoft-fmf-cat-sort-order"><?php esc_html_e( 'Sort Order', 'isoft-fm-foundation' ); ?></label></th>
 			<td><input type="number" name="isoft_fmf_cat_sort_order" id="isoft-fmf-cat-sort-order" value="<?php echo esc_attr( $sort_order ); ?>" min="0" /></td>
@@ -178,34 +171,47 @@ class ISOFT_FMF_Taxonomy {
 		if ( isset( $_POST['isoft_fmf_cat_icon'] ) ) {
 			update_term_meta( $term_id, '_isoft_fmf_cat_icon', sanitize_text_field( wp_unslash( $_POST['isoft_fmf_cat_icon'] ) ) );
 		}
-		// TODO v1.0: Category-level access role — enforce in ISOFT_FMF_Access_Control.
-		// if ( isset( $_POST['isoft_fmf_cat_access_role'] ) ) {
-		// update_term_meta( $term_id, '_isoft_fmf_cat_access_role', sanitize_text_field( wp_unslash( $_POST['isoft_fmf_cat_access_role'] ) ) );
-		// }
+		if ( isset( $_POST['isoft_fmf_cat_access_role'] ) ) {
+			// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- self::sanitize_cat_access_role() rejects any value not in the role allow-list before it reaches term meta.
+			$cat_role = wp_unslash( $_POST['isoft_fmf_cat_access_role'] );
+			update_term_meta( $term_id, '_isoft_fmf_cat_access_role', self::sanitize_cat_access_role( $cat_role ) );
+		}
 		if ( isset( $_POST['isoft_fmf_cat_sort_order'] ) ) {
 			update_term_meta( $term_id, '_isoft_fmf_cat_sort_order', absint( wp_unslash( $_POST['isoft_fmf_cat_sort_order'] ) ) );
 		}
 	}
 
-	// TODO v1.0: Category-level access role — enforce in ISOFT_FMF_Access_Control.
-	// private function render_access_role_select( string $selected, string $name, string $id ): void {
-	// $roles = [
-	// 'public'        => __( 'Public (everyone)', 'isoft-fm-foundation' ),
-	// 'subscriber'    => __( 'Subscriber+', 'isoft-fm-foundation' ),
-	// 'contributor'   => __( 'Contributor+', 'isoft-fm-foundation' ),
-	// 'author'        => __( 'Author+', 'isoft-fm-foundation' ),
-	// 'editor'        => __( 'Editor+', 'isoft-fm-foundation' ),
-	// 'administrator' => __( 'Administrator only', 'isoft-fm-foundation' ),
-	// ];
-	// echo '<select name="' . esc_attr( $name ) . '" id="' . esc_attr( $id ) . '">';
-	// foreach ( $roles as $value => $label ) {
-	// printf(
-	// '<option value="%s"%s>%s</option>',
-	// esc_attr( $value ),
-	// selected( $selected, $value, false ),
-	// esc_html( $label )
-	// );
-	// }
-	// echo '</select>';
-	// }
+	/**
+	 * Accepts only the known role keys plus the empty string (= "no
+	 * category role; fall through to download role or global default").
+	 * Anything else is normalised to empty so a malformed POST can't
+	 * lock a category to an unrecognised value.
+	 */
+	public static function sanitize_cat_access_role( $value ): string {
+		$value = is_string( $value ) ? sanitize_text_field( $value ) : '';
+		$valid = array( '', 'public', 'subscriber', 'contributor', 'author', 'editor', 'administrator' );
+		return in_array( $value, $valid, true ) ? $value : '';
+	}
+
+	private function render_access_role_select( string $selected, string $name, string $id ): void {
+		$roles = array(
+			''              => __( '— No category default —', 'isoft-fm-foundation' ),
+			'public'        => __( 'Public (everyone)', 'isoft-fm-foundation' ),
+			'subscriber'    => __( 'Subscriber+', 'isoft-fm-foundation' ),
+			'contributor'   => __( 'Contributor+', 'isoft-fm-foundation' ),
+			'author'        => __( 'Author+', 'isoft-fm-foundation' ),
+			'editor'        => __( 'Editor+', 'isoft-fm-foundation' ),
+			'administrator' => __( 'Administrator only', 'isoft-fm-foundation' ),
+		);
+		echo '<select name="' . esc_attr( $name ) . '" id="' . esc_attr( $id ) . '">';
+		foreach ( $roles as $value => $label ) {
+			printf(
+				'<option value="%s"%s>%s</option>',
+				esc_attr( $value ),
+				selected( $selected, $value, false ),
+				esc_html( $label )
+			);
+		}
+		echo '</select>';
+	}
 }

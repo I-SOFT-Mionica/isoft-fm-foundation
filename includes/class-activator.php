@@ -4,15 +4,48 @@ defined( 'ABSPATH' ) || exit;
 class ISOFT_FMF_Activator {
 
 	public static function activate(): void {
+		$from_version = (string) get_option( 'isoft_fmf_db_version', '0.0.0' );
 		self::create_tables();
 		self::drop_legacy_columns();
 		self::register_capabilities();
 		self::seed_licenses();
 		self::create_file_storage();
+		self::run_migrations( $from_version );
 		// Can't flush here — the 'isoft_fmf_file' CPT isn't registered yet at activation-hook time
 		// (plugins_loaded hasn't fired). Set a flag; ISOFT_FMF_Post_Type::register() will flush
 		// on the very next request after the CPT is in place.
 		update_option( 'isoft_fmf_flush_rewrite_rules', 1 );
+	}
+
+	/**
+	 * Version-gated one-shot upgrades. Each block runs when activating from
+	 * any version older than its target.
+	 */
+	private static function run_migrations( string $from_version ): void {
+		if ( version_compare( $from_version, '0.10.0', '<' ) ) {
+			self::backfill_effective_access_role();
+		}
+	}
+
+	/**
+	 * 0.10.0: populate `_isoft_fmf_effective_access_role` for every existing
+	 * download so the SQL filter in ISOFT_FMF_Access_Control has a value to
+	 * JOIN against without falling through the NULL branch. The hooks keep
+	 * it fresh going forward.
+	 */
+	private static function backfill_effective_access_role(): void {
+		$access = new ISOFT_FMF_Access_Control();
+		$ids    = get_posts(
+			array(
+				'post_type'      => 'isoft_fmf_file',
+				'post_status'    => 'any',
+				'posts_per_page' => -1,
+				'fields'         => 'ids',
+			)
+		);
+		foreach ( $ids as $id ) {
+			$access->recompute_effective_role( (int) $id );
+		}
 	}
 
 	/**

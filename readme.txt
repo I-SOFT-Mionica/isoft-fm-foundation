@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.0
 Requires PHP: 8.4
-Stable tag: 0.9.1
+Stable tag: 0.10.0
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -161,6 +161,14 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 5. Download handler settings — security, logging, and serve method.
 
 == Changelog ==
+
+= 0.10.0 =
+* **Category-level access role + per-download Inherit.** Categories can now declare their own access role (Public / Subscriber+ / Contributor+ / Author+ / Editor+ / Administrator only) — the field is on the add / edit category screens. Downloads get a new "— Inherit from category —" option in the access dropdown (the default for new downloads); when set, the download takes the most-restrictive role across its assigned categories. Explicit per-download roles still win. Resolution is cached in `_isoft_fmf_effective_access_role` post meta so the listing-query filter stays flat. Existing downloads are backfilled on upgrade.
+* **ZIP bundle download** for multi-file downloads. Optional Settings → Display toggle adds a "Download all (N files, X MB) as ZIP" button above multi-file cards. External-URL files are skipped. One bundle counts as one rate-limit hit and produces one audit-log entry.
+* **User-agent blocklist** on Settings → Security. One pattern per line, case-insensitive substring match against the request `User-Agent` header. Enforced by both the per-file download handler and the new bundle handler.
+* **Featured-first listings** — downloads flagged `Featured` on the Version & License meta box always sort to the top of every listing, regardless of the requested orderby. Existing date / title / count sorts become the secondary sort within each group.
+* **External-only flag** per download — hides local file rows on the public card so only external links render. For the "external URL is canonical, local files are just a backup" pattern.
+* **Nomad addon announced** on the Extensions tab. One-shot jDownloads importer, shipping as its own plugin so Foundation core stays lean.
 
 = 0.9.1 =
 * **Plugin prefix renamed from `isfm` (4 chars) to `isoft_fmf` (8 chars)** to comfortably clear the WordPress.org "don't try to use two- or three-letter prefixes anymore" guidance and reduce collision risk against the 90,000+ plugin directory. Every PHP class (`ISFM_X` → `ISOFT_FMF_X`), function, post type (`isfm_file` → `isoft_fmf_file`), taxonomy (`isfm_category` → `isoft_fmf_category`, `isfm_tag` → `isoft_fmf_tag`), DB table (`wp_isfm_*` → `wp_isoft_fmf_*`), option, postmeta, capability, CSS class (`.isfm-X` → `.isoft-fmf-X`), and custom property (`--isfm-X` → `--isoft-fmf-X`) moves in lockstep. The plugin slug, text domain, REST namespace, and block names already use `isoft-fm-foundation` and stay unchanged.

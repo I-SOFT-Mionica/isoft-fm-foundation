@@ -6,22 +6,154 @@ class ISOFT_FMF_Access_Control {
 	/** Role hierarchy from lowest to highest. */
 	private const HIERARCHY = array( 'subscriber', 'contributor', 'author', 'editor', 'administrator' );
 
+	/** Post meta where the effective (already-resolved) role is cached. */
+	public const EFFECTIVE_META_KEY = '_isoft_fmf_effective_access_role';
+
 	/** Stashed between pre_get_posts and posts_clauses for the active query. */
 	private array $current_accessible = array();
 
 	public function register_hooks(): void {
 		add_action( 'pre_get_posts', array( $this, 'filter_frontend_queries' ) );
+
+		// Keep the denormalised effective role in sync with the three things
+		// that determine it: the per-download role meta, the download's
+		// category assignment, and the category's own role meta.
+		add_action( 'save_post_isoft_fmf_file', array( $this, 'on_download_saved' ), 20, 1 );
+		add_action( 'set_object_terms', array( $this, 'on_terms_set' ), 20, 4 );
+		add_action( 'edited_isoft_fmf_category', array( $this, 'on_category_edited' ), 20, 1 );
 	}
 
 	/**
 	 * Check if the current (or given) user may access a download.
+	 *
+	 * Reads the denormalised effective-role meta first (kept in sync by
+	 * on_download_saved / on_terms_set / on_category_edited). Falls back to
+	 * computing on the fly when the cache is missing, e.g. for pre-0.10.0
+	 * data that hasn't been re-saved since the upgrade.
 	 */
 	public function can_access_download( int $download_id, int $user_id = 0 ): bool {
-		$required = get_post_meta( $download_id, '_isoft_fmf_access_role', true )
-			?: get_option( 'isoft_fmf_default_access_role', 'public' );
+		$required = $this->effective_role_for( $download_id );
 		$allowed  = $this->user_meets_role( $required, $user_id );
 
 		return (bool) apply_filters( 'isoft_fmf_access_check', $allowed, $download_id, $user_id );
+	}
+
+	/**
+	 * Cached lookup of a download's effective access role. Use this for read
+	 * paths; write paths should call recompute_effective_role() then read.
+	 */
+	public function effective_role_for( int $download_id ): string {
+		$cached = get_post_meta( $download_id, self::EFFECTIVE_META_KEY, true );
+		if ( '' !== $cached ) {
+			return (string) $cached;
+		}
+		// Backfill on-demand for posts that pre-date the migration.
+		return $this->recompute_effective_role( $download_id );
+	}
+
+	/**
+	 * Resolve, persist, and return the effective role for a single download.
+	 *
+	 * Resolution order:
+	 *   1. The download's literal _isoft_fmf_access_role meta, when it's a
+	 *      concrete role (not 'inherit' and not empty).
+	 *   2. The most-restrictive _isoft_fmf_cat_access_role across every
+	 *      isoft_fmf_category term the download is assigned to (most
+	 *      restrictive = highest index in HIERARCHY).
+	 *   3. The site-wide isoft_fmf_default_access_role option.
+	 *
+	 * Empty category roles ('' = "no category default") are skipped during
+	 * step 2 — a category that opts out of the cascade doesn't pull other
+	 * categories' roles down with it.
+	 */
+	public function recompute_effective_role( int $download_id ): string {
+		$literal = (string) get_post_meta( $download_id, '_isoft_fmf_access_role', true );
+		if ( '' !== $literal && 'inherit' !== $literal ) {
+			update_post_meta( $download_id, self::EFFECTIVE_META_KEY, $literal );
+			return $literal;
+		}
+
+		$terms = wp_get_object_terms( $download_id, 'isoft_fmf_category', array( 'fields' => 'ids' ) );
+		if ( is_wp_error( $terms ) ) {
+			$terms = array();
+		}
+
+		$most_restrictive = null;
+		$max_index        = -1;
+		foreach ( $terms as $term_id ) {
+			$cat_role = (string) get_term_meta( (int) $term_id, '_isoft_fmf_cat_access_role', true );
+			if ( '' === $cat_role ) {
+				continue;
+			}
+			if ( 'public' === $cat_role ) {
+				$index = 0;
+			} else {
+				$index = array_search( $cat_role, self::HIERARCHY, true );
+				if ( false === $index ) {
+					continue;
+				}
+				$index = (int) $index + 1; // shift past 'public'
+			}
+			if ( $index > $max_index ) {
+				$max_index        = $index;
+				$most_restrictive = $cat_role;
+			}
+		}
+
+		$resolved = $most_restrictive ?? (string) get_option( 'isoft_fmf_default_access_role', 'public' );
+		if ( '' === $resolved ) {
+			$resolved = 'public';
+		}
+
+		update_post_meta( $download_id, self::EFFECTIVE_META_KEY, $resolved );
+		return $resolved;
+	}
+
+	// -------------------------------------------------------------------------
+	// Effective-role denormalisation hooks
+	// -------------------------------------------------------------------------
+
+	public function on_download_saved( int $post_id ): void {
+		if ( wp_is_post_revision( $post_id ) || wp_is_post_autosave( $post_id ) ) {
+			return;
+		}
+		$this->recompute_effective_role( $post_id );
+	}
+
+	public function on_terms_set( int $object_id, $terms, $tt_ids, string $taxonomy ): void {
+		unset( $terms, $tt_ids );
+		if ( 'isoft_fmf_category' !== $taxonomy ) {
+			return;
+		}
+		if ( 'isoft_fmf_file' !== get_post_type( $object_id ) ) {
+			return;
+		}
+		$this->recompute_effective_role( $object_id );
+	}
+
+	public function on_category_edited( int $term_id ): void {
+		// A category role change fan-outs to every download in that
+		// category. Bounded by the term's post count — acceptable for
+		// a one-shot admin save.
+		$post_ids = get_posts(
+			array(
+				'post_type'      => 'isoft_fmf_file',
+				'post_status'    => 'any',
+				'posts_per_page' => -1,
+				'fields'         => 'ids',
+				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query -- One-shot admin action triggered by category edit; bounded by term post count.
+				'tax_query'      => array(
+					array(
+						'taxonomy' => 'isoft_fmf_category',
+						'field'    => 'term_id',
+						'terms'    => $term_id,
+					),
+				),
+			)
+		);
+		foreach ( $post_ids as $post_id ) {
+			$this->recompute_effective_role( (int) $post_id );
+		}
 	}
 
 	/**
@@ -124,10 +256,18 @@ class ISOFT_FMF_Access_Control {
 	}
 
 	/**
-	 * SQL-level access filter: LEFT JOIN on _isoft_fmf_access_role postmeta and
+	 * SQL-level access filter: LEFT JOIN on the effective-role postmeta and
 	 * restrict to rows whose value is in the user's accessible set.
 	 *
-	 * Downloads without the meta key (pre-v0.5.1) inherit the global default.
+	 * Joins the denormalised `_isoft_fmf_effective_access_role` cache (kept
+	 * fresh by save/term/category hooks plus the 0.10.0 backfill migration),
+	 * not the literal `_isoft_fmf_access_role`. That keeps the SQL flat —
+	 * no term-relationships JOIN, no cat-role lookup — even when a download
+	 * has its per-download role set to 'inherit'.
+	 *
+	 * Posts with no effective-role meta yet (very old data, or a brand-new
+	 * post the hook hasn't run on) fall through the NULL branch below and
+	 * are evaluated against the global default.
 	 */
 	public function add_access_clauses( array $clauses, WP_Query $query ): array {
 		$post_type         = $query->get( 'post_type' );
@@ -150,7 +290,7 @@ class ISOFT_FMF_Access_Control {
 			' LEFT JOIN %i AS isoft_fmf_ar ON (%i.ID = isoft_fmf_ar.post_id AND isoft_fmf_ar.meta_key = %s)',
 			$wpdb->postmeta,
 			$wpdb->posts,
-			'_isoft_fmf_access_role'
+			self::EFFECTIVE_META_KEY
 		);
 
 		// Build the IN clause with proper escaping.
