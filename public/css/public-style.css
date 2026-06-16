@@ -87,8 +87,50 @@
 	margin: 0 0 .25em;
 }
 
-.isoft-fmf-bundle-btn-wrap { margin: .25em 0 .5em; }
-.isoft-fmf-bundle-btn .dashicons { vertical-align: middle; margin-right: .25em; }
+/* Bundle download — compact icon-only chip in the top-right of the card,
+   expands to "Download all · 162 KB" on hover/focus. Full label
+   (with file count) lives on the title and aria-label attributes for
+   tooltips and assistive tech. */
+.isoft-fmf-bundle-btn-wrap {
+	display: flex;
+	justify-content: flex-end;
+	margin: .25em 0;
+}
+.isoft-fmf-bundle-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: .35em;
+	min-width: 1.85em;
+	min-height: 1.85em;
+	padding: .35em .5em;
+	border-radius: .25em;
+	background: transparent;
+	color: var(--isoft-fmf-meta-color, #666);
+	text-decoration: none;
+	line-height: 1;
+	transition: background-color .15s ease, color .15s ease;
+}
+.isoft-fmf-bundle-btn:hover,
+.isoft-fmf-bundle-btn:focus-visible {
+	background: var(--isoft-fmf-meta-color, #666);
+	color: var(--isoft-fmf-icon-color, #fff);
+	text-decoration: none;
+}
+.isoft-fmf-bundle-btn .dashicons { margin: 0; }
+.isoft-fmf-bundle-btn__label {
+	display: none;
+	white-space: nowrap;
+	font-size: .9em;
+}
+.isoft-fmf-bundle-btn:hover .isoft-fmf-bundle-btn__icon,
+.isoft-fmf-bundle-btn:focus-visible .isoft-fmf-bundle-btn__icon {
+	display: none;
+}
+.isoft-fmf-bundle-btn:hover .isoft-fmf-bundle-btn__label,
+.isoft-fmf-bundle-btn:focus-visible .isoft-fmf-bundle-btn__label {
+	display: inline;
+}
 
 .isoft-fmf-file-item {
 	display: flex;

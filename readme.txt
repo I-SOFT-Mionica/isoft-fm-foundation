@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.0
 Requires PHP: 8.4
-Stable tag: 0.10.2
+Stable tag: 0.10.3
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -161,6 +161,9 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 5. Download handler settings — security, logging, and serve method.
 
 == Changelog ==
+
+= 0.10.3 =
+* **"Download all as ZIP" button restyled** as a compact icon-only chip in the top-right of multi-file cards. On hover or keyboard focus the icon swaps for "Download all · 162 KB" so the size stays a one-glance read; the full "(2 files, 162 KB) as ZIP" label is preserved on the native tooltip and the `aria-label` for assistive tech. Fixes the long-label-overlapping-title visual on narrow cards.
 
 = 0.10.2 =
 * **Fixed: Category Grid block stuck on the loading spinner** for the "Show children of" picker. The block fetched top-level terms via a REST query with `parent: 0`, which trips a known core-data resolver quirk around numeric-zero query keys — the selector returned undefined forever. Switched to fetching all categories in one call (same as the Download List block) and filtering top-level on the client. Also added a "No top-level categories found" message so the panel surfaces an empty state instead of an unusable spinner.
