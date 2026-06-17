@@ -2,6 +2,14 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.10.11] — 2026-06-17
+
+### Changed
+- **Demo content is now generated in English only.** `ISOFT_FMF_Demo_Content` used to branch on the `cyrillic_titles` setting (intended for transliterating uploaded filenames at upload time) to switch the entire demo into Serbian Cyrillic — wrong coupling, and it forces a second language to live in the PHP source. Removed `use_serbian()` and the 24 `$sr ? 'Cyrillic' : 'English'` ternaries scattered through `category_tree()`, `download_definitions()`, `demo_page_content()`, and `create_demo_page()`. Source strings are now plain English. Translations will be added the standard WordPress way — `.po` / `.mo` files under `/languages/` — when translation work actually starts, not by hard-coding a second language into the generator. No `__()` wrapping yet (deferred until i18n work begins in a later version per the user's stated direction). The empirical confirmation that drove this: the user's Local DB showed all 5 top-level demo categories as Serbian Cyrillic names (`Скупштина општине`, `Општинско веће`, etc.) because the install had `cyrillic_titles=1` set at demo-generation time.
+
+### Fixed
+- **Download Category Grid block still rendered "No categories found" on a fresh page**, despite the 0.10.6 → 0.10.8 fixes nominally addressing the same symptom. Demo content uses the Download List block (list / grid layouts), not the Category Grid block — so the prior fixes were never exercised against a real Category Grid render and only passed the "no fatal" bar. Adding a Category Grid block on a new page produced an empty result set: the 0.10.8 query combined `'orderby' => 'meta_value_num'` + `'meta_key' => '_isoft_fmf_cat_sort_order'` + a `meta_query` OR clause with `EXISTS / NOT EXISTS`. `WP_Term_Query::get_terms()` internally appends the `meta_key` arg as an *additional* clause to the meta_query, then `WP_Meta_Query::get_sql()` joins it via INNER — and the OR relation set at the top level interacts unpredictably with that appended clause across WP versions. On the user's WP 7 test install the effective filter dropped every term without the sort-order meta, which is most of them. Fix: drop the meta-based SQL ordering entirely. `categories_shortcode()` now fetches terms with `orderby='name'` (no meta clauses) and re-sorts in PHP via `usort` reading `get_term_meta` per term (cache-warmed by the preceding `get_terms()`), with `strnatcasecmp` on name as the tiebreaker. Per-level result sets are small (< 20 terms in practice for 2-3k category trees) so the PHP sort cost is negligible and there are no SQL join surprises to debug.
+
 ## [0.10.10] — 2026-06-17
 
 ### Fixed

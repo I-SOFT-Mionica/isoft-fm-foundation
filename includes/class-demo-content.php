@@ -77,19 +77,20 @@ class ISOFT_FMF_Demo_Content {
 
 	// ─────────────────────────────────────────────────────────────────────────
 	// Content definitions
+	//
+	// Demo content is authored in English (the source language). Localisation
+	// is handled the official WordPress way — strings translated via
+	// /languages/ .po + .mo files when those are added. Do not branch demo
+	// generation on the `cyrillic_titles` setting; that setting is for
+	// transliterating uploaded filenames, not for switching demo language.
 	// ─────────────────────────────────────────────────────────────────────────
-
-	private function use_serbian(): bool {
-		return (bool) isoft_fmf_get_settings()['cyrillic_titles'];
-	}
 
 	/**
 	 * @return array<string,int> Keyed by internal slug → term_id.
 	 */
 	private function create_categories(): array {
-		$sr   = $this->use_serbian();
 		$ids  = array();
-		$tree = $this->category_tree( $sr );
+		$tree = $this->category_tree();
 
 		foreach ( $tree as $slug => $node ) {
 			$parent_id = 0;
@@ -123,51 +124,51 @@ class ISOFT_FMF_Demo_Content {
 	/**
 	 * @return array<string,array{name:string,parent?:string}>
 	 */
-	private function category_tree( bool $sr ): array {
+	private function category_tree(): array {
 		return array(
-			'municipal-assembly'    => array( 'name' => $sr ? 'Скупштина општине' : 'Municipal Assembly' ),
+			'municipal-assembly'    => array( 'name' => 'Municipal Assembly' ),
 			'term-2025-2029'        => array(
-				'name'   => $sr ? 'Сазив 2025-2029' : 'Term 2025-2029',
+				'name'   => 'Term 2025-2029',
 				'parent' => 'municipal-assembly',
 			),
 			'session-i'             => array(
-				'name'   => $sr ? 'I седница' : 'Session I',
+				'name'   => 'Session I',
 				'parent' => 'term-2025-2029',
 			),
 			'session-ii'            => array(
-				'name'   => $sr ? 'II седница' : 'Session II',
+				'name'   => 'Session II',
 				'parent' => 'term-2025-2029',
 			),
 			'term-2021-2025'        => array(
-				'name'   => $sr ? 'Сазив 2021-2025' : 'Term 2021-2025',
+				'name'   => 'Term 2021-2025',
 				'parent' => 'municipal-assembly',
 			),
-			'municipal-council'     => array( 'name' => $sr ? 'Општинско веће' : 'Municipal Council' ),
+			'municipal-council'     => array( 'name' => 'Municipal Council' ),
 			'decisions'             => array(
-				'name'   => $sr ? 'Одлуке' : 'Decisions',
+				'name'   => 'Decisions',
 				'parent' => 'municipal-council',
 			),
 			'resolutions'           => array(
-				'name'   => $sr ? 'Решења' : 'Resolutions',
+				'name'   => 'Resolutions',
 				'parent' => 'municipal-council',
 			),
-			'public-procurement'    => array( 'name' => $sr ? 'Јавне набавке' : 'Public Procurement' ),
+			'public-procurement'    => array( 'name' => 'Public Procurement' ),
 			'open-procedures'       => array(
-				'name'   => $sr ? 'Отворени поступци' : 'Open Procedures',
+				'name'   => 'Open Procedures',
 				'parent' => 'public-procurement',
 			),
 			'negotiated-procedures' => array(
-				'name'   => $sr ? 'Преговарачки поступци' : 'Negotiated Procedures',
+				'name'   => 'Negotiated Procedures',
 				'parent' => 'public-procurement',
 			),
-			'urban-planning'        => array( 'name' => $sr ? 'Урбанизам' : 'Urban Planning' ),
-			'finance'               => array( 'name' => $sr ? 'Финансије' : 'Finance' ),
+			'urban-planning'        => array( 'name' => 'Urban Planning' ),
+			'finance'               => array( 'name' => 'Finance' ),
 			'budget'                => array(
-				'name'   => $sr ? 'Буџет' : 'Budget',
+				'name'   => 'Budget',
 				'parent' => 'finance',
 			),
 			'final-account'         => array(
-				'name'   => $sr ? 'Завршни рачун' : 'Final Account',
+				'name'   => 'Final Account',
 				'parent' => 'finance',
 			),
 		);
@@ -178,8 +179,7 @@ class ISOFT_FMF_Demo_Content {
 	 * @return list<int> Created download post IDs, in creation order.
 	 */
 	private function create_downloads( array $cats ): array {
-		$sr        = $this->use_serbian();
-		$downloads = $this->download_definitions( $sr );
+		$downloads = $this->download_definitions();
 		$file_mgr  = new ISOFT_FMF_File_Manager();
 		$created   = array();
 
@@ -234,7 +234,7 @@ class ISOFT_FMF_Demo_Content {
 
 		$page_id = wp_insert_post(
 			array(
-				'post_title'   => $this->use_serbian() ? 'I-Soft File Manager: Foundation — Демо страница' : 'I-Soft File Manager: Foundation — Demo Page',
+				'post_title'   => 'I-Soft File Manager: Foundation — Demo Page',
 				'post_status'  => 'publish',
 				'post_type'    => 'page',
 				'post_content' => $this->demo_page_content( $featured_id ),
@@ -251,23 +251,13 @@ class ISOFT_FMF_Demo_Content {
 	 * single download card → list-mode listing → grid-mode listing.
 	 */
 	private function demo_page_content( int $featured_id ): string {
-		$sr = $this->use_serbian();
-
-		$intro          = $sr
-			? 'Ова страница је аутоматски генерисана од стране I-Soft File Manager: Foundation демо садржаја. Приказује три начина уграђивања преузимања у страницу или објаву.'
-			: 'This page was auto-generated by the I-Soft File Manager: Foundation demo content. It shows the three ways you can embed downloads inside any page or post.';
-		$heading_single = $sr ? 'Појединачно преузимање' : 'Single download';
-		$caption_single = $sr
-			? 'Блок „Унос за преузимање“ приказује једно одређено преузимање као картицу. Корисно за инлајн уграђивање у објаве и странице.'
-			: 'The "Download Entry" block renders one specific download as a card. Useful for embedding inline inside posts and pages.';
-		$heading_list   = $sr ? 'Распоред листе' : 'List layout';
-		$caption_list   = $sr
-			? 'Блок „Листа преузимања“ у режиму листе слаже преузимања по реду, једно испод другог.'
-			: 'The "Download List" block in list mode stacks downloads one per row.';
-		$heading_grid   = $sr ? 'Распоред мреже' : 'Grid layout';
-		$caption_grid   = $sr
-			? 'Иста „Листа преузимања“ у режиму мреже приказује преузимања као портретне плочице у респонзивној мрежи.'
-			: 'The same "Download List" block in grid mode renders downloads as portrait tiles in a responsive grid.';
+		$intro          = 'This page was auto-generated by the I-Soft File Manager: Foundation demo content. It shows the three ways you can embed downloads inside any page or post.';
+		$heading_single = 'Single download';
+		$caption_single = 'The "Download Entry" block renders one specific download as a card. Useful for embedding inline inside posts and pages.';
+		$heading_list   = 'List layout';
+		$caption_list   = 'The "Download List" block in list mode stacks downloads one per row.';
+		$heading_grid   = 'Grid layout';
+		$caption_grid   = 'The same "Download List" block in grid mode renders downloads as portrait tiles in a responsive grid.';
 
 		$parts   = array();
 		$parts[] = '<!-- wp:paragraph --><p><em>' . esc_html( $intro ) . '</em></p><!-- /wp:paragraph -->';
@@ -290,114 +280,88 @@ class ISOFT_FMF_Demo_Content {
 	/**
 	 * @return list<array{title:string,category:string,access:string,description:string,files:list<array{name:string,format:string,body:string}>}>
 	 */
-	private function download_definitions( bool $sr ): array {
+	private function download_definitions(): array {
 		return array(
 			array(
-				'title'       => $sr ? 'Одлука о буџету за 2026. годину' : 'Budget Decision 2026',
+				'title'       => 'Budget Decision 2026',
 				'category'    => 'session-i',
 				'access'      => 'public',
-				'description' => $sr
-					? 'Одлука о буџету општине Мионица за фискалну 2026. годину, усвојена на I седници Скупштине општине.'
-					: 'Municipal budget decision for fiscal year 2026, adopted at Session I of the Municipal Assembly.',
+				'description' => 'Municipal budget decision for fiscal year 2026, adopted at Session I of the Municipal Assembly.',
 				'files'       => array(
 					array(
 						'name'   => 'budget-decision-2026',
 						'format' => 'pdf',
-						'body'   => $sr
-							? "Одлука о буџету општине Мионица за 2026. годину\n\nЧлан 1.\nУкупни приходи буџета општине Мионица за 2026. годину планирани су у износу од 500.000.000 динара.\n\nЧлан 2.\nСредства из члана 1. ове одлуке распоређују се на текуће расходе, капиталне издатке и резерве."
-							: "Municipal Budget Decision for 2026\n\nArticle 1.\nTotal revenues of the municipal budget for 2026 are planned at 500,000,000 RSD.\n\nArticle 2.\nFunds from Article 1 shall be allocated to current expenditures, capital investments, and reserves.",
+						'body'   => "Municipal Budget Decision for 2026\n\nArticle 1.\nTotal revenues of the municipal budget for 2026 are planned at 500,000,000 RSD.\n\nArticle 2.\nFunds from Article 1 shall be allocated to current expenditures, capital investments, and reserves.",
 					),
 				),
 			),
 			array(
-				'title'       => $sr ? 'Записник са I седнице' : 'Session I Minutes',
+				'title'       => 'Session I Minutes',
 				'category'    => 'session-i',
 				'access'      => 'subscriber',
-				'description' => $sr
-					? 'Записник са прве седнице Скупштине општине у сазиву 2025-2029.'
-					: 'Minutes from the first session of the Municipal Assembly, term 2025-2029.',
+				'description' => 'Minutes from the first session of the Municipal Assembly, term 2025-2029.',
 				'files'       => array(
 					array(
 						'name'   => 'session-i-minutes',
 						'format' => 'pdf',
-						'body'   => $sr
-							? "Записник са I седнице Скупштине општине\n\nДатум: 15. јануар 2026.\nПрисутно: 31 од 35 одборника\nПредседавајући: Иван Петровић\n\nДневни ред:\n1. Верификација мандата\n2. Избор председника Скупштине\n3. Одлука о буџету за 2026. годину"
-							: "Minutes of Session I — Municipal Assembly\n\nDate: January 15, 2026\nPresent: 31 of 35 council members\nChair: Ivan Petrovic\n\nAgenda:\n1. Mandate verification\n2. Election of Assembly President\n3. Budget decision for 2026",
+						'body'   => "Minutes of Session I — Municipal Assembly\n\nDate: January 15, 2026\nPresent: 31 of 35 council members\nChair: Ivan Petrovic\n\nAgenda:\n1. Mandate verification\n2. Election of Assembly President\n3. Budget decision for 2026",
 					),
 				),
 			),
 			array(
-				'title'       => $sr ? 'План јавних набавки за 2026' : 'Procurement Plan 2026',
+				'title'       => 'Procurement Plan 2026',
 				'category'    => 'open-procedures',
 				'access'      => 'public',
-				'description' => $sr
-					? 'Годишњи план јавних набавки општине Мионица.'
-					: 'Annual public procurement plan for the municipality.',
+				'description' => 'Annual public procurement plan for the municipality.',
 				'files'       => array(
 					array(
 						'name'   => 'procurement-plan-2026',
 						'format' => 'docx',
-						'body'   => $sr
-							? "План јавних набавки за 2026. годину\n\nНа основу члана 88. Закона о јавним набавкама, општина Мионица доноси годишњи план набавки.\n\n1. Канцеларијски материјал — процењена вредност: 2.000.000 РСД\n2. Одржавање путева — процењена вредност: 15.000.000 РСД\n3. Информатичка опрема — процењена вредност: 5.000.000 РСД"
-							: "Public Procurement Plan for 2026\n\nPursuant to Article 88 of the Public Procurement Act, the municipality adopts the annual procurement plan.\n\n1. Office supplies — estimated value: 2,000,000 RSD\n2. Road maintenance — estimated value: 15,000,000 RSD\n3. IT equipment — estimated value: 5,000,000 RSD",
+						'body'   => "Public Procurement Plan for 2026\n\nPursuant to Article 88 of the Public Procurement Act, the municipality adopts the annual procurement plan.\n\n1. Office supplies — estimated value: 2,000,000 RSD\n2. Road maintenance — estimated value: 15,000,000 RSD\n3. IT equipment — estimated value: 5,000,000 RSD",
 					),
 				),
 			),
 			array(
-				'title'       => $sr ? 'Одлука о завршном рачуну за 2025' : 'Final Account 2025',
+				'title'       => 'Final Account 2025',
 				'category'    => 'final-account',
 				'access'      => 'public',
-				'description' => $sr
-					? 'Завршни рачун буџета општине за фискалну 2025. годину.'
-					: 'Municipal budget final account for fiscal year 2025.',
+				'description' => 'Municipal budget final account for fiscal year 2025.',
 				'files'       => array(
 					array(
 						'name'   => 'final-account-2025',
 						'format' => 'pdf',
-						'body'   => $sr
-							? "Завршни рачун буџета за 2025. годину\n\nУкупно остварени приходи: 485.000.000 РСД\nУкупно извршени расходи: 472.000.000 РСД\nБуџетски суфицит: 13.000.000 РСД"
-							: "Budget Final Account for 2025\n\nTotal realized revenue: 485,000,000 RSD\nTotal executed expenditure: 472,000,000 RSD\nBudget surplus: 13,000,000 RSD",
+						'body'   => "Budget Final Account for 2025\n\nTotal realized revenue: 485,000,000 RSD\nTotal executed expenditure: 472,000,000 RSD\nBudget surplus: 13,000,000 RSD",
 					),
 				),
 			),
 			array(
-				'title'       => $sr ? 'Урбанистички план — нацрт' : 'Urban Development Plan — Draft',
+				'title'       => 'Urban Development Plan — Draft',
 				'category'    => 'urban-planning',
 				'access'      => 'editor',
-				'description' => $sr
-					? 'Нацрт плана генералне регулације за подручје општине Мионица.'
-					: 'Draft general regulation plan for the municipal area.',
+				'description' => 'Draft general regulation plan for the municipal area.',
 				'files'       => array(
 					array(
 						'name'   => 'urban-plan-draft',
 						'format' => 'pdf',
-						'body'   => $sr
-							? "Нацрт урбанистичког плана\n\nПланско подручје обухвата 320 хектара у централној зони општине.\n\nНамена простора:\n- Зона становања: 45%\n- Пословна зона: 20%\n- Зелене површине: 25%\n- Саобраћајнице: 10%"
-							: "Urban Development Plan — Draft\n\nThe planning area covers 320 hectares in the central municipal zone.\n\nLand use:\n- Residential zone: 45%\n- Business zone: 20%\n- Green areas: 25%\n- Transportation: 10%",
+						'body'   => "Urban Development Plan — Draft\n\nThe planning area covers 320 hectares in the central municipal zone.\n\nLand use:\n- Residential zone: 45%\n- Business zone: 20%\n- Green areas: 25%\n- Transportation: 10%",
 					),
 					array(
 						'name'   => 'urban-plan-appendix',
 						'format' => 'docx',
-						'body'   => $sr
-							? "Прилог А — Списак парцела\n\nПарцела 1234/1 — 0.5 ха — зона становања\nПарцела 1234/2 — 0.3 ха — пословна зона\nПарцела 1235/1 — 1.2 ха — зелена површина"
-							: "Appendix A — Parcel List\n\nParcel 1234/1 — 0.5 ha — residential zone\nParcel 1234/2 — 0.3 ha — business zone\nParcel 1235/1 — 1.2 ha — green area",
+						'body'   => "Appendix A — Parcel List\n\nParcel 1234/1 — 0.5 ha — residential zone\nParcel 1234/2 — 0.3 ha — business zone\nParcel 1235/1 — 1.2 ha — green area",
 					),
 				),
 			),
 			array(
-				'title'       => $sr ? 'Решење о постављењу' : 'Appointment Decision',
+				'title'       => 'Appointment Decision',
 				'category'    => 'resolutions',
 				'access'      => 'public',
-				'description' => $sr
-					? 'Решење о постављењу начелника Општинске управе.'
-					: 'Decision on the appointment of the Municipal Administration Chief.',
+				'description' => 'Decision on the appointment of the Municipal Administration Chief.',
 				'files'       => array(
 					array(
 						'name'   => 'appointment-decision',
 						'format' => 'pdf',
-						'body'   => $sr
-							? "Решење о постављењу\n\nНа основу члана 56. Закона о локалној самоуправи, Општинско веће доноси решење о постављењу начелника Општинске управе општине Мионица."
-							: "Appointment Decision\n\nPursuant to Article 56 of the Local Self-Government Act, the Municipal Council adopts the decision on the appointment of the Chief of Municipal Administration.",
+						'body'   => "Appointment Decision\n\nPursuant to Article 56 of the Local Self-Government Act, the Municipal Council adopts the decision on the appointment of the Chief of Municipal Administration.",
 					),
 				),
 			),

@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.0
 Requires PHP: 8.4
-Stable tag: 0.10.10
+Stable tag: 0.10.11
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -161,6 +161,10 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 5. Download handler settings — security, logging, and serve method.
 
 == Changelog ==
+
+= 0.10.11 =
+* **Fixed: Download Category Grid block still showed "No categories found"** on new pages despite the 0.10.8 fix. The earlier attempt combined `orderby='meta_value_num'` + `meta_key` + a meta_query OR clause; `WP_Term_Query` merges those internally in ways that vary by version and silently INNER-joins termmeta, dropping every term without the sort-order meta set. Replaced with two clean `get_terms()` calls using documented arguments only: (A) terms that have the sort meta, ordered by it; (B) terms that don't, ordered by name. Result is concatenated.
+* **Demo content now generated in English only.** Previously branched on the `cyrillic_titles` setting (which is for transliterating uploaded filenames — unrelated to demo language). All category names, download titles, descriptions, and PDF/DOCX bodies are now English. Translations will be delivered the standard WordPress way via `/languages/` `.po` / `.mo` files when those land, not by hard-coding a second language into the source.
 
 = 0.10.10 =
 * **Fixed: Single download page (post permalink) was showing the summary tile too, hiding individual files.** The 0.10.9 change correctly switched multi-file *listings* to a summary tile, but the single-download page reuses the same template and inherited the same collapse — so users who clicked through to a multi-file download could only see one "Download all" button, not the individual files. The summary tile now only applies in listings. The single-download page shows the full per-file list (as before 0.10.9), with the "Download all (ZIP)" button moved to the top of the file list so the bundle option is still reachable.

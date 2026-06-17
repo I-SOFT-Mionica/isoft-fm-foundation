@@ -249,27 +249,37 @@ class ISOFT_FMF_Shortcodes {
 			'isoft_fmf_categories'
 		);
 
-		// WP_Term_Query only accepts a scalar orderby, so the primary sort
-		// (meta_value_num ASC) runs in MySQL and the secondary sort (name)
-		// is applied in PHP on tied rows. The meta_query OR with
-		// EXISTS + NOT EXISTS forces a LEFT-style join so terms without the
-		// sort-order meta still appear (meta_value_num casts NULL → 0).
-		$terms = get_terms(
+		// Two native get_terms() calls instead of one with mixed clauses:
+		// WP_Term_Query takes a single scalar orderby, and combining
+		// `orderby=meta_value_num` + `meta_key` + a meta_query OR clause
+		// to coax a LEFT JOIN produces version-dependent behaviour that
+		// silently filtered out terms without the sort meta (root cause
+		// of "No categories found" on a default Category Grid block).
+		// (A) terms with `_isoft_fmf_cat_sort_order` set, ordered by it
+		// in MySQL; (B) terms without the meta, ordered by name. Concat.
+		$parent = absint( $atts['parent'] );
+
+		$ordered_terms = get_terms(
 			array(
 				'taxonomy'   => 'isoft_fmf_category',
-				'parent'     => absint( $atts['parent'] ),
+				'parent'     => $parent,
 				'hide_empty' => false,
 				'orderby'    => 'meta_value_num',
 				'order'      => 'ASC',
-				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Custom category ordering; termmeta covers this access pattern.
+				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Custom category ordering on termmeta; small per-level result sets.
 				'meta_key'   => '_isoft_fmf_cat_sort_order',
-				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- One-shot query for category listings; not in a hot loop.
+			)
+		);
+
+		$unordered_terms = get_terms(
+			array(
+				'taxonomy'   => 'isoft_fmf_category',
+				'parent'     => $parent,
+				'hide_empty' => false,
+				'orderby'    => 'name',
+				'order'      => 'ASC',
+				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- Custom category ordering on termmeta; small per-level result sets.
 				'meta_query' => array(
-					'relation' => 'OR',
-					array(
-						'key'     => '_isoft_fmf_cat_sort_order',
-						'compare' => 'EXISTS',
-					),
 					array(
 						'key'     => '_isoft_fmf_cat_sort_order',
 						'compare' => 'NOT EXISTS',
@@ -278,24 +288,14 @@ class ISOFT_FMF_Shortcodes {
 			)
 		);
 
-		if ( is_wp_error( $terms ) || empty( $terms ) ) {
+		$terms = array_merge(
+			is_array( $ordered_terms ) ? $ordered_terms : array(),
+			is_array( $unordered_terms ) ? $unordered_terms : array()
+		);
+
+		if ( empty( $terms ) ) {
 			return '<p class="isoft-fmf-no-categories">' . esc_html__( 'No categories found.', 'isoft-fm-foundation' ) . '</p>';
 		}
-
-		// Tiebreak by name for terms sharing the same sort_order (including
-		// the 0 group of terms with no meta set). get_term_meta hits WP's
-		// term-meta cache primed by get_terms() above, so this is essentially
-		// free for the small per-level result sets we see in practice.
-		usort(
-			$terms,
-			static function ( $a, $b ): int {
-				$sa = (int) get_term_meta( $a->term_id, '_isoft_fmf_cat_sort_order', true );
-				$sb = (int) get_term_meta( $b->term_id, '_isoft_fmf_cat_sort_order', true );
-				return $sa === $sb
-					? strnatcasecmp( $a->name, $b->name )
-					: $sa <=> $sb;
-			}
-		);
 
 		$columns    = min( 4, max( 1, absint( $atts['columns'] ) ) );
 		$show_count = filter_var( $atts['show_count'], FILTER_VALIDATE_BOOLEAN );
