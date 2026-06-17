@@ -43,6 +43,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        # blocks/build/ is gitignored — without these two steps the
+        # shipped zip has empty block folders (source excluded by
+        # .distignore, compiled output never built) and every Gutenberg
+        # block renders blank on user sites.
+        run: npm ci
+
+      - name: Build block bundles
+        run: npm run build
+
       - name: Verify version consistency
         # The single biggest way to ship a broken release is mismatched
         # version metadata. readme.txt's Stable tag is what WP.org actually

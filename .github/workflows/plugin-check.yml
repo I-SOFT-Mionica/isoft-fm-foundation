@@ -41,6 +41,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        # blocks/build/ is gitignored — without these two steps the
+        # staged plugin ships with empty block source folders and
+        # Plugin Check's enqueued-asset runtime checks see no JS.
+        run: npm ci
+
+      - name: Build block bundles
+        run: npm run build
 
       - name: Install wp-env
         run: npm install -g @wordpress/env

@@ -17,6 +17,15 @@ Every PR must pass all three before merge. They run on `push` and `pull_request`
 
 `Plugin Check` uses our **custom workflow** (not `wordpress/plugin-check-action@stable`) because the upstream action triggers a wp-env URL-plugin download bug on Node 24 / libuv 1.52.1. The header comment in `.github/workflows/plugin-check.yml` has the full bisection story (upstream issue #579). Don't switch back without re-checking that bug.
 
+## Block bundles must be built in CI
+
+`blocks/build/` is gitignored. Two workflows need to run `npm ci && npm run build` between checkout and their respective scan/stage step, or the plugin ends up with empty `blocks/<name>/` folders (source is excluded by `.distignore` too):
+
+- **`Plugin Check`** — Plugin Check's runtime checks (enqueued asset size, loading strategy) need the compiled JS to validate. Build step lives between `setup-node` and `Install wp-env`.
+- **`Deploy to WordPress.org`** — the 10up action stages the checkout via `.distignore`. Without a build step before it, the SVN tag ships with no Gutenberg block bundles and every block renders blank on user sites. Build step lives between `actions/checkout` and `Verify version consistency`.
+
+PHPCS and PHPUnit don't need block JS — leave them as is. The local zip build (`python build.py`) builds blocks itself, so it's safe regardless. The risk is exclusively the CI path.
+
 ## Polling CI after a push
 
 \```bash
