@@ -2,6 +2,16 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.10.7] — 2026-06-16
+
+### Added
+- **ZIP bundle cache** — new Settings → Display section with two fields: `Enable ZIP cache` (checkbox, default off) and `Cache duration` (number, default 7 days, range 1–365). When enabled, `ISOFT_FMF_Bundle_Handler` stores each generated bundle as `bundle-{download_id}.zip` + a `bundle-{download_id}.json` metadata sidecar under `wp-content/uploads/isoft-fmf-files/.bundle-cache/` (covered by the existing deny-all `.htaccess`). The activator creates the cache subdir on plugin activation. On subsequent bundle requests, `try_serve_from_cache()` checks three things before reusing the file: (1) the configured duration hasn't elapsed since `generated_at`, (2) the current file-ID set matches the cached `file_ids` array, and (3) the max filemtime across the current files matches the cached `max_mtime`. Any divergence falls through to a fresh build, which atomically renames the new tempfile over the old cache. This catches file additions, removals, AND in-place replacements without needing a separate mutation hook on `ISOFT_FMF_File_Manager`. Cache misses on the rename (cross-filesystem temp dir, permission denied, etc.) fall back to serving the tempfile directly so caching never breaks the download.
+
+### Changed
+- **`ISOFT_FMF_Bundle_Handler::stream_bundle()` refactored** to extract the post-build housekeeping (audit log, counter increments, headers, readfile) into a shared `dispatch_zip()` helper. The cache-hit path and the fresh-build path now both call `dispatch_zip()`, so the user-visible effects — audit log entry, per-file counter bump, `isoft_fmf_after_bundle_download` action — are identical regardless of whether the bundle was built fresh or served from cache. Previously the audit / counter / hook code was inlined and only ran on fresh builds.
+- **`uninstall.php`** — added `isoft_fmf_enable_zip_cache` and `isoft_fmf_zip_cache_days` to the enumerated `delete_option()` list. Cache files themselves are cleaned by the existing `wp_filesystem->delete( isoft_fmf_files_dir(), true, 'd' )` call since they live inside that directory tree.
+- **`includes/class-settings.php`** — dropped the stale "Planned: …" comments on `isoft_fmf_block_user_agents` and `isoft_fmf_enable_zip_bundle`; both have been wired up for releases (0.10.0 and earlier) and the comments were misleading.
+
 ## [0.10.6] — 2026-06-16
 
 ### Fixed

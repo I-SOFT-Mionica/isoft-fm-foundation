@@ -90,7 +90,50 @@ class ISOFT_FMF_Bundle_Handler {
 		}
 
 		do_action( 'isoft_fmf_before_bundle_download', $download_id, get_current_user_id() );
+
+		// Cache fast path: if a fresh cached bundle exists for this download,
+		// serve it instead of rebuilding. Exits on hit.
+		$this->try_serve_from_cache( $download_id, $local_files );
+
 		$this->stream_bundle( $download_id, $local_files );
+	}
+
+	/**
+	 * If the user enabled caching AND a valid cache file exists for this
+	 * download (same file set, same max mtime, within the duration window),
+	 * stream it and exit. Returns silently on miss so the caller can fall
+	 * through to a fresh build.
+	 *
+	 * @param object[] $files Local-only file rows from ISOFT_FMF_File_Manager.
+	 */
+	private function try_serve_from_cache( int $download_id, array $files ): void {
+		if ( ! get_option( 'isoft_fmf_enable_zip_cache', 0 ) ) {
+			return;
+		}
+
+		$paths = $this->cache_paths( $download_id );
+		if ( ! file_exists( $paths['zip'] ) || ! file_exists( $paths['meta'] ) ) {
+			return;
+		}
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Reading internal cache metadata sidecar under our storage dir.
+		$meta_raw = file_get_contents( $paths['meta'] );
+		$meta     = $meta_raw ? json_decode( $meta_raw, true ) : null;
+		if ( ! is_array( $meta ) ) {
+			return;
+		}
+
+		$duration_days    = max( 1, (int) get_option( 'isoft_fmf_zip_cache_days', 7 ) );
+		$duration_seconds = $duration_days * DAY_IN_SECONDS;
+		if ( ( time() - (int) ( $meta['generated_at'] ?? 0 ) ) > $duration_seconds ) {
+			return; // Expired — fall through to fresh build, which will overwrite.
+		}
+
+		if ( ! $this->signatures_match( $this->current_file_signature( $files ), $meta ) ) {
+			return; // File set changed since cache was written.
+		}
+
+		$this->dispatch_zip( $download_id, $files, $paths['zip'], count( $files ), false );
 	}
 
 	/**
@@ -145,6 +188,28 @@ class ISOFT_FMF_Bundle_Handler {
 			wp_die( esc_html__( 'No files were available to bundle.', 'isoft-fm-foundation' ), 404 );
 		}
 
+		// If caching is on, atomically rename the temp into the cache dir so
+		// subsequent requests get served by try_serve_from_cache. If the
+		// rename fails (permissions, cross-filesystem, etc.) we still serve
+		// the tempfile and just skip caching this round.
+		$served_path = $this->write_to_cache( $download_id, $files, $tmp );
+		$is_temp     = ( null === $served_path );
+		if ( null === $served_path ) {
+			$served_path = $tmp;
+		}
+
+		$this->dispatch_zip( $download_id, $files, $served_path, $added, $is_temp );
+	}
+
+	/**
+	 * Post-build housekeeping (audit log, counters, after-action hook) plus
+	 * the binary stream. Shared by the cache-hit path and the fresh-build
+	 * path so the user-visible effects are identical regardless of source.
+	 *
+	 * @param bool $is_temp If true, the file at $zip_path is a one-shot
+	 *                      temp that gets deleted after streaming.
+	 */
+	private function dispatch_zip( int $download_id, array $files, string $zip_path, int $file_count, bool $is_temp ): void {
 		// Single audit-log entry for the whole bundle. file_id = 0 sentinel.
 		$log_id = ( new ISOFT_FMF_Download_Logger() )->log( $download_id, 0 );
 
@@ -159,7 +224,7 @@ class ISOFT_FMF_Bundle_Handler {
 			}
 		}
 
-		do_action( 'isoft_fmf_after_bundle_download', $log_id, $download_id, $added );
+		do_action( 'isoft_fmf_after_bundle_download', $log_id, $download_id, $file_count );
 
 		$slug      = get_post_field( 'post_name', $download_id ) ?: "download-{$download_id}";
 		$file_name = "{$slug}.zip";
@@ -168,13 +233,13 @@ class ISOFT_FMF_Bundle_Handler {
 			array(
 				'Content-Type'           => 'application/zip',
 				'Content-Disposition'    => "attachment; filename=\"{$file_name}\"",
-				'Content-Length'         => (string) filesize( $tmp ),
+				'Content-Length'         => (string) filesize( $zip_path ),
 				'X-Content-Type-Options' => 'nosniff',
 				'Cache-Control'          => 'no-store, no-cache, must-revalidate',
 				'Pragma'                 => 'no-cache',
 			),
 			$download_id,
-			$added
+			$file_count
 		);
 
 		if ( ob_get_level() ) {
@@ -185,8 +250,107 @@ class ISOFT_FMF_Bundle_Handler {
 		}
 
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile -- Binary ZIP payload; cannot route through WP_Filesystem (returns strings) or HTML-escape.
-		readfile( $tmp );
-		wp_delete_file( $tmp );
+		readfile( $zip_path );
+
+		if ( $is_temp ) {
+			wp_delete_file( $zip_path );
+		}
+
 		exit;
+	}
+
+	/**
+	 * Move the freshly-built tempfile into the cache dir and write a
+	 * metadata sidecar describing the file set + max mtime + timestamp.
+	 * Returns the new cache path on success, or null if caching is off
+	 * or the move failed (permissions, cross-filesystem rename, etc.) —
+	 * caller should fall back to serving the tempfile directly.
+	 *
+	 * @param object[] $files Local-only file rows from ISOFT_FMF_File_Manager.
+	 */
+	private function write_to_cache( int $download_id, array $files, string $tmp_zip ): ?string {
+		if ( ! get_option( 'isoft_fmf_enable_zip_cache', 0 ) ) {
+			return null;
+		}
+
+		$paths = $this->cache_paths( $download_id );
+		$dir   = dirname( $paths['zip'] );
+		if ( ! is_dir( $dir ) && ! wp_mkdir_p( $dir ) ) {
+			return null;
+		}
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename -- Atomic move into our internal cache dir; WP_Filesystem returns booleans only for full-content writes, not atomic rename semantics.
+		if ( ! @rename( $tmp_zip, $paths['zip'] ) ) {
+			return null;
+		}
+
+		$sig  = $this->current_file_signature( $files );
+		$meta = array(
+			'file_ids'     => $sig['file_ids'],
+			'max_mtime'    => $sig['max_mtime'],
+			'generated_at' => time(),
+		);
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Internal cache metadata sidecar under our storage dir.
+		file_put_contents( $paths['meta'], wp_json_encode( $meta ) );
+		return $paths['zip'];
+	}
+
+	/**
+	 * Snapshot of the current file set: sorted list of file IDs and the
+	 * max filemtime across all readable files. Compared against the cached
+	 * sidecar to detect file additions, deletions, and replacements.
+	 *
+	 * @param object[] $files Local-only file rows.
+	 * @return array{ file_ids: int[], max_mtime: int }
+	 */
+	private function current_file_signature( array $files ): array {
+		$base      = realpath( isoft_fmf_files_dir() );
+		$ids       = array();
+		$max_mtime = 0;
+		foreach ( $files as $file ) {
+			$ids[] = (int) $file->id;
+			if ( empty( $file->file_path ) ) {
+				continue;
+			}
+			$abs = realpath( "{$base}/{$file->file_path}" );
+			if ( $abs && str_starts_with( $abs, $base ) ) {
+				$mtime = @filemtime( $abs );
+				if ( $mtime && $mtime > $max_mtime ) {
+					$max_mtime = $mtime;
+				}
+			}
+		}
+		sort( $ids );
+		return array(
+			'file_ids'  => $ids,
+			'max_mtime' => $max_mtime,
+		);
+	}
+
+	/**
+	 * @param array{ file_ids: int[], max_mtime: int } $current
+	 * @param array                                    $cached_meta Decoded sidecar JSON.
+	 */
+	private function signatures_match( array $current, array $cached_meta ): bool {
+		$cached_ids = isset( $cached_meta['file_ids'] )
+			? array_map( 'intval', (array) $cached_meta['file_ids'] )
+			: array();
+		sort( $cached_ids );
+		if ( $cached_ids !== $current['file_ids'] ) {
+			return false;
+		}
+		return (int) ( $cached_meta['max_mtime'] ?? 0 ) === $current['max_mtime'];
+	}
+
+	/**
+	 * @return array{ zip: string, meta: string }
+	 */
+	private function cache_paths( int $download_id ): array {
+		$dir = isoft_fmf_files_dir() . '/.bundle-cache';
+		return array(
+			'zip'  => "{$dir}/bundle-{$download_id}.zip",
+			'meta' => "{$dir}/bundle-{$download_id}.json",
+		);
 	}
 }
