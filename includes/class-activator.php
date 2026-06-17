@@ -75,6 +75,14 @@ Options -Indexes
 HTACCESS;
 			file_put_contents( $htaccess, $rules ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Runs during activation before WP_Filesystem is bootstrapped.
 		}
+
+		// Bundle-cache subdir. Covered by the parent .htaccess above (deny-all
+		// cascades), so no second .htaccess needed — but we create the dir
+		// explicitly so the bundle handler doesn't race on first cache write.
+		$cache_dir = "{$dir}/.bundle-cache";
+		if ( ! file_exists( $cache_dir ) ) {
+			wp_mkdir_p( $cache_dir );
+		}
 	}
 
 	/**

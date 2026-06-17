@@ -142,8 +142,10 @@ class ISOFT_FMF_Settings {
 			'isoft_fmf_serve_method'             => 'sanitize_text_field',
 			'isoft_fmf_nginx_config_confirmed'   => 'absint',
 			'isoft_fmf_rate_limit_per_hour'      => 'absint',
-			'isoft_fmf_block_user_agents'        => 'sanitize_textarea_field', // Planned: user-agent blocklist enforcement in download handler.
-			'isoft_fmf_enable_zip_bundle'        => 'absint', // Planned: combine multi-file downloads into a single ZIP on the fly.
+			'isoft_fmf_block_user_agents'        => 'sanitize_textarea_field',
+			'isoft_fmf_enable_zip_bundle'        => 'absint',
+			'isoft_fmf_enable_zip_cache'         => 'absint',
+			'isoft_fmf_zip_cache_days'           => 'absint',
 			'isoft_fmf_hotlink_protection'       => 'absint',
 			// Files
 			'isoft_fmf_allowed_extensions'       => 'sanitize_textarea_field',

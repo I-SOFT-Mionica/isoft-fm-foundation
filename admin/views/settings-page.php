@@ -175,6 +175,24 @@
 					<?php endif; ?>
 				</td>
 			</tr>
+			<tr>
+				<th><?php esc_html_e( 'ZIP Bundle Cache', 'isoft-fm-foundation' ); ?></th>
+				<td>
+					<label>
+						<input type="checkbox" name="isoft_fmf_enable_zip_cache" value="1" <?php checked( get_option( 'isoft_fmf_enable_zip_cache', 0 ) ); ?> />
+						<?php esc_html_e( 'Cache generated ZIP bundles so repeated downloads serve the same file', 'isoft-fm-foundation' ); ?>
+					</label>
+					<br>
+					<label style="display:inline-block;margin-top:.5em;">
+						<?php esc_html_e( 'Cache duration:', 'isoft-fm-foundation' ); ?>
+						<input type="number" name="isoft_fmf_zip_cache_days" value="<?php echo esc_attr( get_option( 'isoft_fmf_zip_cache_days', 7 ) ); ?>" min="1" max="365" class="small-text" />
+						<?php esc_html_e( 'days', 'isoft-fm-foundation' ); ?>
+					</label>
+					<p class="description">
+						<?php esc_html_e( 'Cache is invalidated automatically when files are added, removed, or modified — the duration is just an upper bound. Cached bundles live under wp-content/uploads/isoft-fmf-files/.bundle-cache/.', 'isoft-fm-foundation' ); ?>
+					</p>
+				</td>
+			</tr>
 		</table>
 
 		<hr>

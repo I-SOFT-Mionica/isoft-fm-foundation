@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.0
 Requires PHP: 8.4
-Stable tag: 0.10.6
+Stable tag: 0.10.7
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -161,6 +161,9 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 5. Download handler settings — security, logging, and serve method.
 
 == Changelog ==
+
+= 0.10.7 =
+* **ZIP bundle cache** — new toggle on Settings → Display that stores generated bundles to disk so repeated requests for the same multi-file download don't rebuild the ZIP every time. Configurable duration (default 7 days). Cache is invalidated automatically when any of the bundled files is added, removed, or replaced — duration is just an upper bound. Cache files live under `wp-content/uploads/isoft-fmf-files/.bundle-cache/` (covered by the existing deny-all `.htaccess`).
 
 = 0.10.6 =
 * **Fixed: Category Grid (and `[isoft_fmf_categories]` shortcode) showed "No categories found"** even when categories existed. The query ordered by the optional `_isoft_fmf_cat_sort_order` term meta, which silently dropped every term that didn't have that meta set — which is most of them on a fresh install. Categories now appear regardless of whether they've been ordered, sorted by sort-order first, name second.

@@ -71,6 +71,8 @@ $options = array(
 	'isoft_fmf_rate_limit_per_hour',
 	'isoft_fmf_block_user_agents',
 	'isoft_fmf_enable_zip_bundle',
+	'isoft_fmf_enable_zip_cache',
+	'isoft_fmf_zip_cache_days',
 	'isoft_fmf_hotlink_protection',
 	// Settings (files)
 	'isoft_fmf_allowed_extensions',
