@@ -2,6 +2,12 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.10.12] — 2026-06-18
+
+### Changed
+- **Demo content gains realistic stats.** Each demo download definition now carries `downloads` (all-time count), optional `hot` (boolean), and `days_ago` (post-date offset) fields in `ISOFT_FMF_Demo_Content::download_definitions()`. After creating a download's files, `seed_download_stats()` splits the total across the file rows (first file ~60%, others split the remainder via `split_count()`), writes the per-file `download_count` column on `wp_isoft_fmf_files`, syncs the `_isoft_fmf_download_count` post-meta sum, and — for HOT entries — inserts seven days of `wp_isoft_fmf_download_daily` rows summing to ~20% of all-time activity. The nightly HOT cron re-ranks from that table, so the seeded HOT badge survives the next 01:00 recalculation instead of being wiped (the cron unconditionally `DELETE`s every `_isoft_fmf_is_hot` row before re-electing winners from the daily table). Post `post_date` is back-dated by `days_ago` so the public-facing date column doesn't say "today" for every entry. Demo distribution: Budget Decision 2026 (1,247 downloads, HOT, 14d), Procurement Plan 2026 (893, HOT, 21d), Session I Minutes (412, 30d), Final Account 2025 (187, 60d), Urban Development Plan — Draft (56 split 34+22, 7d), Appointment Decision (23, 45d).
+- **`remove_demo_posts()`** now also `DELETE`s the seeded daily-log rows per post so the cleanup path is symmetric with the seeding path; without this, leftover rows linger in `wp_isoft_fmf_download_daily` forever (orphaned download_ids that no longer point at posts).
+
 ## [0.10.11] — 2026-06-17
 
 ### Changed

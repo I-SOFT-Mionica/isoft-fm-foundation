@@ -186,14 +186,22 @@ class ISOFT_FMF_Demo_Content {
 		foreach ( $downloads as $def ) {
 			$cat_id = $cats[ $def['category'] ] ?? 0;
 
-			$post_id = wp_insert_post(
-				array(
-					'post_title'   => $def['title'],
-					'post_status'  => 'publish',
-					'post_type'    => 'isoft_fmf_file',
-					'post_content' => $def['description'] ?? '',
-				)
+			// Back-date posts so the demo looks like it's been in service.
+			// post_date is what the public-facing date column reads.
+			$days_ago  = (int) ( $def['days_ago'] ?? 0 );
+			$post_args = array(
+				'post_title'   => $def['title'],
+				'post_status'  => 'publish',
+				'post_type'    => 'isoft_fmf_file',
+				'post_content' => $def['description'] ?? '',
 			);
+			if ( $days_ago > 0 ) {
+				$ts                       = time() - ( $days_ago * DAY_IN_SECONDS );
+				$post_args['post_date']   = wp_date( 'Y-m-d H:i:s', $ts );
+				$post_args['post_date_gmt'] = gmdate( 'Y-m-d H:i:s', $ts );
+			}
+
+			$post_id = wp_insert_post( $post_args );
 
 			if ( is_wp_error( $post_id ) || ! $post_id ) {
 				continue;
@@ -212,10 +220,109 @@ class ISOFT_FMF_Demo_Content {
 				$this->create_demo_file( $post_id, $file_def, $cat_id, $cat_path, $i, $file_mgr );
 			}
 
+			$total = (int) ( $def['downloads'] ?? 0 );
+			if ( $total > 0 ) {
+				$this->seed_download_stats(
+					(int) $post_id,
+					$total,
+					! empty( $def['hot'] )
+				);
+			}
+
 			$created[] = (int) $post_id;
 		}
 
 		return $created;
+	}
+
+	/**
+	 * Give demo entries realistic-looking download counters and (optionally) a
+	 * HOT badge so screenshots aren't full of zeros. Distributes the all-time
+	 * count across the download's files (first file gets ~60%, rest split the
+	 * remainder), syncs the post-level cached SUM, and — for HOT entries —
+	 * inserts last-7-days rows into the daily log so the nightly HOT cron
+	 * re-elects them instead of clearing the badge.
+	 */
+	private function seed_download_stats( int $post_id, int $total, bool $hot ): void {
+		global $wpdb;
+
+		$files_table = $wpdb->prefix . 'isoft_fmf_files';
+		$daily_table = $wpdb->prefix . 'isoft_fmf_download_daily';
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- One-shot demo seed; not a hot path.
+		$file_ids = $wpdb->get_col(
+			$wpdb->prepare(
+				'SELECT id FROM %i WHERE download_id = %d ORDER BY sort_order, id',
+				$files_table,
+				$post_id
+			)
+		);
+
+		if ( empty( $file_ids ) ) {
+			return;
+		}
+
+		$counts = $this->split_count( $total, count( $file_ids ) );
+		foreach ( $file_ids as $i => $file_id ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Demo seed.
+			$wpdb->update(
+				$files_table,
+				array( 'download_count' => $counts[ $i ] ),
+				array( 'id' => (int) $file_id )
+			);
+		}
+
+		update_post_meta( $post_id, '_isoft_fmf_download_count', $total );
+
+		if ( ! $hot ) {
+			return;
+		}
+
+		// HOT cron picks the top 10 downloads by SUM(count) over the last 7 days
+		// in isoft_fmf_download_daily. Seed ~20% of the all-time count across
+		// the past week so the cron re-elects this entry on its next run
+		// instead of clearing the HOT meta we set below.
+		$weekly_total = max( 7, (int) round( $total * 0.20 ) );
+		$daily        = $this->split_count( $weekly_total, 7 );
+		for ( $d = 0; $d < 7; $d++ ) {
+			$log_date = gmdate( 'Y-m-d', time() - ( $d * DAY_IN_SECONDS ) );
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Demo seed.
+			$wpdb->replace(
+				$daily_table,
+				array(
+					'download_id' => $post_id,
+					'log_date'    => $log_date,
+					'count'       => $daily[ $d ],
+				)
+			);
+		}
+
+		update_post_meta( $post_id, '_isoft_fmf_is_hot', 1 );
+	}
+
+	/**
+	 * Split an integer total across N buckets with a front-loaded bias —
+	 * first bucket gets ~60% for two-bucket splits, smoothing toward even for
+	 * larger N. Always sums exactly to $total (remainder lands in bucket 0).
+	 *
+	 * @return list<int>
+	 */
+	private function split_count( int $total, int $buckets ): array {
+		if ( $buckets <= 1 ) {
+			return array( $total );
+		}
+		$out      = array_fill( 0, $buckets, 0 );
+		$weighted = 0;
+		// Front-load: bucket 0 gets a heavier share than the rest.
+		$weights = array_fill( 0, $buckets, 1.0 );
+		$weights[0] = max( 1.5, $buckets * 0.6 );
+		$sum_w     = array_sum( $weights );
+		for ( $i = 0; $i < $buckets - 1; $i++ ) {
+			$out[ $i ]  = (int) floor( $total * ( $weights[ $i ] / $sum_w ) );
+			$weighted += $out[ $i ];
+		}
+		$out[ $buckets - 1 ] = max( 0, $total - $weighted );
+		return $out;
 	}
 
 	/**
@@ -287,6 +394,9 @@ class ISOFT_FMF_Demo_Content {
 				'category'    => 'session-i',
 				'access'      => 'public',
 				'description' => 'Municipal budget decision for fiscal year 2026, adopted at Session I of the Municipal Assembly.',
+				'downloads'   => 1247,
+				'hot'         => true,
+				'days_ago'    => 14,
 				'files'       => array(
 					array(
 						'name'   => 'budget-decision-2026',
@@ -300,6 +410,8 @@ class ISOFT_FMF_Demo_Content {
 				'category'    => 'session-i',
 				'access'      => 'subscriber',
 				'description' => 'Minutes from the first session of the Municipal Assembly, term 2025-2029.',
+				'downloads'   => 412,
+				'days_ago'    => 30,
 				'files'       => array(
 					array(
 						'name'   => 'session-i-minutes',
@@ -313,6 +425,9 @@ class ISOFT_FMF_Demo_Content {
 				'category'    => 'open-procedures',
 				'access'      => 'public',
 				'description' => 'Annual public procurement plan for the municipality.',
+				'downloads'   => 893,
+				'hot'         => true,
+				'days_ago'    => 21,
 				'files'       => array(
 					array(
 						'name'   => 'procurement-plan-2026',
@@ -326,6 +441,8 @@ class ISOFT_FMF_Demo_Content {
 				'category'    => 'final-account',
 				'access'      => 'public',
 				'description' => 'Municipal budget final account for fiscal year 2025.',
+				'downloads'   => 187,
+				'days_ago'    => 60,
 				'files'       => array(
 					array(
 						'name'   => 'final-account-2025',
@@ -339,6 +456,8 @@ class ISOFT_FMF_Demo_Content {
 				'category'    => 'urban-planning',
 				'access'      => 'editor',
 				'description' => 'Draft general regulation plan for the municipal area.',
+				'downloads'   => 56,
+				'days_ago'    => 7,
 				'files'       => array(
 					array(
 						'name'   => 'urban-plan-draft',
@@ -357,6 +476,8 @@ class ISOFT_FMF_Demo_Content {
 				'category'    => 'resolutions',
 				'access'      => 'public',
 				'description' => 'Decision on the appointment of the Municipal Administration Chief.',
+				'downloads'   => 23,
+				'days_ago'    => 45,
 				'files'       => array(
 					array(
 						'name'   => 'appointment-decision',
@@ -590,6 +711,9 @@ class ISOFT_FMF_Demo_Content {
 			)
 		);
 
+		global $wpdb;
+		$daily_table = $wpdb->prefix . 'isoft_fmf_download_daily';
+
 		$file_mgr = new ISOFT_FMF_File_Manager();
 		foreach ( $posts as $post_id ) {
 			// Pages have no associated isoft_fmf_files rows; only run file cleanup for downloads.
@@ -604,6 +728,10 @@ class ISOFT_FMF_Demo_Content {
 					}
 					$file_mgr->delete_file( (int) $file->id );
 				}
+				// Clear seeded daily-log rows so removing demo content also
+				// clears the HOT-eligible activity we synthesized for it.
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- One-shot demo cleanup.
+				$wpdb->delete( $daily_table, array( 'download_id' => (int) $post_id ) );
 			}
 			wp_delete_post( $post_id, true );
 		}

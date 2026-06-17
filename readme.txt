@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.0
 Requires PHP: 8.4
-Stable tag: 0.10.11
+Stable tag: 0.10.12
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -161,6 +161,9 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 5. Download handler settings — security, logging, and serve method.
 
 == Changelog ==
+
+= 0.10.12 =
+* **Demo content now ships with realistic download counts, HOT badges, and varied post dates** so first-impression screenshots (admin list, public listings, single download) don't look empty. Two of the six demo downloads carry a HOT badge with seeded daily-log activity so the nightly HOT cron re-elects them instead of clearing the badge. Removing demo content cleans the seeded daily-log rows along with everything else.
 
 = 0.10.11 =
 * **Fixed: Download Category Grid block still showed "No categories found"** on new pages despite the 0.10.8 fix. The earlier attempt combined `orderby='meta_value_num'` + `meta_key` + a meta_query OR clause; `WP_Term_Query` merges those internally in ways that vary by version and silently INNER-joins termmeta, dropping every term without the sort-order meta set. Replaced with two clean `get_terms()` calls using documented arguments only: (A) terms that have the sort meta, ordered by it; (B) terms that don't, ordered by name. Result is concatenated.
