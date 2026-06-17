@@ -44,11 +44,9 @@
 		<?php require __DIR__ . '/extensions-tab.php'; ?>
 	<?php elseif ( 'maintenance' === $active_tab ) : ?>
 		<?php require __DIR__ . '/maintenance-tab.php'; ?>
-	<?php else : ?>
+	<?php elseif ( 'general' === $active_tab ) : ?>
 	<form method="post" action="options.php">
-		<?php settings_fields( 'isoft_fmf_settings' ); ?>
-
-		<?php if ( 'general' === $active_tab ) : ?>
+		<?php settings_fields( 'isoft_fmf_general' ); ?>
 		<table class="form-table">
 			<tr>
 				<th><?php esc_html_e( 'Storage Location', 'isoft-fm-foundation' ); ?></th>
@@ -115,8 +113,12 @@
 				</td>
 			</tr>
 		</table>
+		<?php submit_button(); ?>
+	</form>
 
-		<?php elseif ( 'display' === $active_tab ) : ?>
+	<?php elseif ( 'display' === $active_tab ) : ?>
+	<form method="post" action="options.php">
+		<?php settings_fields( 'isoft_fmf_display' ); ?>
 		<table class="form-table">
 			<tr>
 				<th><label for="isoft-fmf-default-button-text"><?php esc_html_e( 'Default Button Text', 'isoft-fm-foundation' ); ?></label></th>
@@ -194,10 +196,12 @@
 				</td>
 			</tr>
 		</table>
+		<?php submit_button(); ?>
+	</form>
 
-		<hr>
+	<hr>
 
-		<h2><?php esc_html_e( 'Theming', 'isoft-fm-foundation' ); ?></h2>
+	<h2><?php esc_html_e( 'Theming', 'isoft-fm-foundation' ); ?></h2>
 		<p><?php esc_html_e( 'Visual styling is exposed via CSS custom properties on :root. Override any value via WordPress Customizer — no plugin file edits, no selector knowledge needed.', 'isoft-fm-foundation' ); ?></p>
 
 		<details class="isoft-fmf-theming-details" open>
@@ -272,7 +276,9 @@
 			</a>
 		</p>
 
-		<?php elseif ( 'security' === $active_tab ) : ?>
+	<?php elseif ( 'security' === $active_tab ) : ?>
+	<form method="post" action="options.php">
+		<?php settings_fields( 'isoft_fmf_security' ); ?>
 		<table class="form-table">
 			<tr>
 				<th><?php esc_html_e( 'Detected Server', 'isoft-fm-foundation' ); ?></th>
@@ -316,8 +322,12 @@
 				</td>
 			</tr>
 		</table>
+		<?php submit_button(); ?>
+	</form>
 
-		<?php elseif ( 'advanced' === $active_tab ) : ?>
+	<?php elseif ( 'advanced' === $active_tab ) : ?>
+	<form method="post" action="options.php">
+		<?php settings_fields( 'isoft_fmf_advanced' ); ?>
 		<table class="form-table">
 			<tr>
 				<th><label for="isoft-fmf-archive-slug"><?php esc_html_e( 'Download Archive Slug', 'isoft-fm-foundation' ); ?></label></th>
@@ -349,8 +359,6 @@
 				</td>
 			</tr>
 		</table>
-		<?php endif; ?>
-
 		<?php submit_button(); ?>
 	</form>
 	<?php endif; ?>

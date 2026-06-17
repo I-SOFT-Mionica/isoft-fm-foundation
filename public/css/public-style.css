@@ -82,54 +82,25 @@
 .isoft-fmf-download-card + .isoft-fmf-download-card {
 	margin-top: 0;
 }
-.isoft-fmf-download-card__title {
-	font-size: 1em;
-	margin: 0 0 .25em;
+
+/* Multi-file summary tile — renders the bundle as a single card the
+   same visual shape as a single-file card. The icon column shows the
+   file count instead of a type initial; the meta row shows aggregate
+   info (count badge · types · date · total size · download count);
+   the action band is the ZIP bundle button. The title links to the
+   post permalink where individual files can be inspected. */
+.isoft-fmf-file-item--summary .isoft-fmf-meta--types {
+	font-weight: 600;
+	letter-spacing: .02em;
+	color: var(--isoft-fmf-meta-color, #444);
 }
 
-/* Bundle download — compact icon-only chip in the top-right of the card,
-   expands to "Download all · 162 KB" on hover/focus. Full label
-   (with file count) lives on the title and aria-label attributes for
-   tooltips and assistive tech. */
-.isoft-fmf-bundle-btn-wrap {
+/* "Download all" affordance above the file list on the expanded
+   single-download page. */
+.isoft-fmf-download-card__bundle-action {
 	display: flex;
 	justify-content: flex-end;
-	margin: .25em 0;
-}
-.isoft-fmf-bundle-btn {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	gap: .35em;
-	min-width: 1.85em;
-	min-height: 1.85em;
-	padding: .35em .5em;
-	border-radius: .25em;
-	background: transparent;
-	color: var(--isoft-fmf-meta-color, #666);
-	text-decoration: none;
-	line-height: 1;
-	transition: background-color .15s ease, color .15s ease;
-}
-.isoft-fmf-bundle-btn:hover,
-.isoft-fmf-bundle-btn:focus-visible {
-	background: var(--isoft-fmf-meta-color, #666);
-	color: var(--isoft-fmf-icon-color, #fff);
-	text-decoration: none;
-}
-.isoft-fmf-bundle-btn .dashicons { margin: 0; }
-.isoft-fmf-bundle-btn__label {
-	display: none;
-	white-space: nowrap;
-	font-size: .9em;
-}
-.isoft-fmf-bundle-btn:hover .isoft-fmf-bundle-btn__icon,
-.isoft-fmf-bundle-btn:focus-visible .isoft-fmf-bundle-btn__icon {
-	display: none;
-}
-.isoft-fmf-bundle-btn:hover .isoft-fmf-bundle-btn__label,
-.isoft-fmf-bundle-btn:focus-visible .isoft-fmf-bundle-btn__label {
-	display: inline;
+	margin: 0 0 .75em;
 }
 
 .isoft-fmf-file-item {
@@ -282,83 +253,6 @@
 	background: var(--isoft-fmf-card-bg, #fff);
 	display: flex;
 	flex-direction: column;
-}
-
-/* ── Multi-file download card (count > 1) ──
- * A card with a __title header contains more than one file. We can't
- * honor the 1.5:2.7 portrait lock because each file becomes its own row
- * inside the card. Release the aspect-ratio, stack files compactly, and
- * let the card grow to its content. */
-.isoft-fmf-grid .isoft-fmf-download-card:has(.isoft-fmf-download-card__title) {
-	aspect-ratio: auto;
-}
-.isoft-fmf-grid .isoft-fmf-download-card__title {
-	font-size: 1em;
-	font-weight: 600;
-	line-height: 1.3;
-	margin: 0;
-	padding: .8em 1em;
-	background: var(--isoft-fmf-title-band-bg, #f6f7f9);
-	border-bottom: 1px solid var(--isoft-fmf-card-border, #e5e5e5);
-	display: -webkit-box;
-	-webkit-line-clamp: 3;
-	line-clamp: 3;
-	-webkit-box-orient: vertical;
-	overflow: hidden;
-	word-break: break-word;
-}
-.isoft-fmf-grid .isoft-fmf-download-card__title a { color: inherit; text-decoration: none; }
-
-/* Inside a multi-file card: each row is compact — no per-file title band,
- * smaller meta block, inline button at the bottom of the row. The
- * per-download-card bands only apply to single-file cards. */
-.isoft-fmf-grid .isoft-fmf-download-card:has(.isoft-fmf-download-card__title) .isoft-fmf-file-item {
-	flex-direction: row;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: .75em;
-	padding: .75em 1em;
-	border-bottom: 1px solid var(--isoft-fmf-row-border, #f0f0f0);
-	flex: 0 0 auto;
-}
-.isoft-fmf-grid .isoft-fmf-download-card:has(.isoft-fmf-download-card__title) .isoft-fmf-file-item:last-child {
-	border-bottom: none;
-}
-.isoft-fmf-grid .isoft-fmf-download-card:has(.isoft-fmf-download-card__title) .isoft-fmf-file-item__info {
-	flex: 1 1 0;
-	padding: 0;
-	min-width: 0;
-}
-.isoft-fmf-grid .isoft-fmf-download-card:has(.isoft-fmf-download-card__title) .isoft-fmf-file-item__title {
-	flex: 0 0 auto;
-	background: none;
-	border: none;
-	padding: 0 0 .25em;
-	font-size: .9em;
-	-webkit-line-clamp: 2;
-	line-clamp: 2;
-}
-.isoft-fmf-grid .isoft-fmf-download-card:has(.isoft-fmf-download-card__title) .isoft-fmf-file-item__meta {
-	flex: 0 0 auto;
-	flex-direction: row;
-	flex-wrap: wrap;
-	gap: .4em .8em;
-	padding: 0;
-	font-size: .8em;
-}
-.isoft-fmf-grid .isoft-fmf-download-card:has(.isoft-fmf-download-card__title) .isoft-fmf-file-item__meta .dashicons {
-	font-size: 14px;
-	width: 14px;
-	height: 14px;
-}
-.isoft-fmf-grid .isoft-fmf-download-card:has(.isoft-fmf-download-card__title) .isoft-fmf-file-item__action {
-	flex: 0 0 100%;
-	min-height: auto;
-	margin: 0;
-}
-.isoft-fmf-grid .isoft-fmf-download-card:has(.isoft-fmf-download-card__title) .isoft-fmf-file-item__action .isoft-fmf-download-btn {
-	border-radius: 3px;
-	padding: .5em 1em;
 }
 
 .isoft-fmf-grid .isoft-fmf-file-item {

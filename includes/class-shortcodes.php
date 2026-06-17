@@ -26,10 +26,16 @@ class ISOFT_FMF_Shortcodes {
 			return;
 		}
 
+		// Dashicons aren't auto-loaded on the frontend; the card template uses
+		// them for date / size / count / download glyphs. Without this,
+		// dashicon spans render as blank squares on themes that don't
+		// happen to enqueue dashicons themselves.
+		wp_enqueue_style( 'dashicons' );
+
 		wp_enqueue_style(
 			'isoft-fmf-public',
 			ISOFT_FMF_PLUGIN_URL . 'public/css/public-style.css',
-			array(),
+			array( 'dashicons' ),
 			ISOFT_FMF_VERSION
 		);
 		wp_enqueue_script(
@@ -243,21 +249,18 @@ class ISOFT_FMF_Shortcodes {
 			'isoft_fmf_categories'
 		);
 
-		// orderby = meta_value_num + meta_key alone INNER-joins termmeta and
-		// silently drops every term that doesn't have the sort-order meta
-		// set — which is most of them, including the demo content. The
-		// meta_query with EXISTS / NOT EXISTS forces a LEFT-style behaviour
-		// so terms without the meta still appear (sorted as 0 by the
-		// secondary 'name' clause).
+		// WP_Term_Query only accepts a scalar orderby, so the primary sort
+		// (meta_value_num ASC) runs in MySQL and the secondary sort (name)
+		// is applied in PHP on tied rows. The meta_query OR with
+		// EXISTS + NOT EXISTS forces a LEFT-style join so terms without the
+		// sort-order meta still appear (meta_value_num casts NULL → 0).
 		$terms = get_terms(
 			array(
 				'taxonomy'   => 'isoft_fmf_category',
 				'parent'     => absint( $atts['parent'] ),
 				'hide_empty' => false,
-				'orderby'    => array(
-					'meta_value_num' => 'ASC',
-					'name'           => 'ASC',
-				),
+				'orderby'    => 'meta_value_num',
+				'order'      => 'ASC',
 				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Custom category ordering; termmeta covers this access pattern.
 				'meta_key'   => '_isoft_fmf_cat_sort_order',
 				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- One-shot query for category listings; not in a hot loop.
@@ -278,6 +281,21 @@ class ISOFT_FMF_Shortcodes {
 		if ( is_wp_error( $terms ) || empty( $terms ) ) {
 			return '<p class="isoft-fmf-no-categories">' . esc_html__( 'No categories found.', 'isoft-fm-foundation' ) . '</p>';
 		}
+
+		// Tiebreak by name for terms sharing the same sort_order (including
+		// the 0 group of terms with no meta set). get_term_meta hits WP's
+		// term-meta cache primed by get_terms() above, so this is essentially
+		// free for the small per-level result sets we see in practice.
+		usort(
+			$terms,
+			static function ( $a, $b ): int {
+				$sa = (int) get_term_meta( $a->term_id, '_isoft_fmf_cat_sort_order', true );
+				$sb = (int) get_term_meta( $b->term_id, '_isoft_fmf_cat_sort_order', true );
+				return $sa === $sb
+					? strnatcasecmp( $a->name, $b->name )
+					: $sa <=> $sb;
+			}
+		);
 
 		$columns    = min( 4, max( 1, absint( $atts['columns'] ) ) );
 		$show_count = filter_var( $atts['show_count'], FILTER_VALIDATE_BOOLEAN );

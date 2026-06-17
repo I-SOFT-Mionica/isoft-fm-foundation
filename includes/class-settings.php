@@ -118,52 +118,63 @@ class ISOFT_FMF_Settings {
 	}
 
 	public function register_settings(): void {
-		$options = array(
-			// General
-			'isoft_fmf_default_access_role'      => 'sanitize_text_field',
-			'isoft_fmf_enable_counting'          => 'absint',
-			'isoft_fmf_enable_logging'           => 'absint',
-			'isoft_fmf_enable_detailed_logging'  => 'absint',
-			'isoft_fmf_log_retention_days'       => 'absint',
-			'isoft_fmf_enable_pdf_thumbnails'    => 'absint',
-			'isoft_fmf_pdf_thumb_width'          => 'absint',
-			'isoft_fmf_pdf_thumb_height'         => 'absint',
-			'isoft_fmf_pdf_thumb_quality'        => 'absint',
-			'isoft_fmf_overwrite_pdf_thumbnail'  => 'absint',
-			// Display
-			'isoft_fmf_default_button_text'      => 'sanitize_text_field',
-			'isoft_fmf_listing_layout'           => 'sanitize_text_field',
-			'isoft_fmf_items_per_page'           => 'absint',
-			'isoft_fmf_show_file_size'           => 'absint',
-			'isoft_fmf_show_download_count'      => 'absint',
-			'isoft_fmf_show_date'                => 'absint',
-			'isoft_fmf_date_format'              => 'sanitize_text_field',
-			// Security
-			'isoft_fmf_serve_method'             => 'sanitize_text_field',
-			'isoft_fmf_nginx_config_confirmed'   => 'absint',
-			'isoft_fmf_rate_limit_per_hour'      => 'absint',
-			'isoft_fmf_block_user_agents'        => 'sanitize_textarea_field',
-			'isoft_fmf_enable_zip_bundle'        => 'absint',
-			'isoft_fmf_enable_zip_cache'         => 'absint',
-			'isoft_fmf_zip_cache_days'           => 'absint',
-			'isoft_fmf_hotlink_protection'       => 'absint',
-			// Files
-			'isoft_fmf_allowed_extensions'       => 'sanitize_textarea_field',
-			'isoft_fmf_cyrillic_titles'          => 'absint',
-			// Advanced
-			'isoft_fmf_archive_slug'             => 'sanitize_title',
-			'isoft_fmf_category_slug'            => 'sanitize_title',
-			'isoft_fmf_tag_slug'                 => 'sanitize_title',
-			'isoft_fmf_delete_data_on_uninstall' => 'absint',
-			// Maintenance / File integrity
-			'isoft_fmf_integrity_check_enabled'  => 'absint',
-			'isoft_fmf_integrity_check_time'     => array( $this, 'sanitize_time' ),
-			'isoft_fmf_integrity_autorelink'     => 'absint',
-			'isoft_fmf_integrity_use_inode'      => 'absint',
+		// One option group per tab — so saving one tab cannot wipe checkboxes
+		// on another. WP's Settings API iterates every option registered to
+		// the submitted group and reads $_POST[option]; unchecked checkboxes
+		// are absent from POST and would absint('') → 0, silently unsetting
+		// them. Grouping per tab keeps each save scoped to its tab's fields.
+		$groups = array(
+			'isoft_fmf_general'     => array(
+				'isoft_fmf_default_access_role'     => 'sanitize_text_field',
+				'isoft_fmf_enable_counting'         => 'absint',
+				'isoft_fmf_enable_logging'          => 'absint',
+				'isoft_fmf_enable_detailed_logging' => 'absint',
+				'isoft_fmf_log_retention_days'      => 'absint',
+				'isoft_fmf_enable_pdf_thumbnails'   => 'absint',
+				'isoft_fmf_pdf_thumb_width'         => 'absint',
+				'isoft_fmf_pdf_thumb_height'        => 'absint',
+				'isoft_fmf_pdf_thumb_quality'       => 'absint',
+				'isoft_fmf_overwrite_pdf_thumbnail' => 'absint',
+				'isoft_fmf_allowed_extensions'      => 'sanitize_textarea_field',
+				'isoft_fmf_cyrillic_titles'         => 'absint',
+			),
+			'isoft_fmf_display'     => array(
+				'isoft_fmf_default_button_text' => 'sanitize_text_field',
+				'isoft_fmf_listing_layout'      => 'sanitize_text_field',
+				'isoft_fmf_items_per_page'      => 'absint',
+				'isoft_fmf_show_file_size'      => 'absint',
+				'isoft_fmf_show_download_count' => 'absint',
+				'isoft_fmf_show_date'           => 'absint',
+				'isoft_fmf_date_format'         => 'sanitize_text_field',
+				'isoft_fmf_enable_zip_bundle'   => 'absint',
+				'isoft_fmf_enable_zip_cache'    => 'absint',
+				'isoft_fmf_zip_cache_days'      => 'absint',
+			),
+			'isoft_fmf_security'    => array(
+				'isoft_fmf_serve_method'           => 'sanitize_text_field',
+				'isoft_fmf_nginx_config_confirmed' => 'absint',
+				'isoft_fmf_rate_limit_per_hour'    => 'absint',
+				'isoft_fmf_block_user_agents'      => 'sanitize_textarea_field',
+				'isoft_fmf_hotlink_protection'     => 'absint',
+			),
+			'isoft_fmf_advanced'    => array(
+				'isoft_fmf_archive_slug'             => 'sanitize_title',
+				'isoft_fmf_category_slug'            => 'sanitize_title',
+				'isoft_fmf_tag_slug'                 => 'sanitize_title',
+				'isoft_fmf_delete_data_on_uninstall' => 'absint',
+			),
+			'isoft_fmf_maintenance' => array(
+				'isoft_fmf_integrity_check_enabled' => 'absint',
+				'isoft_fmf_integrity_check_time'    => array( $this, 'sanitize_time' ),
+				'isoft_fmf_integrity_autorelink'    => 'absint',
+				'isoft_fmf_integrity_use_inode'     => 'absint',
+			),
 		);
 
-		foreach ( $options as $option => $sanitize ) {
-			register_setting( 'isoft_fmf_settings', $option, array( 'sanitize_callback' => $sanitize ) );
+		foreach ( $groups as $group => $options ) {
+			foreach ( $options as $option => $sanitize ) {
+				register_setting( $group, $option, array( 'sanitize_callback' => $sanitize ) );
+			}
 		}
 	}
 
@@ -179,7 +190,10 @@ class ISOFT_FMF_Settings {
 
 	public function handle_flush_rewrite(): void {
 		if ( isset( $_POST['isoft_fmf_flush_rewrite'] ) && current_user_can( 'isoft_fmf_manage_settings' ) ) {
-			check_admin_referer( 'isoft_fmf_settings-options' );
+			// The Advanced tab's form posts to options.php with the
+			// isoft_fmf_advanced group, so settings_fields() generates a
+			// nonce keyed to that group name.
+			check_admin_referer( 'isoft_fmf_advanced-options' );
 			flush_rewrite_rules();
 			add_settings_error( 'isoft_fmf_settings', 'flushed', __( 'Rewrite rules flushed.', 'isoft-fm-foundation' ), 'updated' );
 		}
