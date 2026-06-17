@@ -1,8 +1,12 @@
 <?php
 /**
- * Template: Download card — JDownloads-style compact layout.
+ * Template: Download card.
  *
- * Each file gets its own row: icon · title · HOT badge · date · size · count · button.
+ * Single-file downloads render the one file as a self-contained card
+ * (icon · title · meta · download button). Multi-file downloads render
+ * a single summary tile (title link · aggregate meta · ZIP bundle button);
+ * the title links to the post permalink where individual files can be
+ * inspected and downloaded one at a time.
  *
  * Expected variables:
  *   $post     WP_Post  The isoft_fmf_file post.
@@ -42,38 +46,173 @@ $bundleable_files = $bundle_enabled
 	? array_filter( $files, fn( $f ): bool => 'external' !== $f->file_type && empty( $f->is_missing ) )
 	: array();
 $show_bundle_btn  = $bundle_enabled && count( $bundleable_files ) >= 2;
-$bundle_size      = $show_bundle_btn ? array_sum( array_column( $bundleable_files, 'file_size' ) ) : 0;
+$bundle_size      = $show_bundle_btn ? (int) array_sum( array_column( $bundleable_files, 'file_size' ) ) : 0;
+
+// $isoft_fmf_expand_files: set by download-single.php to force per-file
+// rendering on the post permalink page. Listings (category grids, download
+// lists) leave it unset, so multi-file downloads collapse to a summary
+// tile and the title links into this single page for actual file pick.
+$expand_files = ! empty( $isoft_fmf_expand_files );
+$is_multi     = count( $files ) > 1;
+$use_summary  = $is_multi && ! $expand_files;
 
 ?>
-<article class="isoft-fmf-download-card" id="isoft-fmf-download-<?php echo esc_attr( $post->ID ); ?>">
-
-	<?php if ( count( $files ) > 1 ) : ?>
-	<h3 class="isoft-fmf-download-card__title">
-		<a href="<?php echo esc_url( get_permalink( $post->ID ) ); ?>"><?php echo esc_html( get_the_title( $post->ID ) ); ?></a>
-		<?php if ( $is_hot ) : ?>
-			<span class="isoft-fmf-badge isoft-fmf-badge--hot">HOT</span>
-		<?php endif; ?>
-	</h3>
-	<?php endif; ?>
+<article class="isoft-fmf-download-card<?php echo $is_multi ? ' isoft-fmf-download-card--multi' : ''; ?>" id="isoft-fmf-download-<?php echo esc_attr( $post->ID ); ?>">
 
 	<?php
-	if ( $show_bundle_btn ) :
+	// Expanded multi-file view (single download page): give users a
+	// "Download all" affordance above the file list so the bundle is
+	// reachable without going back to the listing.
+	if ( $is_multi && $expand_files && $show_bundle_btn ) :
 		$bundle_label = sprintf(
 			/* translators: %s: total size of bundled files */
 			__( 'Download all (%s)', 'isoft-fm-foundation' ),
 			size_format( $bundle_size )
 		);
 		?>
-	<div class="isoft-fmf-bundle-btn-wrap">
+	<div class="isoft-fmf-download-card__bundle-action">
 		<a href="<?php echo esc_url( isoft_fmf_get_bundle_url( (int) $post->ID ) ); ?>"
-			class="isoft-fmf-bundle-btn"
-			title="<?php echo esc_attr( $bundle_label ); ?>"
-			aria-label="<?php echo esc_attr( $bundle_label ); ?>">
-			<span class="isoft-fmf-bundle-btn__icon dashicons dashicons-download" aria-hidden="true"></span>
-			<span class="isoft-fmf-bundle-btn__label"><?php echo esc_html( $bundle_label ); ?></span>
+			class="wp-element-button isoft-fmf-download-btn isoft-fmf-download-btn--bundle"
+			title="<?php echo esc_attr( $bundle_label ); ?>">
+			<?php echo esc_html( $bundle_label ); ?>
 		</a>
 	</div>
-	<?php endif; ?>
+		<?php
+	endif;
+	?>
+
+	<?php
+	if ( $use_summary ) :
+		// Aggregate meta for the summary tile. Total size sums every file
+		// (even external — listed for context), distinct extensions feed
+		// the type badge, post-level download count is the cached SUM of
+		// per-file counters maintained by ISOFT_FMF_File_Manager.
+		$file_count  = count( $files );
+		$total_size  = (int) array_sum( array_map( static fn( $f ): int => (int) ( $f->file_size ?? 0 ), $files ) );
+		$total_count = (int) get_post_meta( $post->ID, '_isoft_fmf_download_count', true );
+		$post_date   = get_the_date( $settings['date_format'] ?: get_option( 'date_format' ), $post );
+
+		$exts = array();
+		foreach ( $files as $f ) {
+			$ext = strtolower( pathinfo( $f->file_name ?? '', PATHINFO_EXTENSION ) );
+			if ( '' !== $ext ) {
+				$exts[ $ext ] = true;
+			}
+		}
+		$distinct_exts = array_keys( $exts );
+		$primary_ext   = $distinct_exts[0] ?? 'file';
+		$primary_cls   = isoft_fmf_mime_icon_class( $primary_ext );
+		// Mixed-type tiles use the generic-file colour so a red PDF badge
+		// can't misrepresent a mostly-DOCX bundle. Single-type tiles use
+		// that type's colour for the at-a-glance read.
+		$badge_cls   = count( $distinct_exts ) > 1 ? 'file' : $primary_cls;
+		$badge_label = sprintf(
+			/* translators: %d: file count */
+			_n( '%d file', '%d files', $file_count, 'isoft-fm-foundation' ),
+			$file_count
+		);
+		$types_label = implode( ' · ', array_map( 'strtoupper', $distinct_exts ) );
+
+		$item_class = 'isoft-fmf-file-item isoft-fmf-file-item--summary';
+		?>
+	<div class="<?php echo esc_attr( $item_class ); ?>">
+
+		<div class="isoft-fmf-file-item__icon isoft-fmf-icon--<?php echo esc_attr( $badge_cls ); ?>" aria-hidden="true">
+			<?php echo esc_html( (string) $file_count ); ?>
+		</div>
+
+		<div class="isoft-fmf-file-item__info">
+			<div class="isoft-fmf-file-item__title">
+				<a href="<?php echo esc_url( get_permalink( $post->ID ) ); ?>"><?php echo esc_html( get_the_title( $post->ID ) ); ?></a>
+				<?php if ( $is_hot ) : ?>
+					<span class="isoft-fmf-badge isoft-fmf-badge--hot">HOT</span>
+				<?php endif; ?>
+			</div>
+
+			<div class="isoft-fmf-file-item__meta">
+				<span class="isoft-fmf-meta isoft-fmf-meta--type isoft-fmf-type--<?php echo esc_attr( $badge_cls ); ?>">
+					<?php echo esc_html( $badge_label ); ?>
+				</span>
+
+				<?php if ( $types_label ) : ?>
+				<span class="isoft-fmf-meta isoft-fmf-meta--types">
+					<?php echo esc_html( $types_label ); ?>
+				</span>
+				<?php endif; ?>
+
+				<?php if ( $settings['show_date'] ) : ?>
+				<span class="isoft-fmf-meta isoft-fmf-meta--date">
+					<span class="dashicons dashicons-calendar-alt" aria-hidden="true"></span>
+					<?php echo esc_html( $post_date ); ?>
+				</span>
+				<?php endif; ?>
+
+				<?php if ( $settings['show_file_size'] && $total_size ) : ?>
+				<span class="isoft-fmf-meta isoft-fmf-meta--size">
+					<span class="dashicons dashicons-media-archive" aria-hidden="true"></span>
+					<?php echo esc_html( size_format( $total_size ) ); ?>
+				</span>
+				<?php endif; ?>
+
+				<?php if ( $settings['show_download_count'] ) : ?>
+				<span class="isoft-fmf-meta isoft-fmf-meta--count">
+					<span class="dashicons dashicons-download" aria-hidden="true"></span>
+					<?php echo esc_html( number_format_i18n( $total_count ) ); ?>
+				</span>
+				<?php endif; ?>
+
+				<?php if ( 'public' !== $access_role ) : ?>
+				<span class="isoft-fmf-meta isoft-fmf-meta--lock">
+					<span class="dashicons dashicons-lock" aria-hidden="true"></span>
+				</span>
+				<?php endif; ?>
+			</div>
+		</div>
+
+		<div class="isoft-fmf-file-item__action">
+			<?php if ( ! $can_access && ! is_user_logged_in() ) : ?>
+				<a href="<?php echo esc_url( wp_login_url( get_permalink( $post->ID ) ) ); ?>"
+					class="wp-element-button isoft-fmf-download-btn isoft-fmf-download-btn--login">
+					<?php esc_html_e( 'Login', 'isoft-fm-foundation' ); ?>
+				</a>
+			<?php elseif ( ! $can_access ) : ?>
+				<span class="isoft-fmf-download-btn isoft-fmf-download-btn--restricted">
+					<?php esc_html_e( 'Restricted', 'isoft-fm-foundation' ); ?>
+				</span>
+			<?php elseif ( $show_bundle_btn ) : ?>
+				<?php
+				$bundle_label = sprintf(
+					/* translators: %s: total size of bundled files */
+					__( 'Download all (%s)', 'isoft-fm-foundation' ),
+					size_format( $bundle_size )
+				);
+				?>
+				<a href="<?php echo esc_url( isoft_fmf_get_bundle_url( (int) $post->ID ) ); ?>"
+					class="wp-element-button isoft-fmf-download-btn isoft-fmf-download-btn--bundle"
+					title="<?php echo esc_attr( $bundle_label ); ?>">
+					<?php echo esc_html( $bundle_label ); ?>
+				</a>
+			<?php else : ?>
+				<a href="<?php echo esc_url( get_permalink( $post->ID ) ); ?>"
+					class="wp-element-button isoft-fmf-download-btn">
+					<?php
+					printf(
+						/* translators: %d: file count */
+						esc_html( _n( 'View %d file', 'View %d files', $file_count, 'isoft-fm-foundation' ) ),
+						(int) $file_count
+					);
+					?>
+				</a>
+			<?php endif; ?>
+		</div>
+
+	</div>
+
+</article>
+		<?php
+		return;
+	endif;
+	?>
 
 	<?php
 	foreach ( $files as $i => $file ) :
@@ -93,13 +232,13 @@ $bundle_size      = $show_bundle_btn ? array_sum( array_column( $bundleable_file
 
 		<div class="isoft-fmf-file-item__info">
 			<div class="isoft-fmf-file-item__title">
-				<?php if ( count( $files ) === 1 ) : ?>
+				<?php if ( $is_multi ) : ?>
+					<?php echo esc_html( $title ); ?>
+				<?php else : ?>
 					<a href="<?php echo esc_url( get_permalink( $post->ID ) ); ?>"><?php echo esc_html( get_the_title( $post->ID ) ); ?></a>
 					<?php if ( $is_hot ) : ?>
 						<span class="isoft-fmf-badge isoft-fmf-badge--hot">HOT</span>
 					<?php endif; ?>
-				<?php else : ?>
-					<?php echo esc_html( $title ); ?>
 				<?php endif; ?>
 			</div>
 

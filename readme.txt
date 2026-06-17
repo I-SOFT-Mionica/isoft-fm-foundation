@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.0
 Requires PHP: 8.4
-Stable tag: 0.10.7
+Stable tag: 0.10.11
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -39,9 +39,9 @@ This design exists so automation tools can sync files in and out without having 
 
 = Extensions (coming soon) =
 
-* **I-Soft File Manager: Foundation Sentinel** — server-side automation. Monitors category folders for new files, creates draft download entries, and supports rclone mirroring, SFTP bulk upload, and WP-cron folder scans.
-* **I-Soft File Manager: Foundation Orbit** — Google Shared Drive sync. Departments drop files into shared folders; Orbit imports them as drafts for review.
-* **I-Soft File Manager: Foundation Nomad** — one-shot importer from jDownloads. Reads the legacy tables directly and rebuilds categories, downloads, files, and counters in Foundation's data model, preserving the slug tree so URLs and category folder names stay stable.
+* **I-Soft File Manager: Sentinel** — server-side automation. Monitors category folders for new files, creates draft download entries, and supports rclone mirroring, SFTP bulk upload, and WP-cron folder scans.
+* **I-Soft File Manager: Orbit** — Google Shared Drive sync. Departments drop files into shared folders; Orbit imports them as drafts for review.
+* **I-Soft File Manager: Nomad** — one-shot importer from jDownloads. Reads the legacy tables directly and rebuilds categories, downloads, files, and counters in Foundation's data model, preserving the slug tree so URLs and category folder names stay stable.
 
 == Installation ==
 
@@ -67,7 +67,7 @@ The Media Library flattens everything into `wp-content/uploads/YYYY/MM/`, which 
 
 = Can I migrate from jDownloads? =
 
-Yes — but via a separate companion plugin, **I-Soft File Manager: Foundation Nomad** (coming soon). Foundation's data model is intentionally close to jDownloads to make a one-shot import practical; Nomad reads the legacy tables directly and rebuilds the category tree, downloads, files, and counters into Foundation, preserving slug paths so existing URLs keep working. Watch the Extensions tab in Settings for the release.
+Yes — but via a separate companion plugin, **I-Soft File Manager: Nomad** (coming soon). Foundation's data model is intentionally close to jDownloads to make a one-shot import practical; Nomad reads the legacy tables directly and rebuilds the category tree, downloads, files, and counters into Foundation, preserving slug paths so existing URLs keep working. Watch the Extensions tab in Settings for the release.
 
 = How do I restrict a user to only some categories? =
 
@@ -161,6 +161,22 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 5. Download handler settings — security, logging, and serve method.
 
 == Changelog ==
+
+= 0.10.11 =
+* **Fixed: Download Category Grid block still showed "No categories found"** on new pages despite the 0.10.8 fix. The earlier attempt combined `orderby='meta_value_num'` + `meta_key` + a meta_query OR clause; `WP_Term_Query` merges those internally in ways that vary by version and silently INNER-joins termmeta, dropping every term without the sort-order meta set. Replaced with two clean `get_terms()` calls using documented arguments only: (A) terms that have the sort meta, ordered by it; (B) terms that don't, ordered by name. Result is concatenated.
+* **Demo content now generated in English only.** Previously branched on the `cyrillic_titles` setting (which is for transliterating uploaded filenames — unrelated to demo language). All category names, download titles, descriptions, and PDF/DOCX bodies are now English. Translations will be delivered the standard WordPress way via `/languages/` `.po` / `.mo` files when those land, not by hard-coding a second language into the source.
+
+= 0.10.10 =
+* **Fixed: Single download page (post permalink) was showing the summary tile too, hiding individual files.** The 0.10.9 change correctly switched multi-file *listings* to a summary tile, but the single-download page reuses the same template and inherited the same collapse — so users who clicked through to a multi-file download could only see one "Download all" button, not the individual files. The summary tile now only applies in listings. The single-download page shows the full per-file list (as before 0.10.9), with the "Download all (ZIP)" button moved to the top of the file list so the bundle option is still reachable.
+
+= 0.10.9 =
+* **Multi-file downloads now render as a single summary tile** instead of a list of file rows. The tile shows the download title (linking to the post permalink for individual file access), aggregate meta (file count, distinct file types, total size, post date, total downloads), and a "Download all (ZIP)" bundle button as the action. Visual shape is now identical to single-file cards in grid mode — no more side-by-side mismatch between the two card types.
+* **Fixed: Dashicons glyphs invisible on themes that don't auto-enqueue them.** The bundle button and meta-row icons (calendar, archive, download, lock) rendered as blank squares on themes that hadn't loaded the `dashicons` style themselves. Plugin now enqueues it explicitly as a dependency of `isoft-fmf-public`.
+
+= 0.10.8 =
+* **Fixed: Fatal error on pages containing the Category Grid block or `[isoft_fmf_categories]` shortcode.** The 0.10.6 fix passed `orderby` as an array, but `WP_Term_Query` only accepts a scalar (unlike `WP_Query`). The page crashed with a `strtolower(): Argument must be of type string` TypeError. Primary sort now runs in MySQL as before; the secondary name tiebreaker runs in PHP on the already-ordered result set.
+* **Fixed: Settings tabs were silently wiping each other.** Saving any Settings tab also reset every checkbox on the other tabs to off — including `Download Counting`, which then caused per-file and bundle downloads to stop incrementing. Each tab now posts to its own option group, so saves only touch the fields visible on the active tab.
+* **Bundle "Download all" button visible on light themes.** The icon-only chip in the top-right of multi-file cards was transparent + grey text, which disappeared on near-white theme backgrounds. Now has a subtle filled background and 1px border in the default state; on hover/focus it inverts to the existing dark fill.
 
 = 0.10.7 =
 * **ZIP bundle cache** — new toggle on Settings → Display that stores generated bundles to disk so repeated requests for the same multi-file download don't rebuild the ZIP every time. Configurable duration (default 7 days). Cache is invalidated automatically when any of the bundled files is added, removed, or replaced — duration is just an upper bound. Cache files live under `wp-content/uploads/isoft-fmf-files/.bundle-cache/` (covered by the existing deny-all `.htaccess`).

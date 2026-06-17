@@ -20,7 +20,10 @@ $license     = $license_id ? ( new ISOFT_FMF_License_Manager() )->get( $license_
 <div class="isoft-fmf-single-download">
 
 	<?php
-	// Render the card — same layout as list view, all files expanded.
+	// Single-download surface: always render the per-file rows so users
+	// can pick which file to download. Suppresses the summary-tile path
+	// in download-card.php that listings use.
+	$isoft_fmf_expand_files = true;
 	require __DIR__ . '/download-card.php';
 	?>
 

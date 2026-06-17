@@ -26,10 +26,16 @@ class ISOFT_FMF_Shortcodes {
 			return;
 		}
 
+		// Dashicons aren't auto-loaded on the frontend; the card template uses
+		// them for date / size / count / download glyphs. Without this,
+		// dashicon spans render as blank squares on themes that don't
+		// happen to enqueue dashicons themselves.
+		wp_enqueue_style( 'dashicons' );
+
 		wp_enqueue_style(
 			'isoft-fmf-public',
 			ISOFT_FMF_PLUGIN_URL . 'public/css/public-style.css',
-			array(),
+			array( 'dashicons' ),
 			ISOFT_FMF_VERSION
 		);
 		wp_enqueue_script(
@@ -243,30 +249,37 @@ class ISOFT_FMF_Shortcodes {
 			'isoft_fmf_categories'
 		);
 
-		// orderby = meta_value_num + meta_key alone INNER-joins termmeta and
-		// silently drops every term that doesn't have the sort-order meta
-		// set — which is most of them, including the demo content. The
-		// meta_query with EXISTS / NOT EXISTS forces a LEFT-style behaviour
-		// so terms without the meta still appear (sorted as 0 by the
-		// secondary 'name' clause).
-		$terms = get_terms(
+		// Two native get_terms() calls instead of one with mixed clauses:
+		// WP_Term_Query takes a single scalar orderby, and combining
+		// `orderby=meta_value_num` + `meta_key` + a meta_query OR clause
+		// to coax a LEFT JOIN produces version-dependent behaviour that
+		// silently filtered out terms without the sort meta (root cause
+		// of "No categories found" on a default Category Grid block).
+		// (A) terms with `_isoft_fmf_cat_sort_order` set, ordered by it
+		// in MySQL; (B) terms without the meta, ordered by name. Concat.
+		$parent = absint( $atts['parent'] );
+
+		$ordered_terms = get_terms(
 			array(
 				'taxonomy'   => 'isoft_fmf_category',
-				'parent'     => absint( $atts['parent'] ),
+				'parent'     => $parent,
 				'hide_empty' => false,
-				'orderby'    => array(
-					'meta_value_num' => 'ASC',
-					'name'           => 'ASC',
-				),
-				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Custom category ordering; termmeta covers this access pattern.
+				'orderby'    => 'meta_value_num',
+				'order'      => 'ASC',
+				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Custom category ordering on termmeta; small per-level result sets.
 				'meta_key'   => '_isoft_fmf_cat_sort_order',
-				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- One-shot query for category listings; not in a hot loop.
+			)
+		);
+
+		$unordered_terms = get_terms(
+			array(
+				'taxonomy'   => 'isoft_fmf_category',
+				'parent'     => $parent,
+				'hide_empty' => false,
+				'orderby'    => 'name',
+				'order'      => 'ASC',
+				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- Custom category ordering on termmeta; small per-level result sets.
 				'meta_query' => array(
-					'relation' => 'OR',
-					array(
-						'key'     => '_isoft_fmf_cat_sort_order',
-						'compare' => 'EXISTS',
-					),
 					array(
 						'key'     => '_isoft_fmf_cat_sort_order',
 						'compare' => 'NOT EXISTS',
@@ -275,7 +288,12 @@ class ISOFT_FMF_Shortcodes {
 			)
 		);
 
-		if ( is_wp_error( $terms ) || empty( $terms ) ) {
+		$terms = array_merge(
+			is_array( $ordered_terms ) ? $ordered_terms : array(),
+			is_array( $unordered_terms ) ? $unordered_terms : array()
+		);
+
+		if ( empty( $terms ) ) {
 			return '<p class="isoft-fmf-no-categories">' . esc_html__( 'No categories found.', 'isoft-fm-foundation' ) . '</p>';
 		}
 
