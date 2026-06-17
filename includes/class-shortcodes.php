@@ -243,14 +243,35 @@ class ISOFT_FMF_Shortcodes {
 			'isoft_fmf_categories'
 		);
 
+		// orderby = meta_value_num + meta_key alone INNER-joins termmeta and
+		// silently drops every term that doesn't have the sort-order meta
+		// set — which is most of them, including the demo content. The
+		// meta_query with EXISTS / NOT EXISTS forces a LEFT-style behaviour
+		// so terms without the meta still appear (sorted as 0 by the
+		// secondary 'name' clause).
 		$terms = get_terms(
 			array(
 				'taxonomy'   => 'isoft_fmf_category',
 				'parent'     => absint( $atts['parent'] ),
 				'hide_empty' => false,
-				'orderby'    => 'meta_value_num',
-				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Required for custom category ordering; termmeta index covers this access pattern.
+				'orderby'    => array(
+					'meta_value_num' => 'ASC',
+					'name'           => 'ASC',
+				),
+				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Custom category ordering; termmeta covers this access pattern.
 				'meta_key'   => '_isoft_fmf_cat_sort_order',
+				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- One-shot query for category listings; not in a hot loop.
+				'meta_query' => array(
+					'relation' => 'OR',
+					array(
+						'key'     => '_isoft_fmf_cat_sort_order',
+						'compare' => 'EXISTS',
+					),
+					array(
+						'key'     => '_isoft_fmf_cat_sort_order',
+						'compare' => 'NOT EXISTS',
+					),
+				),
 			)
 		);
 

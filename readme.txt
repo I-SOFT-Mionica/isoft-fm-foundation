@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.0
 Requires PHP: 8.4
-Stable tag: 0.10.5
+Stable tag: 0.10.6
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -161,6 +161,9 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 5. Download handler settings — security, logging, and serve method.
 
 == Changelog ==
+
+= 0.10.6 =
+* **Fixed: Category Grid (and `[isoft_fmf_categories]` shortcode) showed "No categories found"** even when categories existed. The query ordered by the optional `_isoft_fmf_cat_sort_order` term meta, which silently dropped every term that didn't have that meta set — which is most of them on a fresh install. Categories now appear regardless of whether they've been ordered, sorted by sort-order first, name second.
 
 = 0.10.5 =
 * **Fixed: ZIP bundle download didn't increment download counters.** Per-file `download_count` rows stayed at zero after a bundle was served, and the post-level cached total never moved. Each file in a bundle now gets +1 (gated, as for per-file downloads, by Settings → General → Count downloads); the parent-level counter recalculates as the sum of file counters via the existing `ISOFT_FMF_File_Manager::increment_count()` flow.

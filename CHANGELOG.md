@@ -2,6 +2,11 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.10.6] — 2026-06-16
+
+### Fixed
+- **`[isoft_fmf_categories]` shortcode (and the Category Grid block that wraps it) returned an empty grid** even when categories existed. Root cause: `get_terms()` was called with `'orderby' => 'meta_value_num'` + `'meta_key' => '_isoft_fmf_cat_sort_order'`, which INNER-joins the termmeta table and silently filters out every term that doesn't have that meta key set — and most terms on a fresh install (including all the demo categories) don't have it. The result on the Local site reported during 0.10.5 manual testing was "No categories found" even with 15 demo categories present. Fix: added a `meta_query` with `relation => OR` and both `EXISTS` + `NOT EXISTS` clauses so terms without the meta are included, and a secondary `name` sort so terms missing the order meta fall through to alphabetical instead of arbitrary ordering. Same query shape recommended in the WordPress documentation for this exact pattern.
+
 ## [0.10.5] — 2026-06-16
 
 ### Fixed
