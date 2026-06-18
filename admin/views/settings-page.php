@@ -213,7 +213,7 @@
 						<?php esc_html_e( 'days', 'isoft-fm-foundation' ); ?>
 					</label>
 					<p class="description">
-						<?php esc_html_e( 'Cache is invalidated automatically when files are added, removed, or modified — the duration is just an upper bound. Cached bundles live under wp-content/uploads/isoft-fmf-files/.bundle-cache/.', 'isoft-fm-foundation' ); ?>
+						<?php esc_html_e( 'Cache is invalidated automatically when files are added, removed, or modified. The duration counts idle time — a bundle that keeps getting downloaded stays cached as long as people use it. A hard ceiling at 3× the duration above forces a rebuild eventually no matter what. Cached bundles live under wp-content/uploads/isoft-fmf-files/.bundle-cache/.', 'isoft-fm-foundation' ); ?>
 					</p>
 					<p class="description" style="margin-top:.6em;">
 						<?php esc_html_e( 'A daily cleanup also runs after the integrity check (or at midnight if integrity is disabled) and removes cache files past 2× the duration above plus any cache for deleted downloads.', 'isoft-fm-foundation' ); ?>

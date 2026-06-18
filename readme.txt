@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.0
 Requires PHP: 8.4
-Stable tag: 0.10.16
+Stable tag: 0.10.17
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -161,6 +161,9 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 5. Download handler settings — security, logging, and serve method.
 
 == Changelog ==
+
+= 0.10.17 =
+* **ZIP bundle cache TTL now measures idle time, not build time.** Previously a popular bundle being downloaded daily still got rebuilt every N days (counted from the build). Now it only expires after N days of no requests. A hard ceiling at 3× the configured duration forces a rebuild eventually no matter what, so an undetected content-signature bug couldn't keep stale data alive forever. Content-change invalidation (file added / removed / modified) remains exact and runs on every hit independent of either timer.
 
 = 0.10.16 =
 * **ZIP bundle cache now cleans itself up.** Previously the cache duration setting only triggered a rebuild when someone requested a stale bundle — files that were never re-requested (or whose download was deleted) sat on disk forever. Now: a daily sweep runs right after the file-integrity check (with a midnight fallback if integrity is disabled) and removes any cache file past 2× the duration or whose download has been deleted. Deleting a download also clears its cache immediately. Settings → Display has a "Clear bundle cache now" button for the manual nuke.

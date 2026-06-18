@@ -140,6 +140,19 @@ class ISOFT_FMF_Bundle_Handler {
 	 * stream it and exit. Returns silently on miss so the caller can fall
 	 * through to a fresh build.
 	 *
+	 * Two TTL layers:
+	 *   - idle TTL ($duration) — `time() - last_served_at`. Popular bundles
+	 *     stay cached as long as people keep clicking; idle bundles expire.
+	 *   - hard ceiling (3× $duration) — `time() - generated_at`. Paranoia
+	 *     floor that forces a rebuild eventually no matter how often the
+	 *     bundle is served. Catches the hypothetical case where
+	 *     signatures_match() returns a false positive (says the cache is
+	 *     valid when contents really did change). With duration=7 days the
+	 *     ceiling kicks in at 21 days.
+	 *
+	 * Content-signature check (file_ids + max_mtime) runs separately and
+	 * catches any real content change on every hit, independent of either TTL.
+	 *
 	 * @param object[] $files Local-only file rows from ISOFT_FMF_File_Manager.
 	 */
 	private function try_serve_from_cache( int $download_id, array $files ): void {
@@ -161,13 +174,30 @@ class ISOFT_FMF_Bundle_Handler {
 
 		$duration_days    = max( 1, (int) get_option( 'isoft_fmf_zip_cache_days', 7 ) );
 		$duration_seconds = $duration_days * DAY_IN_SECONDS;
-		if ( ( time() - (int) ( $meta['generated_at'] ?? 0 ) ) > $duration_seconds ) {
-			return; // Expired — fall through to fresh build, which will overwrite.
+		$ceiling_seconds  = $duration_seconds * 3;
+
+		$now            = time();
+		$generated_at   = (int) ( $meta['generated_at'] ?? 0 );
+		$last_served_at = (int) ( $meta['last_served_at'] ?? $generated_at );
+
+		if ( ( $now - $last_served_at ) > $duration_seconds ) {
+			return; // Idle too long — let the rebuild path overwrite.
+		}
+		if ( ( $now - $generated_at ) > $ceiling_seconds ) {
+			return; // Paranoia ceiling: even popular bundles get a forced rebuild eventually.
 		}
 
 		if ( ! $this->signatures_match( $this->current_file_signature( $files ), $meta ) ) {
-			return; // File set changed since cache was written.
+			return; // File set or content changed since cache was written.
 		}
+
+		// Touch the sidecar so the idle TTL renews. Failure to write is
+		// non-fatal — the cache will just expire on schedule from
+		// generated_at rather than rolling forward, which is acceptable
+		// degradation (worst case: behaves like the old build-only TTL).
+		$meta['last_served_at'] = $now;
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Writing internal cache metadata sidecar under our storage dir.
+		@file_put_contents( $paths['meta'], wp_json_encode( $meta ), LOCK_EX ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 
 		$this->dispatch_zip( $download_id, $files, $paths['zip'], count( $files ), false );
 	}
@@ -321,10 +351,14 @@ class ISOFT_FMF_Bundle_Handler {
 		}
 
 		$sig  = $this->current_file_signature( $files );
+		$now  = time();
 		$meta = array(
-			'file_ids'     => $sig['file_ids'],
-			'max_mtime'    => $sig['max_mtime'],
-			'generated_at' => time(),
+			'file_ids'       => $sig['file_ids'],
+			'max_mtime'      => $sig['max_mtime'],
+			'generated_at'   => $now,
+			// Initialised to generated_at so a fresh cache that's never
+			// served won't be considered "idle" the moment it's written.
+			'last_served_at' => $now,
 		);
 
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Internal cache metadata sidecar under our storage dir.
@@ -414,7 +448,8 @@ class ISOFT_FMF_Bundle_Handler {
 		}
 
 		$duration_days    = max( 1, (int) get_option( 'isoft_fmf_zip_cache_days', 7 ) );
-		$max_age_seconds  = $duration_days * 2 * DAY_IN_SECONDS;
+		$duration_seconds = $duration_days * DAY_IN_SECONDS;
+		$ceiling_seconds  = $duration_seconds * 3;
 		$now              = time();
 		$deleted          = 0;
 
@@ -446,9 +481,18 @@ class ISOFT_FMF_Bundle_Handler {
 				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Internal cache sidecar under our storage dir.
 				$meta_raw = file_get_contents( $files['json'] );
 				$meta     = $meta_raw ? json_decode( $meta_raw, true ) : null;
-				$gen_at   = is_array( $meta ) ? (int) ( $meta['generated_at'] ?? 0 ) : 0;
-				if ( $gen_at <= 0 || ( $now - $gen_at ) > $max_age_seconds ) {
+				if ( ! is_array( $meta ) ) {
 					$reason = 'expired';
+				} else {
+					$gen_at  = (int) ( $meta['generated_at'] ?? 0 );
+					$last_at = (int) ( $meta['last_served_at'] ?? $gen_at );
+					// Same dual-TTL rule as the request path: expired if
+					// idle past the user setting OR past the hard ceiling.
+					$idle_too_long = ( $now - $last_at ) > $duration_seconds;
+					$past_ceiling  = ( $now - $gen_at ) > $ceiling_seconds;
+					if ( $gen_at <= 0 || $idle_too_long || $past_ceiling ) {
+						$reason = 'expired';
+					}
 				}
 			}
 

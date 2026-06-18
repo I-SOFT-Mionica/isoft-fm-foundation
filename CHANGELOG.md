@@ -2,6 +2,21 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.10.17] — 2026-06-19
+
+### Changed
+- **Bundle cache TTL switched from build-time to idle-time, with a 3× paranoia ceiling.** Before: `time() - generated_at > duration_seconds` → rebuild. A bundle hit every day still got rebuilt every N days. After: two TTL layers, both checked on each request:
+  - **Idle TTL** (`time() - last_served_at > duration_seconds`) — popular bundles stay cached as long as they're being used. Idle bundles still expire on the original schedule.
+  - **Hard ceiling** (`time() - generated_at > duration_seconds * 3`) — defense-in-depth. Even bundles being served constantly get a forced rebuild after 3× the user-configured duration, in case the content-signature check has a false-positive bug that would otherwise let bad data persist forever.
+  Content-signature invalidation (`file_ids` + `max_mtime`) is unchanged and still runs on every hit independent of either timer — file added/removed/replaced is caught immediately as before.
+
+### Added
+- **`last_served_at` field on the cache sidecar JSON.** Initialised to `generated_at` at write time so a never-served cache isn't considered idle the moment it's written. Updated to `time()` via `file_put_contents(..., LOCK_EX)` on every successful serve. Write failure is non-fatal — falls back to the old build-only behaviour rather than erroring on the hit path.
+
+### Why
+- User: "are we counting cache since creation or last download?" — answer was build-time, but for actively-used bundles that's wasteful (rebuild cost on a bundle being downloaded daily). User then flagged the concern: "need to be careful for this in case bundle contents change". Addressed by keeping the signature check on every hit (catches real content changes regardless of either timer) and adding a hard ceiling on top of the idle TTL (catches the paranoia case where the signature check is wrong).
+- The 0.10.16 sweep was already using `2× duration` — bumped to `3× duration` to match the new request-path ceiling so the sweep and the request path always agree on what counts as expired.
+
 ## [0.10.16] — 2026-06-18
 
 ### Added
