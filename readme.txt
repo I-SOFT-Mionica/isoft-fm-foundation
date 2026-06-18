@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.0
 Requires PHP: 8.4
-Stable tag: 0.10.12
+Stable tag: 0.10.13
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -161,6 +161,13 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 5. Download handler settings — security, logging, and serve method.
 
 == Changelog ==
+
+= 0.10.13 =
+* **Stats dashboard now reads from the daily aggregate table** instead of scanning the full per-event log. The "Top Downloads (Last 30 Days)" panel and the 30-day chart both query `isoft_fmf_download_daily` — the canonical aggregate the logger maintains alongside the per-click log. Faster, and it picks up demo-seeded activity instead of only counting individual log events.
+* **Dashboard stats refresh on every download.** The overview was cached for 5 minutes; new clicks didn't show until the cache expired. Cache now busts on every log write.
+* **Chart bar tooltip shows download count** (was redundantly showing the date that's already on the X-axis label). Bar label also highlights on hover.
+* **Demo content's seeded activity spreads across the visible 30-day window** instead of just the last 7 days for HOT entries. The spread is also capped at each entry's `days_ago` — a download posted 7 days ago can't have activity from 30 days ago. HOT entries push more recent share so they still win the 7-day HOT-cron election.
+* **Demo removal now also clears per-event log rows** for the removed downloads, so repeat-regenerate cycles don't accumulate orphan `(deleted)` entries in the dashboard.
 
 = 0.10.12 =
 * **Demo content now ships with realistic download counts, HOT badges, and varied post dates** so first-impression screenshots (admin list, public listings, single download) don't look empty. Two of the six demo downloads carry a HOT badge with seeded daily-log activity so the nightly HOT cron re-elects them instead of clearing the badge. Removing demo content cleans the seeded daily-log rows along with everything else.

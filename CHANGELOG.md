@@ -2,6 +2,17 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.10.13] — 2026-06-18
+
+### Changed
+- **Stats dashboard 30-day queries now read from `isoft_fmf_download_daily`** instead of `isoft_fmf_download_log`. The daily aggregate is the table the logger writes to in parallel with the per-event log specifically for time-bucketed reads (the HOT cron uses it for the same reason — comment at `class-download-logger.php:62`). Two upsides: (1) the dashboard picks up demo-seeded activity rather than only counting real click events, fixing the "0.10.12 demo regen still shows empty chart" symptom; (2) it scans a much smaller table — one row per download per day vs N rows per download per day. The per-click log table remains the source for the Log viewer (audit trail).
+- **Demo daily-activity seed extended from 7 days to a 30-day window, capped at each entry's `days_ago`.** Previously `seed_download_stats()` only seeded the last 7 days and only for HOT entries — the chart looked empty for the other 23 days. Now all demo entries get a linearly-decaying daily distribution across the visible 30-day window. The cap at `days_ago` prevents the time-travel artifact of a download posted 7 days ago having recorded activity from 30 days ago. Recent-share is also tuned per window — entries with a short window (≤14d) push the share up so the count still divides cleanly across the few days available, and HOT entries always carry a heavier recent share so they keep winning the cron's 7-day HOT election.
+- **Bar chart tooltip shows count instead of date** in `admin/views/stats-dashboard.php`. The date is already rendered as the label under each bar — duplicating it on hover was noise. Bar label now also highlights on hover (`admin/css/admin-style.css`).
+
+### Fixed
+- **Stats overview transient busts on every download.** Previously `isoft_fmf_stats_overview` was cached for 5 minutes — when a user clicked a download, the count moved in the log/daily tables but the dashboard kept serving the stale aggregate until the cache expired. Added `delete_transient( 'isoft_fmf_stats_overview' )` to `ISOFT_FMF_Download_Logger::log()` and to both demo lifecycle paths (`create_downloads()` after seeding, `remove_demo_posts()` after deletion).
+- **Demo removal also clears per-event log rows.** The 0.10.12 cleanup only DELETEd from `isoft_fmf_download_daily`; per-event rows in `isoft_fmf_download_log` stayed as orphaned `download_id`s, showing up in the dashboard's "Top Downloads (Last 30 Days)" as `(deleted)` entries after repeated demo regenerate cycles. Now DELETEs from both tables for each removed demo post.
+
 ## [0.10.12] — 2026-06-18
 
 ### Changed

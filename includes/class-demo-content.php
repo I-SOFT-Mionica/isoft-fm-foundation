@@ -225,25 +225,31 @@ class ISOFT_FMF_Demo_Content {
 				$this->seed_download_stats(
 					(int) $post_id,
 					$total,
-					! empty( $def['hot'] )
+					! empty( $def['hot'] ),
+					$days_ago
 				);
 			}
 
 			$created[] = (int) $post_id;
 		}
 
+		delete_transient( 'isoft_fmf_stats_overview' );
+
 		return $created;
 	}
 
 	/**
 	 * Give demo entries realistic-looking download counters and (optionally) a
-	 * HOT badge so screenshots aren't full of zeros. Distributes the all-time
-	 * count across the download's files (first file gets ~60%, rest split the
-	 * remainder), syncs the post-level cached SUM, and — for HOT entries —
-	 * inserts last-7-days rows into the daily log so the nightly HOT cron
-	 * re-elects them instead of clearing the badge.
+	 * HOT badge so screenshots aren't full of zeros. Splits the all-time count
+	 * across the download's files (first file ~60%, rest split the remainder),
+	 * syncs the post-level cached SUM, and seeds 30 days of daily activity
+	 * weighted toward recent days so the stats dashboard chart looks like a
+	 * site that's been in service. HOT entries get a heavier recent share so
+	 * the nightly HOT cron — which ranks by SUM(count) over the last 7 days
+	 * in isoft_fmf_download_daily — re-elects them instead of clearing the
+	 * badge we set directly.
 	 */
-	private function seed_download_stats( int $post_id, int $total, bool $hot ): void {
+	private function seed_download_stats( int $post_id, int $total, bool $hot, int $days_ago = 30 ): void {
 		global $wpdb;
 
 		$files_table = $wpdb->prefix . 'isoft_fmf_files';
@@ -274,17 +280,40 @@ class ISOFT_FMF_Demo_Content {
 
 		update_post_meta( $post_id, '_isoft_fmf_download_count', $total );
 
-		if ( ! $hot ) {
-			return;
-		}
+		// Spread window: the entry can't have activity older than its post
+		// date — a download posted 7 days ago can't have clicks from 30 days
+		// ago. Cap the daily-log spread at min($days_ago, 30) so the chart
+		// stays plausible against the back-dated post_date.
+		$window = max( 1, min( 30, $days_ago > 0 ? $days_ago : 30 ) );
 
-		// HOT cron picks the top 10 downloads by SUM(count) over the last 7 days
-		// in isoft_fmf_download_daily. Seed ~20% of the all-time count across
-		// the past week so the cron re-elects this entry on its next run
-		// instead of clearing the HOT meta we set below.
-		$weekly_total = max( 7, (int) round( $total * 0.20 ) );
-		$daily        = $this->split_count( $weekly_total, 7 );
-		for ( $d = 0; $d < 7; $d++ ) {
+		// Recent share is the slice of all-time activity we replay into the
+		// daily table for the chart. For tight windows (7d) almost all of
+		// the all-time count fits in the visible window, so push the share
+		// up; HOT entries get a heavier share so they keep winning the
+		// cron's 7-day election.
+		if ( $window <= 14 ) {
+			$share = $hot ? 0.85 : 0.70;
+		} else {
+			$share = $hot ? 0.45 : 0.25;
+		}
+		$recent_total = max( $window, (int) round( $total * $share ) );
+
+		// Linearly-decaying weight curve scoped to the window: today gets
+		// the highest weight, day $window-1 the lowest. Chart looks busy
+		// recently and tapers off cleanly.
+		$weights = array();
+		for ( $d = 0; $d < $window; $d++ ) {
+			$weights[] = $window - $d;
+		}
+		$sum_w    = array_sum( $weights );
+		$assigned = 0;
+
+		for ( $d = 0; $d < $window - 1; $d++ ) {
+			$count     = (int) round( $recent_total * ( $weights[ $d ] / $sum_w ) );
+			$assigned += $count;
+			if ( 0 === $count ) {
+				continue;
+			}
 			$log_date = gmdate( 'Y-m-d', time() - ( $d * DAY_IN_SECONDS ) );
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Demo seed.
 			$wpdb->replace(
@@ -292,12 +321,27 @@ class ISOFT_FMF_Demo_Content {
 				array(
 					'download_id' => $post_id,
 					'log_date'    => $log_date,
-					'count'       => $daily[ $d ],
+					'count'       => $count,
+				)
+			);
+		}
+		// Last bucket absorbs the rounding remainder so the sum matches recent_total.
+		$tail = max( 0, $recent_total - $assigned );
+		if ( $tail > 0 ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Demo seed.
+			$wpdb->replace(
+				$daily_table,
+				array(
+					'download_id' => $post_id,
+					'log_date'    => gmdate( 'Y-m-d', time() - ( ( $window - 1 ) * DAY_IN_SECONDS ) ),
+					'count'       => $tail,
 				)
 			);
 		}
 
-		update_post_meta( $post_id, '_isoft_fmf_is_hot', 1 );
+		if ( $hot ) {
+			update_post_meta( $post_id, '_isoft_fmf_is_hot', 1 );
+		}
 	}
 
 	/**
@@ -713,6 +757,7 @@ class ISOFT_FMF_Demo_Content {
 
 		global $wpdb;
 		$daily_table = $wpdb->prefix . 'isoft_fmf_download_daily';
+		$log_table   = $wpdb->prefix . 'isoft_fmf_download_log';
 
 		$file_mgr = new ISOFT_FMF_File_Manager();
 		foreach ( $posts as $post_id ) {
@@ -728,13 +773,18 @@ class ISOFT_FMF_Demo_Content {
 					}
 					$file_mgr->delete_file( (int) $file->id );
 				}
-				// Clear seeded daily-log rows so removing demo content also
-				// clears the HOT-eligible activity we synthesized for it.
+				// Clear seeded daily-log rows + per-event log rows so a
+				// re-generate / remove cycle doesn't leave orphaned
+				// download_ids cluttering the dashboard's "(deleted)" row.
 				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- One-shot demo cleanup.
 				$wpdb->delete( $daily_table, array( 'download_id' => (int) $post_id ) );
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- One-shot demo cleanup.
+				$wpdb->delete( $log_table, array( 'download_id' => (int) $post_id ) );
 			}
 			wp_delete_post( $post_id, true );
 		}
+
+		delete_transient( 'isoft_fmf_stats_overview' );
 	}
 
 	private function remove_demo_terms(): void {

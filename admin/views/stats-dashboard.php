@@ -79,9 +79,13 @@ function isoft_fmf_format_bytes( int $bytes ): string {
 			<p class="description"><?php esc_html_e( 'No log entries in the last 30 days.', 'isoft-fm-foundation' ); ?></p>
 		<?php else : ?>
 			<div class="isoft-fmf-bar-chart" aria-label="<?php esc_attr_e( 'Daily download chart', 'isoft-fm-foundation' ); ?>">
-				<?php foreach ( $chart_days as $date => $count ) : ?>
-					<?php $pct = $max_daily > 0 ? round( ( $count / $max_daily ) * 100 ) : 0; ?>
-					<div class="isoft-fmf-bar-wrap" title="<?php echo esc_attr( $date . ': ' . $count ); ?>">
+				<?php
+				foreach ( $chart_days as $date => $count ) :
+					$pct = $max_daily > 0 ? round( ( $count / $max_daily ) * 100 ) : 0;
+					/* translators: %s: number of downloads on the hovered day */
+					$tooltip = sprintf( _n( '%s download', '%s downloads', $count, 'isoft-fm-foundation' ), number_format_i18n( $count ) );
+					?>
+					<div class="isoft-fmf-bar-wrap" title="<?php echo esc_attr( $tooltip ); ?>">
 						<div class="isoft-fmf-bar" style="height:<?php echo esc_attr( $pct ); ?>%"></div>
 						<span class="isoft-fmf-bar-label"><?php echo esc_html( substr( $date, 5 ) ); ?></span>
 					</div>
