@@ -2,6 +2,18 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.10.14] — 2026-06-18
+
+### Added
+- **"Run integrity check now" panel on the Broken Links screen** (`admin/views/broken-links-page.php`) — same admin-post action the Maintenance tab already used, just surfaced where users actually look at broken files. New `&return=broken-links` query parameter on the action URL controls where `handle_run_now()` redirects back to after the scan; default stays `maintenance` for back-compat with existing links.
+- **`ISOFT_FMF_File_Integrity::server_limits()`** — reads `max_execution_time`, `memory_limit`, and whether `set_time_limit` is on the host's `disable_functions` list. Both Broken Links and Maintenance views show this so admins know up-front what the host allows the scan to consume. Memory limit uses WP's `wp_convert_hr_to_bytes()` to parse the `64M`/`256M`/`-1` syntax correctly.
+- **Concurrency lock with PHP-derived TTL.** `lock_state()` exposes `{status: 'active'|'stale', started_at, age_seconds, ttl_seconds}` so the UI can show "Running — started Ns ago" or "Previous run crashed Ns ago, click to recover". TTL is derived from the running PHP's `max_execution_time` plus a 30-second buffer, clamped to `[600, 1800]` seconds — never longer than 30 min before treating a crashed run as recoverable.
+
+### Changed
+- **`run_scheduled_check()` now acquires a lock** via `add_option()` (the atomic acquire — fails when the option already exists). Two callers racing to start a scan can't both win. Body wrapped in try/finally so the lock is released even on `return`, exception, or shutdown after a fatal — PHP's finally semantics cover all three. On a hard OOM the lock survives, but `lock_state()`'s staleness check auto-recovers it on the next run.
+- **`run_scheduled_check()` calls `set_time_limit(0)`** when the host permits it (`set_time_limit` not in `disable_functions`). On hosts that allow this — most managed-WP setups do — the scan can run as long as it needs. On shared hosts that block it, the lock's PHP-derived TTL kicks in for recovery.
+- **`handle_run_now()` accepts `&return=` query** (broken-links | maintenance) so the Broken Links button comes back to its own page and the Maintenance button comes back to its own. Both surfaces also detect an already-running scan and redirect with `?isoft_fmf_running=1` instead of trying to run anyway.
+
 ## [0.10.13] — 2026-06-18
 
 ### Changed

@@ -18,8 +18,12 @@ defined( 'ABSPATH' ) || exit;
 
 class ISOFT_FMF_File_Integrity {
 
-	private const CRON_HOOK  = 'isoft_fmf_integrity_check';
-	private const CHUNK_SIZE = 200;
+	private const CRON_HOOK              = 'isoft_fmf_integrity_check';
+	private const CHUNK_SIZE             = 200;
+	private const LOCK_OPTION            = 'isoft_fmf_integrity_running';
+	private const LOCK_FALLBACK_TTL      = 600;  // 10 min — used when PHP reports no execution-time limit.
+	private const LOCK_CEILING           = 1800; // 30 min — even if PHP reports "unlimited" or a huge limit, never wait longer than this before treating as crashed.
+	private const LOCK_BUFFER_SECONDS    = 30;   // grace beyond max_execution_time before we call it stale.
 
 	public function register_hooks(): void {
 		add_action( 'init', array( $this, 'maybe_schedule' ) );
@@ -27,6 +31,89 @@ class ISOFT_FMF_File_Integrity {
 		add_action( 'update_option_isoft_fmf_integrity_check_enabled', array( $this, 'reschedule' ), 10, 0 );
 		add_action( 'update_option_isoft_fmf_integrity_check_time', array( $this, 'reschedule' ), 10, 0 );
 		add_action( 'admin_post_isoft_fmf_integrity_check_now', array( $this, 'handle_run_now' ) );
+	}
+
+	// -------------------------------------------------------------------------
+	// Concurrency lock
+	//
+	// run_scheduled_check() is the same code path for the daily cron AND the
+	// manual "Run check now" button. Two failure modes we guard against:
+	//   1. Double-trigger (admin double-clicks, cron fires mid-manual-run) —
+	//      add_option() is the atomic acquire; competing callers see the
+	//      existing row and bail out before any scan work happens.
+	//   2. PHP exits mid-run via fatal (OOM / max_execution_time / wp_die).
+	//      The lock stays in the DB. After the staleness window — derived
+	//      from PHP's actual max_execution_time at the time the lock was
+	//      acquired — any new run silently takes over. Automatic recovery,
+	//      no human force-restart needed in the common case.
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Snapshot of PHP runtime limits relevant to the scan.
+	 *
+	 * @return array{
+	 *     max_execution_time: int,
+	 *     memory_limit_bytes: int,
+	 *     can_extend_time: bool,
+	 * }
+	 */
+	public static function server_limits(): array {
+		$max_exec = (int) ini_get( 'max_execution_time' );
+
+		$mem_raw = (string) ini_get( 'memory_limit' );
+		$mem     = wp_convert_hr_to_bytes( $mem_raw );
+		if ( $mem < 0 ) {
+			$mem = -1;
+		}
+
+		$disabled       = explode( ',', (string) ini_get( 'disable_functions' ) );
+		$disabled       = array_map( 'trim', $disabled );
+		$can_extend     = function_exists( 'set_time_limit' ) && ! in_array( 'set_time_limit', $disabled, true );
+
+		return array(
+			'max_execution_time' => max( 0, $max_exec ),
+			'memory_limit_bytes' => $mem,
+			'can_extend_time'    => $can_extend,
+		);
+	}
+
+	/**
+	 * How long to wait before treating an in-progress lock as crashed.
+	 * Derived from the running PHP's max_execution_time plus a small buffer,
+	 * clamped to a reasonable ceiling — we never want a single failed run
+	 * to leave the integrity check unrunnable for hours.
+	 */
+	private static function lock_ttl_seconds(): int {
+		$max = (int) ini_get( 'max_execution_time' );
+		if ( $max <= 0 ) {
+			return self::LOCK_FALLBACK_TTL;
+		}
+		return min( self::LOCK_CEILING, $max + self::LOCK_BUFFER_SECONDS );
+	}
+
+	/**
+	 * Current lock state, or null if no run is in progress.
+	 *
+	 * The staleness threshold is what the PHP-derived TTL was the moment we
+	 * check (good enough — admins almost never change max_execution_time
+	 * between an acquire and the next check).
+	 *
+	 * Returns: ['status' => 'active'|'stale', 'started_at' => int, 'age_seconds' => int, 'ttl_seconds' => int]
+	 */
+	public static function lock_state(): ?array {
+		$running = get_option( self::LOCK_OPTION, null );
+		if ( ! is_array( $running ) ) {
+			return null;
+		}
+		$started_at = (int) ( $running['started_at'] ?? 0 );
+		$age        = max( 0, time() - $started_at );
+		$ttl        = self::lock_ttl_seconds();
+		return array(
+			'status'      => $age >= $ttl ? 'stale' : 'active',
+			'started_at'  => $started_at,
+			'age_seconds' => $age,
+			'ttl_seconds' => $ttl,
+		);
 	}
 
 	// -------------------------------------------------------------------------
@@ -188,6 +275,49 @@ class ISOFT_FMF_File_Integrity {
 	// -------------------------------------------------------------------------
 
 	public function run_scheduled_check(): array {
+		// Atomic acquire: add_option only succeeds when the row doesn't
+		// exist, so two callers racing to start a scan can't both win.
+		// On crash recovery (stale lock past TTL), the loser refuses but
+		// the next call after staleness will get a clean slate via the
+		// delete_option below.
+		$lock = self::lock_state();
+		if ( null !== $lock && 'active' === $lock['status'] ) {
+			return array(
+				'skipped' => true,
+				'reason'  => 'already_running',
+				'lock'    => $lock,
+			);
+		}
+		if ( null !== $lock && 'stale' === $lock['status'] ) {
+			delete_option( self::LOCK_OPTION );
+		}
+		$acquired = add_option(
+			self::LOCK_OPTION,
+			array(
+				'started_at' => time(),
+				'by_user'    => get_current_user_id(),
+			),
+			'',
+			false
+		);
+		if ( ! $acquired ) {
+			// Another request slipped between our check and the add_option;
+			// they got the lock first. Bail without doing scan work.
+			return array(
+				'skipped' => true,
+				'reason'  => 'race_lost',
+			);
+		}
+
+		// Extend PHP's per-request time budget if the host lets us — many
+		// shared hosts disable set_time_limit via disable_functions. If the
+		// call no-ops, the lock TTL kicks in for recovery (next manual run
+		// auto-recovers past the stale threshold).
+		$limits = self::server_limits();
+		if ( $limits['can_extend_time'] ) {
+			@set_time_limit( 0 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- host may have set_time_limit on a deny-list at runtime; the @ is the WP-canonical guard for that.
+		}
+
 		$summary = array(
 			'checked'     => 0,
 			'healed'      => 0,
@@ -197,7 +327,8 @@ class ISOFT_FMF_File_Integrity {
 			'finished_at' => null,
 		);
 
-		global $wpdb;
+		try {
+			global $wpdb;
 
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Scheduled scan of file rows; rows touched once per run, cache layer would never be hit.
 		$offset = 0;
@@ -248,6 +379,13 @@ class ISOFT_FMF_File_Integrity {
 		do_action( 'isoft_fmf_integrity_check_complete', $summary );
 
 		return $summary;
+		} finally {
+			// Release the lock no matter how we exit (normal return, exception,
+			// or shutdown after a fatal — finally runs in all three cases). A
+			// run that hits OOM hard enough to skip finally still gets
+			// recovered by lock_state()'s staleness check on the next attempt.
+			delete_option( self::LOCK_OPTION );
+		}
 	}
 
 	/**
@@ -426,19 +564,30 @@ class ISOFT_FMF_File_Integrity {
 		}
 		check_admin_referer( 'isoft_fmf_integrity_check_now' );
 
-		$this->run_scheduled_check();
-
-		wp_safe_redirect(
-			add_query_arg(
-				array(
-					'post_type'     => 'isoft_fmf_file',
-					'page'          => 'isoft-fmf-settings',
-					'tab'           => 'maintenance',
-					'isoft_fmf_ran' => 1,
-				),
-				admin_url( 'edit.php' )
-			)
+		// "Where do I send the user back to?" — the Broken Links screen
+		// and the Maintenance tab both surface the Run-now button. Default
+		// to Maintenance for back-compat with existing links.
+		$return  = isset( $_GET['return'] ) ? sanitize_key( wp_unslash( $_GET['return'] ) ) : 'maintenance';
+		$page    = 'broken-links' === $return ? 'isoft-fmf-broken-links' : 'isoft-fmf-settings';
+		$tab     = 'broken-links' === $return ? null : 'maintenance';
+		$base    = array(
+			'post_type' => 'isoft_fmf_file',
+			'page'      => $page,
 		);
+		if ( $tab ) {
+			$base['tab'] = $tab;
+		}
+
+		$result = $this->run_scheduled_check();
+
+		$args = $base;
+		if ( is_array( $result ) && ! empty( $result['skipped'] ) ) {
+			$args['isoft_fmf_running'] = 1;
+		} else {
+			$args['isoft_fmf_ran'] = 1;
+		}
+
+		wp_safe_redirect( add_query_arg( $args, admin_url( 'edit.php' ) ) );
 		exit;
 	}
 

@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.0
 Requires PHP: 8.4
-Stable tag: 0.10.13
+Stable tag: 0.10.14
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -161,6 +161,11 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 5. Download handler settings — security, logging, and serve method.
 
 == Changelog ==
+
+= 0.10.14 =
+* **"Run integrity check now" button added to the Broken Links screen** so users can trigger a scan from the page where they're already looking at broken files (previously only on Settings → Maintenance). Both surfaces now show the host's PHP limits (`max_execution_time`, `memory_limit`, `set_time_limit` availability) so users know what scope the host allows.
+* **Lock to prevent overlapping runs.** Manual click + scheduled cron can no longer run the scan simultaneously; the second one silently waits its turn.
+* **Auto-recovery for crashed runs.** If the scan dies mid-flight (PHP timeout, out of memory, browser closed), the lock auto-clears past the host's max execution time and the next click starts fresh — no manual intervention.
 
 = 0.10.13 =
 * **Stats dashboard now reads from the daily aggregate table** instead of scanning the full per-event log. The "Top Downloads (Last 30 Days)" panel and the 30-day chart both query `isoft_fmf_download_daily` — the canonical aggregate the logger maintains alongside the per-click log. Faster, and it picks up demo-seeded activity instead of only counting individual log events.
