@@ -144,7 +144,7 @@ class ISOFT_FMF_Broken_Links_Ajax {
 		$expected_cat = $this->get_download_category_id( $download_id );
 		$expected_dir = $expected_cat ? isoft_fmf_category_folder_path( $expected_cat ) : '';
 
-		$candidate     = ISOFT_FMF_File_Integrity::find_by_inode_anywhere( $file );
+		$candidate     = ISOFT_FMF_File_Integrity::find_anywhere( $file );
 		$candidate_rel = null;
 		$candidate_cat = null;
 		if ( $candidate ) {
@@ -183,7 +183,7 @@ class ISOFT_FMF_Broken_Links_Ajax {
 		$file_id = isset( $_POST['file_id'] ) ? absint( $_POST['file_id'] ) : 0;
 		$file    = $this->get_file_or_die( $file_id );
 
-		$candidate = ISOFT_FMF_File_Integrity::find_by_inode_anywhere( $file );
+		$candidate = ISOFT_FMF_File_Integrity::find_anywhere( $file );
 		if ( ! $candidate ) {
 			wp_send_json_error( array( 'message' => __( 'Could not locate the file on disk.', 'isoft-fm-foundation' ) ), 404 );
 		}
@@ -242,7 +242,7 @@ class ISOFT_FMF_Broken_Links_Ajax {
 		$download_id = (int) $file->download_id;
 
 		// Locate the cross-category candidate, infer the new category from its folder.
-		$candidate = ISOFT_FMF_File_Integrity::find_by_inode_anywhere( $file );
+		$candidate = ISOFT_FMF_File_Integrity::find_anywhere( $file );
 		if ( ! $candidate ) {
 			wp_send_json_error( array( 'message' => __( 'Could not locate the file on disk.', 'isoft-fm-foundation' ) ), 404 );
 		}
@@ -401,7 +401,7 @@ class ISOFT_FMF_Broken_Links_Ajax {
 		$file_id = isset( $_POST['file_id'] ) ? absint( $_POST['file_id'] ) : 0;
 		$file    = $this->get_file_or_die( $file_id );
 
-		$candidate = ISOFT_FMF_File_Integrity::find_by_inode_anywhere( $file );
+		$candidate = ISOFT_FMF_File_Integrity::find_anywhere( $file );
 		if ( ! $candidate ) {
 			wp_send_json_error( array( 'message' => __( 'Could not locate the file on disk.', 'isoft-fm-foundation' ) ), 404 );
 		}

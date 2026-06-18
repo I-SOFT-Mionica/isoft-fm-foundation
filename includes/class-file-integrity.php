@@ -406,11 +406,23 @@ class ISOFT_FMF_File_Integrity {
 			return 'skipped';
 		}
 
-		// File is not at the expected path. Try inode-based rename recovery.
+		// File is not at the expected path. Try inode-based rename recovery
+		// first (cheap stat-loop; works on Linux/macOS where POSIX inodes are
+		// stable), then content-hash recovery (works everywhere including
+		// Windows/NTFS where inodes aren't reliable). Both stay inside the
+		// download's own category folder — auto-relink never reassigns a
+		// download to a different category. Cross-category moves go through
+		// the manual recovery dialog on the Broken Links screen.
 		$autorelink = (bool) get_option( 'isoft_fmf_integrity_autorelink', 1 );
-		if ( $autorelink && $this->try_relink_by_inode( $file ) ) {
-			$this->mark_healthy( $file );
-			return 'relinked';
+		if ( $autorelink ) {
+			if ( $this->try_relink_by_inode( $file ) ) {
+				$this->mark_healthy( $file );
+				return 'relinked';
+			}
+			if ( $this->try_relink_by_hash( $file ) ) {
+				$this->mark_healthy( $file );
+				return 'relinked';
+			}
 		}
 
 		// Not recoverable by inode — mark missing (idempotent).
@@ -596,6 +608,75 @@ class ISOFT_FMF_File_Integrity {
 	// -------------------------------------------------------------------------
 
 	/**
+	 * Hash-based rename recovery within the download's own category folder.
+	 * Same shape as try_relink_by_inode but uses SHA-256 content match
+	 * instead of POSIX inode — works on Windows / NTFS / any filesystem
+	 * where inodes aren't stable. Pre-filters by file_size so we only hash
+	 * candidates of the right size; on a typical category folder of
+	 * ≤ 30 files this is essentially free.
+	 */
+	public function try_relink_by_hash( object $file ): bool {
+		if ( empty( $file->file_hash ) || empty( $file->file_size ) ) {
+			return false;
+		}
+
+		$term_id = $this->get_download_category_id( (int) $file->download_id );
+		if ( ! $term_id ) {
+			return false;
+		}
+
+		$category_fs = isoft_fmf_category_fs_path( $term_id );
+		if ( ! is_dir( $category_fs ) ) {
+			return false;
+		}
+
+		$it = @scandir( $category_fs ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- silent failure is the recovery posture; nothing to log.
+		if ( ! $it ) {
+			return false;
+		}
+
+		foreach ( $it as $entry ) {
+			if ( '.' === $entry || '..' === $entry ) {
+				continue;
+			}
+			$candidate = $category_fs . '/' . $entry;
+			if ( ! is_file( $candidate ) ) {
+				continue;
+			}
+			if ( (int) @filesize( $candidate ) !== (int) $file->file_size ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- silent failure is the recovery posture.
+				continue;
+			}
+			$hash = @hash_file( 'sha256', $candidate ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+			if ( ! $hash || ! hash_equals( (string) $file->file_hash, (string) $hash ) ) {
+				continue;
+			}
+
+			// Match — commit new relative path (and basename in case the
+			// filename changed on rename).
+			global $wpdb;
+			$new_rel = ltrim(
+				str_replace( '\\', '/', substr( $candidate, strlen( isoft_fmf_files_dir() ) ) ),
+				'/'
+			);
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Rename-recovery relink; cache invalidated below.
+			$wpdb->update(
+				"{$wpdb->prefix}isoft_fmf_files",
+				array(
+					'file_path' => $new_rel,
+					'file_name' => basename( $candidate ),
+				),
+				array( 'id' => (int) $file->id ),
+				array( '%s', '%s' ),
+				array( '%d' )
+			);
+			ISOFT_FMF_File_Manager::bust_cache_for( (int) $file->download_id, (int) $file->id );
+			return true;
+		}
+
+		return false;
+	}
+
+	/**
 	 * Cross-category inode hunt — scan the entire isoft-fmf-files tree for a candidate
 	 * whose inode matches $file->inode and whose SHA-256 matches $file->file_hash.
 	 * Returns the absolute path, or null.
@@ -633,6 +714,52 @@ class ISOFT_FMF_File_Integrity {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Cross-category content-hash hunt — like find_by_inode_anywhere but
+	 * uses SHA-256 match instead of inode. Works on every filesystem
+	 * including Windows / NTFS. Size pre-filter keeps the hashing cost
+	 * proportional to files-of-matching-size, not total file count.
+	 */
+	public static function find_by_hash_anywhere( object $file ): ?string {
+		if ( empty( $file->file_hash ) || empty( $file->file_size ) ) {
+			return null;
+		}
+
+		$root = isoft_fmf_files_dir();
+		if ( ! is_dir( $root ) ) {
+			return null;
+		}
+
+		$it = new RecursiveIteratorIterator(
+			new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS )
+		);
+
+		foreach ( $it as $entry ) {
+			if ( ! $entry->isFile() ) {
+				continue;
+			}
+			if ( (int) $entry->getSize() !== (int) $file->file_size ) {
+				continue;
+			}
+			$path = $entry->getPathname();
+			$hash = @hash_file( 'sha256', $path ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+			if ( $hash && hash_equals( (string) $file->file_hash, (string) $hash ) ) {
+				return $path;
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Find a missing file anywhere under the downloads root, regardless of
+	 * filesystem. Tries inode first (zero hashing cost when it works), falls
+	 * through to content hash. The Broken Links recovery dialog uses this.
+	 */
+	public static function find_anywhere( object $file ): ?string {
+		return self::find_by_inode_anywhere( $file ) ?? self::find_by_hash_anywhere( $file );
 	}
 
 	/**

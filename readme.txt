@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.0
 Requires PHP: 8.4
-Stable tag: 0.10.14
+Stable tag: 0.10.15
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -161,6 +161,9 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 5. Download handler settings — security, logging, and serve method.
 
 == Changelog ==
+
+= 0.10.15 =
+* **File rename / cross-category move now auto-recovers on Windows hosting too.** Previously the integrity check could only relink files via POSIX inodes — useless on Windows/NTFS where inodes aren't stable. Added a content-hash fallback (SHA-256) with a file-size pre-filter so the cost stays proportional to candidates, not total file count. The automatic check (Run Now / nightly cron) handles rename-in-place within the file's own category folder; the manual recovery dialog on Broken Links handles cross-category moves with the existing Move-back / Reassign / Split options.
 
 = 0.10.14 =
 * **"Run integrity check now" button added to the Broken Links screen** so users can trigger a scan from the page where they're already looking at broken files (previously only on Settings → Maintenance). Both surfaces now show the host's PHP limits (`max_execution_time`, `memory_limit`, `set_time_limit` availability) so users know what scope the host allows.

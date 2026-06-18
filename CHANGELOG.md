@@ -2,6 +2,20 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.10.15] — 2026-06-18
+
+### Added
+- **Content-hash recovery for missing files** that works on every filesystem, not just POSIX. `ISOFT_FMF_File_Integrity::try_relink_by_hash()` scans the file's expected category folder, pre-filters by `file_size` so only candidates of matching size get hashed, then SHA-256-verifies — same recycling guard as the inode path. The automatic integrity check (`check_one()`) calls it after `try_relink_by_inode()` fails, so the rename-in-place case (e.g. `procurement-plan-2026.docx` → `procurement-plan-2026-1.docx`) heals without admin intervention on every OS. Auto-relink stays scoped to the download's own category folder so it never silently changes a download's category assignment.
+- **`find_by_hash_anywhere()`** — the cross-category sibling of `find_by_inode_anywhere()`. Walks the entire downloads tree with size pre-filter + SHA-256 match. Returns the absolute path of the (renamed and/or moved) file, or null.
+- **`find_anywhere()`** — unified wrapper that tries inode first (free when it works), falls through to hash. The Broken Links recovery dialog uses this so cross-category moves are detected on Windows hosting too, where the previous inode-only path always returned null.
+
+### Changed
+- **`ISOFT_FMF_Broken_Links_Ajax`** — all four `find_by_inode_anywhere()` call sites (recover_status, move_back, reassign, split) switched to `find_anywhere()`. The recovery dialog's "found in different category folder — pick how to resolve" branch now fires on Windows too, instead of always showing "File not found anywhere under the downloads folder. Use Reupload or Detach."
+- **`find_by_inode_anywhere()` kept** as a public static for back-compat; new code should call `find_anywhere()`.
+
+### Why
+- Real-world bug surfaced on user's Local install (Windows + NTFS): manually moved one file across category folders and renamed another in place, neither was auto-recovered. Both should be no-touch cases. Inode-based recovery never works on Windows (the Maintenance tab even warns admins to turn the inode toggle off there), leaving an unrecoverable hole. Content hash is the universal answer.
+
 ## [0.10.14] — 2026-06-18
 
 ### Added
