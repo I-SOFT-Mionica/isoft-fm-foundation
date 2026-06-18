@@ -29,7 +29,7 @@ $just_ran = isset( $_GET['isoft_fmf_ran'] ); // phpcs:ignore WordPress.Security.
 	</p>
 
 	<form method="post" action="options.php">
-		<?php settings_fields( 'isoft_fmf_settings' ); ?>
+		<?php settings_fields( 'isoft_fmf_maintenance' ); ?>
 
 		<table class="form-table">
 			<tr>
