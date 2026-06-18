@@ -280,32 +280,62 @@ class ISOFT_FMF_Demo_Content {
 
 		update_post_meta( $post_id, '_isoft_fmf_download_count', $total );
 
-		// Spread window: the entry can't have activity older than its post
-		// date — a download posted 7 days ago can't have clicks from 30 days
-		// ago. Cap the daily-log spread at min($days_ago, 30) so the chart
-		// stays plausible against the back-dated post_date.
-		$window = max( 1, min( 30, $days_ago > 0 ? $days_ago : 30 ) );
+		// Spread window: clamp to min(30, $days_ago) — a download posted 7
+		// days ago can't have activity from 30 days ago, and we don't show
+		// data older than 30 days on the dashboard.
+		$age          = $days_ago > 0 ? $days_ago : 30;
+		$window       = max( 1, min( 30, $age ) );
+		$past_release = max( 0, $age - $window );
 
-		// Recent share is the slice of all-time activity we replay into the
-		// daily table for the chart. For tight windows (7d) almost all of
-		// the all-time count fits in the visible window, so push the share
-		// up; HOT entries get a heavier share so they keep winning the
-		// cron's 7-day election.
-		if ( $window <= 14 ) {
-			$share = $hot ? 0.85 : 0.70;
+		// Share of all-time activity that lives in the chart window.
+		// Entries whose entire life is in-window: all of it. Older entries:
+		// just the trailing decay tail. HOT entries get +0.10 so they keep
+		// winning the 7-day HOT-cron election once the release spike has
+		// fallen outside the last 7 days.
+		if ( $days_ago <= $window ) {
+			$share = 1.0;
+		} elseif ( $days_ago <= 60 ) {
+			$share = 0.30;
 		} else {
-			$share = $hot ? 0.45 : 0.25;
+			$share = 0.15;
 		}
-		$recent_total = max( $window, (int) round( $total * $share ) );
+		if ( $hot ) {
+			$share = min( 1.0, $share + 0.10 );
+		}
+		$recent_total = min( $total, max( 0, (int) round( $total * $share ) ) );
 
-		// Linearly-decaying weight curve scoped to the window: today gets
-		// the highest weight, day $window-1 the lowest. Chart looks busy
-		// recently and tapers off cleanly.
-		$weights = array();
-		for ( $d = 0; $d < $window; $d++ ) {
-			$weights[] = $window - $d;
+		if ( $recent_total <= 0 ) {
+			if ( $hot ) {
+				update_post_meta( $post_id, '_isoft_fmf_is_hot', 1 );
+			}
+			return;
 		}
-		$sum_w    = array_sum( $weights );
+
+		// Per-day weights: release spike at the oldest visible day (or off
+		// the left edge for older entries), exponential decay toward today,
+		// floored so old entries still show low background activity, and
+		// damped on Sat/Sun — municipal / document content gets ~30% of
+		// weekday traffic on weekends in practice. Produces a chart that
+		// looks like a real document lifecycle: spike on release, taper
+		// over the following week, weekend valleys, low ongoing background.
+		$half_life     = 5.0;
+		$weekend_mult  = 0.30;
+		$decay_floor   = 0.04;
+		$release_index = $window - 1;
+		$weights       = array();
+		for ( $d = 0; $d < $window; $d++ ) {
+			$days_since_release = ( $release_index - $d ) + $past_release;
+			$decay              = max( $decay_floor, exp( -$days_since_release / $half_life ) );
+
+			$dow    = (int) gmdate( 'N', time() - ( $d * DAY_IN_SECONDS ) );
+			$weight = $decay * ( $dow >= 6 ? $weekend_mult : 1.0 );
+
+			$weights[ $d ] = $weight;
+		}
+		$sum_w = array_sum( $weights );
+		if ( $sum_w <= 0 ) {
+			return;
+		}
 		$assigned = 0;
 
 		for ( $d = 0; $d < $window - 1; $d++ ) {
