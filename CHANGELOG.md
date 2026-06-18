@@ -2,6 +2,23 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.10.16] — 2026-06-18
+
+### Added
+- **Proactive bundle-cache cleanup.** Previously the 0.10.7 cache only checked TTL lazily on request — bundles that were never re-requested (or whose download was deleted) accumulated on disk forever. New `ISOFT_FMF_Bundle_Handler::sweep_cache()` walks `.bundle-cache/`, reads each `.json` sidecar, and deletes any pair that is:
+  - past `2 × isoft_fmf_zip_cache_days` (grace beyond the configured TTL since a request inside that window would have rebuilt in-place anyway),
+  - orphaned (the `download_id` in the filename no longer maps to an `isoft_fmf_file` post), or
+  - incomplete (a stray `.zip` without `.json` or vice versa).
+  Fires `isoft_fmf_bundle_cache_deleted` action per pair so extensions / Sentinel can log or react.
+- **Three triggers for the sweep.**
+  - Primary: `add_action( 'isoft_fmf_integrity_check_complete', [ ..., 'sweep_cache' ] )` — runs the cleanup right after the daily file-integrity scan, per user request "match it so it runs after the missing files cron is done."
+  - Fallback: own `isoft_fmf_bundle_cache_sweep` daily cron at site-midnight so the cleanup still runs when integrity is disabled (registered/unregistered alongside other cron jobs via `isoft_fmf_deactivate`).
+  - Immediate: `before_delete_post` for `isoft_fmf_file` deletes the cache pair the moment the admin permanently deletes a download. Trashed downloads keep their cache so an untrash can serve from it.
+- **Manual "Clear bundle cache now" button** in Settings → Display under the cache duration field. Goes through `admin-post.php?action=isoft_fmf_clear_bundle_cache` (nonce-protected, capability-gated to `isoft_fmf_manage_settings`). Nukes the whole `.bundle-cache/` directory regardless of age or orphan status; useful when admins disable the cache toggle and want to recover disk space without waiting for the sweep.
+
+### Why
+- User question: "How do we know we should delete a cached zip file? I know you mark the time in json, but what checks the time?" — accurate observation that the lazy check on the request path leaves cache files orphaned in two real scenarios: (a) bundles that are never requested again, (b) downloads that get deleted. This closes both gaps without changing the hit-path TTL behavior.
+
 ## [0.10.15] — 2026-06-18
 
 ### Added

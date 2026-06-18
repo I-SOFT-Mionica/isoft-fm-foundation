@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.0
 Requires PHP: 8.4
-Stable tag: 0.10.15
+Stable tag: 0.10.16
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -161,6 +161,9 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 5. Download handler settings — security, logging, and serve method.
 
 == Changelog ==
+
+= 0.10.16 =
+* **ZIP bundle cache now cleans itself up.** Previously the cache duration setting only triggered a rebuild when someone requested a stale bundle — files that were never re-requested (or whose download was deleted) sat on disk forever. Now: a daily sweep runs right after the file-integrity check (with a midnight fallback if integrity is disabled) and removes any cache file past 2× the duration or whose download has been deleted. Deleting a download also clears its cache immediately. Settings → Display has a "Clear bundle cache now" button for the manual nuke.
 
 = 0.10.15 =
 * **File rename / cross-category move now auto-recovers on Windows hosting too.** Previously the integrity check could only relink files via POSIX inodes — useless on Windows/NTFS where inodes aren't stable. Added a content-hash fallback (SHA-256) with a file-size pre-filter so the cost stays proportional to candidates, not total file count. The automatic check (Run Now / nightly cron) handles rename-in-place within the file's own category folder; the manual recovery dialog on Broken Links handles cross-category moves with the existing Move-back / Reassign / Split options.
