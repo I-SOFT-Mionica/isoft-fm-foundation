@@ -77,19 +77,31 @@ function isoft_fmf_format_bytes( int $bytes ): string {
 		<h2><?php esc_html_e( 'Downloads — Last 30 Days', 'isoft-fm-foundation' ); ?></h2>
 		<?php if ( array_sum( $chart_days ) === 0 ) : ?>
 			<p class="description"><?php esc_html_e( 'No log entries in the last 30 days.', 'isoft-fm-foundation' ); ?></p>
-		<?php else : ?>
-			<div class="isoft-fmf-bar-chart" aria-label="<?php esc_attr_e( 'Daily download chart', 'isoft-fm-foundation' ); ?>">
-				<?php
-				foreach ( $chart_days as $date => $count ) :
-					$pct = $max_daily > 0 ? round( ( $count / $max_daily ) * 100 ) : 0;
-					/* translators: %s: number of downloads on the hovered day */
-					$tooltip = sprintf( _n( '%s download', '%s downloads', $count, 'isoft-fm-foundation' ), number_format_i18n( $count ) );
-					?>
-					<div class="isoft-fmf-bar-wrap" title="<?php echo esc_attr( $tooltip ); ?>">
-						<div class="isoft-fmf-bar" style="height:<?php echo esc_attr( $pct ); ?>%"></div>
-						<span class="isoft-fmf-bar-label"><?php echo esc_html( substr( $date, 5 ) ); ?></span>
-					</div>
-				<?php endforeach; ?>
+			<?php
+			else :
+				$chart_dates = array_keys( $chart_days );
+				$start_label = wp_date( 'M Y', strtotime( reset( $chart_dates ) ) );
+				$end_label   = wp_date( 'M Y', strtotime( end( $chart_dates ) ) );
+				?>
+			<div class="isoft-fmf-chart">
+				<div class="isoft-fmf-chart-header">
+					<span class="isoft-fmf-chart-month"><?php echo esc_html( $start_label ); ?></span>
+					<span class="isoft-fmf-chart-month"><?php echo esc_html( $end_label ); ?></span>
+				</div>
+				<div class="isoft-fmf-bar-chart" aria-label="<?php esc_attr_e( 'Daily download chart', 'isoft-fm-foundation' ); ?>">
+					<?php
+					foreach ( $chart_days as $date => $count ) :
+						$pct = $max_daily > 0 ? round( ( $count / $max_daily ) * 100 ) : 0;
+						/* translators: 1: number of downloads on the hovered day, 2: date (YYYY-MM-DD) */
+						$tooltip = sprintf( _n( '%1$s download on %2$s', '%1$s downloads on %2$s', $count, 'isoft-fm-foundation' ), number_format_i18n( $count ), $date );
+						$day     = (int) substr( $date, 8 );
+						?>
+						<div class="isoft-fmf-bar-wrap" title="<?php echo esc_attr( $tooltip ); ?>">
+							<div class="isoft-fmf-bar" style="height:<?php echo esc_attr( $pct ); ?>%"></div>
+							<span class="isoft-fmf-bar-label"><?php echo esc_html( (string) $day ); ?></span>
+						</div>
+					<?php endforeach; ?>
+				</div>
 			</div>
 		<?php endif; ?>
 	</div>

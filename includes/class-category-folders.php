@@ -415,14 +415,21 @@ class ISOFT_FMF_Category_Folders {
 
 	private function count_downloads_in_category( int $term_id ): int {
 		global $wpdb;
+		// Join wp_posts and exclude trashed / non-existent rows so the guard
+		// matches what the admin can actually see. Without the join, trashed
+		// downloads and orphaned term_relationships rows (post deleted but
+		// relationship leaked) would block the delete even though the
+		// category looks empty in every listing.
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Pre-delete guard on core taxonomy tables; freshness required to block orphaning.
 		return (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*)
 				   FROM {$wpdb->term_relationships} tr
 				   JOIN {$wpdb->term_taxonomy} tt ON tr.term_taxonomy_id = tt.term_taxonomy_id
+				   JOIN {$wpdb->posts} p ON tr.object_id = p.ID
 				  WHERE tt.term_id = %d
-				    AND tt.taxonomy = 'isoft_fmf_category'",
+				    AND tt.taxonomy = 'isoft_fmf_category'
+				    AND p.post_status != 'trash'",
 				$term_id
 			)
 		);

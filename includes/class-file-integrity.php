@@ -318,7 +318,13 @@ class ISOFT_FMF_File_Integrity {
 		// auto-recovers past the stale threshold).
 		$limits = self::server_limits();
 		if ( $limits['can_extend_time'] ) {
-			@set_time_limit( 0 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- host may have set_time_limit on a deny-list at runtime; the @ is the WP-canonical guard for that.
+			// Stopgap until the post-v1 chunked-background refactor (transients +
+			// WP-Cron self-rescheduling) replaces this single-shot run. Plugin
+			// Check flags any set_time_limit use generically; WP core uses the
+			// same pattern in cron.php / upgrade.php / importers. The @ is
+			// because hosts often add set_time_limit to a runtime deny-list.
+			// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,Squiz.PHP.DiscouragedFunctions.Discouraged -- See above.
+			@set_time_limit( 0 );
 		}
 
 		$summary = array(

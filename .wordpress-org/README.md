@@ -21,6 +21,7 @@ into the distributed plugin zip** — different SVN namespace.
 
 ## Rules
 
+- **All files live flat in this directory.** No subfolders — the 10up deploy action syncs `.wordpress-org/*` straight into SVN `/assets/`, and WP.org only looks at the top level. Putting screenshots in `.wordpress-org/screenshots/` ships them to `/assets/screenshots/` where the renderer never finds them.
 - **File names are case-sensitive** — WP.org's renderer expects exactly these names.
 - **PNG, JPG, GIF** all work for banners and screenshots. **SVG** is allowed for icons only.
 - Screenshots are typically rendered ~700px wide on the plugin page; design accordingly.
