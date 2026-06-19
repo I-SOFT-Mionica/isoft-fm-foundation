@@ -196,8 +196,8 @@ class ISOFT_FMF_Demo_Content {
 				'post_content' => $def['description'] ?? '',
 			);
 			if ( $days_ago > 0 ) {
-				$ts                       = time() - ( $days_ago * DAY_IN_SECONDS );
-				$post_args['post_date']   = wp_date( 'Y-m-d H:i:s', $ts );
+				$ts                         = time() - ( $days_ago * DAY_IN_SECONDS );
+				$post_args['post_date']     = wp_date( 'Y-m-d H:i:s', $ts );
 				$post_args['post_date_gmt'] = gmdate( 'Y-m-d H:i:s', $ts );
 			}
 
@@ -388,11 +388,11 @@ class ISOFT_FMF_Demo_Content {
 		$out      = array_fill( 0, $buckets, 0 );
 		$weighted = 0;
 		// Front-load: bucket 0 gets a heavier share than the rest.
-		$weights = array_fill( 0, $buckets, 1.0 );
+		$weights    = array_fill( 0, $buckets, 1.0 );
 		$weights[0] = max( 1.5, $buckets * 0.6 );
-		$sum_w     = array_sum( $weights );
+		$sum_w      = array_sum( $weights );
 		for ( $i = 0; $i < $buckets - 1; $i++ ) {
-			$out[ $i ]  = (int) floor( $total * ( $weights[ $i ] / $sum_w ) );
+			$out[ $i ] = (int) floor( $total * ( $weights[ $i ] / $sum_w ) );
 			$weighted += $out[ $i ];
 		}
 		$out[ $buckets - 1 ] = max( 0, $total - $weighted );

@@ -18,12 +18,12 @@ defined( 'ABSPATH' ) || exit;
 
 class ISOFT_FMF_File_Integrity {
 
-	private const CRON_HOOK              = 'isoft_fmf_integrity_check';
-	private const CHUNK_SIZE             = 200;
-	private const LOCK_OPTION            = 'isoft_fmf_integrity_running';
-	private const LOCK_FALLBACK_TTL      = 600;  // 10 min — used when PHP reports no execution-time limit.
-	private const LOCK_CEILING           = 1800; // 30 min — even if PHP reports "unlimited" or a huge limit, never wait longer than this before treating as crashed.
-	private const LOCK_BUFFER_SECONDS    = 30;   // grace beyond max_execution_time before we call it stale.
+	private const CRON_HOOK           = 'isoft_fmf_integrity_check';
+	private const CHUNK_SIZE          = 200;
+	private const LOCK_OPTION         = 'isoft_fmf_integrity_running';
+	private const LOCK_FALLBACK_TTL   = 600;  // 10 min — used when PHP reports no execution-time limit.
+	private const LOCK_CEILING        = 1800; // 30 min — even if PHP reports "unlimited" or a huge limit, never wait longer than this before treating as crashed.
+	private const LOCK_BUFFER_SECONDS = 30;   // grace beyond max_execution_time before we call it stale.
 
 	public function register_hooks(): void {
 		add_action( 'init', array( $this, 'maybe_schedule' ) );
@@ -69,9 +69,9 @@ class ISOFT_FMF_File_Integrity {
 			$mem = -1;
 		}
 
-		$disabled       = explode( ',', (string) ini_get( 'disable_functions' ) );
-		$disabled       = array_map( 'trim', $disabled );
-		$can_extend     = function_exists( 'set_time_limit' ) && ! in_array( 'set_time_limit', $disabled, true );
+		$disabled   = explode( ',', (string) ini_get( 'disable_functions' ) );
+		$disabled   = array_map( 'trim', $disabled );
+		$can_extend = function_exists( 'set_time_limit' ) && ! in_array( 'set_time_limit', $disabled, true );
 
 		return array(
 			'max_execution_time' => max( 0, $max_exec ),
@@ -582,10 +582,10 @@ class ISOFT_FMF_File_Integrity {
 		// "Where do I send the user back to?" — the Broken Links screen
 		// and the Maintenance tab both surface the Run-now button. Default
 		// to Maintenance for back-compat with existing links.
-		$return  = isset( $_GET['return'] ) ? sanitize_key( wp_unslash( $_GET['return'] ) ) : 'maintenance';
-		$page    = 'broken-links' === $return ? 'isoft-fmf-broken-links' : 'isoft-fmf-settings';
-		$tab     = 'broken-links' === $return ? null : 'maintenance';
-		$base    = array(
+		$return = isset( $_GET['return'] ) ? sanitize_key( wp_unslash( $_GET['return'] ) ) : 'maintenance';
+		$page   = 'broken-links' === $return ? 'isoft-fmf-broken-links' : 'isoft-fmf-settings';
+		$tab    = 'broken-links' === $return ? null : 'maintenance';
+		$base   = array(
 			'post_type' => 'isoft_fmf_file',
 			'page'      => $page,
 		);

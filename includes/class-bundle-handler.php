@@ -198,8 +198,8 @@ class ISOFT_FMF_Bundle_Handler {
 		// generated_at rather than rolling forward, which is acceptable
 		// degradation (worst case: behaves like the old build-only TTL).
 		$meta['last_served_at'] = $now;
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Writing internal cache metadata sidecar under our storage dir.
-		@file_put_contents( $paths['meta'], wp_json_encode( $meta ), LOCK_EX ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents,WordPress.PHP.NoSilencedErrors.Discouraged -- Internal cache metadata sidecar under our storage dir; silent best-effort touch.
+		@file_put_contents( $paths['meta'], wp_json_encode( $meta ), LOCK_EX );
 
 		$this->dispatch_zip( $download_id, $files, $paths['zip'], count( $files ), false );
 	}
@@ -466,8 +466,8 @@ class ISOFT_FMF_Bundle_Handler {
 			if ( ! preg_match( '/^bundle-(\d+)\.(zip|json)$/', $entry, $m ) ) {
 				continue;
 			}
-			$id  = (int) $m[1];
-			$ext = $m[2];
+			$id                   = (int) $m[1];
+			$ext                  = $m[2];
 			$pairs[ $id ][ $ext ] = $dir . '/' . $entry;
 		}
 
@@ -503,7 +503,8 @@ class ISOFT_FMF_Bundle_Handler {
 			}
 
 			foreach ( $files as $path ) {
-				if ( @unlink( $path ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+				wp_delete_file( $path );
+				if ( ! file_exists( $path ) ) {
 					++$deleted;
 				}
 			}
@@ -525,7 +526,7 @@ class ISOFT_FMF_Bundle_Handler {
 		$paths = $this->cache_paths( $post_id );
 		foreach ( $paths as $path ) {
 			if ( file_exists( $path ) ) {
-				@unlink( $path ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+				wp_delete_file( $path );
 			}
 		}
 	}
@@ -550,7 +551,9 @@ class ISOFT_FMF_Bundle_Handler {
 					if ( '.' === $entry || '..' === $entry ) {
 						continue;
 					}
-					if ( @unlink( $dir . '/' . $entry ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+					$path = $dir . '/' . $entry;
+					wp_delete_file( $path );
+					if ( ! file_exists( $path ) ) {
 						++$deleted;
 					}
 				}
@@ -560,9 +563,9 @@ class ISOFT_FMF_Bundle_Handler {
 		wp_safe_redirect(
 			add_query_arg(
 				array(
-					'post_type'              => 'isoft_fmf_file',
-					'page'                   => 'isoft-fmf-settings',
-					'tab'                    => 'display',
+					'post_type'               => 'isoft_fmf_file',
+					'page'                    => 'isoft-fmf-settings',
+					'tab'                     => 'display',
 					'isoft_fmf_cache_cleared' => $deleted,
 				),
 				admin_url( 'edit.php' )

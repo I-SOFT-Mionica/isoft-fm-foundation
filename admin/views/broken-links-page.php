@@ -8,10 +8,10 @@ defined( 'ABSPATH' ) || exit;
 
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Locals passed in by the including class; not actual globals.
 
-$lock        = ISOFT_FMF_File_Integrity::lock_state();
-$limits      = ISOFT_FMF_File_Integrity::server_limits();
-$last_run    = get_option( 'isoft_fmf_integrity_last_run', array() );
-$run_now_url = wp_nonce_url(
+$lock           = ISOFT_FMF_File_Integrity::lock_state();
+$limits         = ISOFT_FMF_File_Integrity::server_limits();
+$last_run       = get_option( 'isoft_fmf_integrity_last_run', array() );
+$run_now_url    = wp_nonce_url(
 	admin_url( 'admin-post.php?action=isoft_fmf_integrity_check_now&return=broken-links' ),
 	'isoft_fmf_integrity_check_now'
 );
@@ -23,8 +23,8 @@ $mem_label = $limits['memory_limit_bytes'] > 0
 	? size_format( $limits['memory_limit_bytes'] )
 	: __( 'unlimited', 'isoft-fm-foundation' );
 
-$just_ran     = isset( $_GET['isoft_fmf_ran'] );      // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-$saw_running  = isset( $_GET['isoft_fmf_running'] );  // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+$just_ran    = isset( $_GET['isoft_fmf_ran'] );      // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+$saw_running = isset( $_GET['isoft_fmf_running'] );  // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 ?>
 <div class="wrap isoft-fmf-broken-links-page">
 	<h1 class="wp-heading-inline"><?php esc_html_e( 'Broken Links', 'isoft-fm-foundation' ); ?></h1>
