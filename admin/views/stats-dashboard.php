@@ -77,11 +77,12 @@ function isoft_fmf_format_bytes( int $bytes ): string {
 		<h2><?php esc_html_e( 'Downloads — Last 30 Days', 'isoft-fm-foundation' ); ?></h2>
 		<?php if ( array_sum( $chart_days ) === 0 ) : ?>
 			<p class="description"><?php esc_html_e( 'No log entries in the last 30 days.', 'isoft-fm-foundation' ); ?></p>
-		<?php else :
-			$chart_dates  = array_keys( $chart_days );
-			$start_label  = wp_date( 'M Y', strtotime( reset( $chart_dates ) ) );
-			$end_label    = wp_date( 'M Y', strtotime( end( $chart_dates ) ) );
-			?>
+			<?php
+			else :
+				$chart_dates = array_keys( $chart_days );
+				$start_label = wp_date( 'M Y', strtotime( reset( $chart_dates ) ) );
+				$end_label   = wp_date( 'M Y', strtotime( end( $chart_dates ) ) );
+				?>
 			<div class="isoft-fmf-chart">
 				<div class="isoft-fmf-chart-header">
 					<span class="isoft-fmf-chart-month"><?php echo esc_html( $start_label ); ?></span>
