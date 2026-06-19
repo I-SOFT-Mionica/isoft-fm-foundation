@@ -71,6 +71,11 @@ class ISOFT_FMF_Download_Logger {
 		);
 		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 
+		// Bust the dashboard's stats-overview transient so the next admin
+		// view reflects this click. Without this the dashboard reads up to
+		// 5 minutes stale even though log + daily tables were just written.
+		delete_transient( 'isoft_fmf_stats_overview' );
+
 		return $log_id;
 	}
 

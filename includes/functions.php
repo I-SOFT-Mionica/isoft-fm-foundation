@@ -528,13 +528,19 @@ function isoft_fmf_get_stats_overview(): array {
 			  ORDER BY total_count DESC
 			  LIMIT 10"
 		) ?: array(),
+		// Top 30d and the daily chart both read from isoft_fmf_download_daily
+		// (the aggregate table the logger maintains alongside the per-click
+		// log). It's the canonical source for time-bucketed counts — faster
+		// than scanning the full log, and the only table the HOT cron uses
+		// for the same reason. The per-click isoft_fmf_download_log table
+		// remains the source for the Log viewer (audit trail per event).
 		'top_30d'           => $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT l.download_id, p.post_title, COUNT(*) AS count
-				   FROM {$wpdb->prefix}isoft_fmf_download_log l
-				   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
-				  WHERE l.downloaded_at >= DATE_SUB(CURDATE(), INTERVAL %d DAY)
-				  GROUP BY l.download_id, p.post_title
+				"SELECT d.download_id, p.post_title, SUM(d.count) AS count
+				   FROM {$wpdb->prefix}isoft_fmf_download_daily d
+				   LEFT JOIN {$wpdb->posts} p ON p.ID = d.download_id
+				  WHERE d.log_date >= DATE_SUB(CURDATE(), INTERVAL %d DAY)
+				  GROUP BY d.download_id, p.post_title
 				  ORDER BY count DESC
 				  LIMIT 10",
 				30
@@ -542,11 +548,11 @@ function isoft_fmf_get_stats_overview(): array {
 		) ?: array(),
 		'daily_30d'         => $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT DATE(downloaded_at) AS day, COUNT(*) AS count
-				   FROM {$wpdb->prefix}isoft_fmf_download_log
-				  WHERE downloaded_at >= DATE_SUB(CURDATE(), INTERVAL %d DAY)
-				  GROUP BY DATE(downloaded_at)
-				  ORDER BY day ASC",
+				"SELECT log_date AS day, SUM(count) AS count
+				   FROM {$wpdb->prefix}isoft_fmf_download_daily
+				  WHERE log_date >= DATE_SUB(CURDATE(), INTERVAL %d DAY)
+				  GROUP BY log_date
+				  ORDER BY log_date ASC",
 				30
 			)
 		) ?: array(),

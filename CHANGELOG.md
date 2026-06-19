@@ -2,6 +2,82 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.10.17] — 2026-06-19
+
+### Changed
+- **Bundle cache TTL switched from build-time to idle-time, with a 3× paranoia ceiling.** Before: `time() - generated_at > duration_seconds` → rebuild. A bundle hit every day still got rebuilt every N days. After: two TTL layers, both checked on each request:
+  - **Idle TTL** (`time() - last_served_at > duration_seconds`) — popular bundles stay cached as long as they're being used. Idle bundles still expire on the original schedule.
+  - **Hard ceiling** (`time() - generated_at > duration_seconds * 3`) — defense-in-depth. Even bundles being served constantly get a forced rebuild after 3× the user-configured duration, in case the content-signature check has a false-positive bug that would otherwise let bad data persist forever.
+  Content-signature invalidation (`file_ids` + `max_mtime`) is unchanged and still runs on every hit independent of either timer — file added/removed/replaced is caught immediately as before.
+
+### Added
+- **`last_served_at` field on the cache sidecar JSON.** Initialised to `generated_at` at write time so a never-served cache isn't considered idle the moment it's written. Updated to `time()` via `file_put_contents(..., LOCK_EX)` on every successful serve. Write failure is non-fatal — falls back to the old build-only behaviour rather than erroring on the hit path.
+
+### Why
+- User: "are we counting cache since creation or last download?" — answer was build-time, but for actively-used bundles that's wasteful (rebuild cost on a bundle being downloaded daily). User then flagged the concern: "need to be careful for this in case bundle contents change". Addressed by keeping the signature check on every hit (catches real content changes regardless of either timer) and adding a hard ceiling on top of the idle TTL (catches the paranoia case where the signature check is wrong).
+- The 0.10.16 sweep was already using `2× duration` — bumped to `3× duration` to match the new request-path ceiling so the sweep and the request path always agree on what counts as expired.
+
+## [0.10.16] — 2026-06-18
+
+### Added
+- **Proactive bundle-cache cleanup.** Previously the 0.10.7 cache only checked TTL lazily on request — bundles that were never re-requested (or whose download was deleted) accumulated on disk forever. New `ISOFT_FMF_Bundle_Handler::sweep_cache()` walks `.bundle-cache/`, reads each `.json` sidecar, and deletes any pair that is:
+  - past `2 × isoft_fmf_zip_cache_days` (grace beyond the configured TTL since a request inside that window would have rebuilt in-place anyway),
+  - orphaned (the `download_id` in the filename no longer maps to an `isoft_fmf_file` post), or
+  - incomplete (a stray `.zip` without `.json` or vice versa).
+  Fires `isoft_fmf_bundle_cache_deleted` action per pair so extensions / Sentinel can log or react.
+- **Three triggers for the sweep.**
+  - Primary: `add_action( 'isoft_fmf_integrity_check_complete', [ ..., 'sweep_cache' ] )` — runs the cleanup right after the daily file-integrity scan, per user request "match it so it runs after the missing files cron is done."
+  - Fallback: own `isoft_fmf_bundle_cache_sweep` daily cron at site-midnight so the cleanup still runs when integrity is disabled (registered/unregistered alongside other cron jobs via `isoft_fmf_deactivate`).
+  - Immediate: `before_delete_post` for `isoft_fmf_file` deletes the cache pair the moment the admin permanently deletes a download. Trashed downloads keep their cache so an untrash can serve from it.
+- **Manual "Clear bundle cache now" button** in Settings → Display under the cache duration field. Goes through `admin-post.php?action=isoft_fmf_clear_bundle_cache` (nonce-protected, capability-gated to `isoft_fmf_manage_settings`). Nukes the whole `.bundle-cache/` directory regardless of age or orphan status; useful when admins disable the cache toggle and want to recover disk space without waiting for the sweep.
+
+### Why
+- User question: "How do we know we should delete a cached zip file? I know you mark the time in json, but what checks the time?" — accurate observation that the lazy check on the request path leaves cache files orphaned in two real scenarios: (a) bundles that are never requested again, (b) downloads that get deleted. This closes both gaps without changing the hit-path TTL behavior.
+
+## [0.10.15] — 2026-06-18
+
+### Added
+- **Content-hash recovery for missing files** that works on every filesystem, not just POSIX. `ISOFT_FMF_File_Integrity::try_relink_by_hash()` scans the file's expected category folder, pre-filters by `file_size` so only candidates of matching size get hashed, then SHA-256-verifies — same recycling guard as the inode path. The automatic integrity check (`check_one()`) calls it after `try_relink_by_inode()` fails, so the rename-in-place case (e.g. `procurement-plan-2026.docx` → `procurement-plan-2026-1.docx`) heals without admin intervention on every OS. Auto-relink stays scoped to the download's own category folder so it never silently changes a download's category assignment.
+- **`find_by_hash_anywhere()`** — the cross-category sibling of `find_by_inode_anywhere()`. Walks the entire downloads tree with size pre-filter + SHA-256 match. Returns the absolute path of the (renamed and/or moved) file, or null.
+- **`find_anywhere()`** — unified wrapper that tries inode first (free when it works), falls through to hash. The Broken Links recovery dialog uses this so cross-category moves are detected on Windows hosting too, where the previous inode-only path always returned null.
+
+### Changed
+- **`ISOFT_FMF_Broken_Links_Ajax`** — all four `find_by_inode_anywhere()` call sites (recover_status, move_back, reassign, split) switched to `find_anywhere()`. The recovery dialog's "found in different category folder — pick how to resolve" branch now fires on Windows too, instead of always showing "File not found anywhere under the downloads folder. Use Reupload or Detach."
+- **`find_by_inode_anywhere()` kept** as a public static for back-compat; new code should call `find_anywhere()`.
+
+### Why
+- Real-world bug surfaced on user's Local install (Windows + NTFS): manually moved one file across category folders and renamed another in place, neither was auto-recovered. Both should be no-touch cases. Inode-based recovery never works on Windows (the Maintenance tab even warns admins to turn the inode toggle off there), leaving an unrecoverable hole. Content hash is the universal answer.
+
+## [0.10.14] — 2026-06-18
+
+### Added
+- **"Run integrity check now" panel on the Broken Links screen** (`admin/views/broken-links-page.php`) — same admin-post action the Maintenance tab already used, just surfaced where users actually look at broken files. New `&return=broken-links` query parameter on the action URL controls where `handle_run_now()` redirects back to after the scan; default stays `maintenance` for back-compat with existing links.
+- **`ISOFT_FMF_File_Integrity::server_limits()`** — reads `max_execution_time`, `memory_limit`, and whether `set_time_limit` is on the host's `disable_functions` list. Both Broken Links and Maintenance views show this so admins know up-front what the host allows the scan to consume. Memory limit uses WP's `wp_convert_hr_to_bytes()` to parse the `64M`/`256M`/`-1` syntax correctly.
+- **Concurrency lock with PHP-derived TTL.** `lock_state()` exposes `{status: 'active'|'stale', started_at, age_seconds, ttl_seconds}` so the UI can show "Running — started Ns ago" or "Previous run crashed Ns ago, click to recover". TTL is derived from the running PHP's `max_execution_time` plus a 30-second buffer, clamped to `[600, 1800]` seconds — never longer than 30 min before treating a crashed run as recoverable.
+
+### Changed
+- **`run_scheduled_check()` now acquires a lock** via `add_option()` (the atomic acquire — fails when the option already exists). Two callers racing to start a scan can't both win. Body wrapped in try/finally so the lock is released even on `return`, exception, or shutdown after a fatal — PHP's finally semantics cover all three. On a hard OOM the lock survives, but `lock_state()`'s staleness check auto-recovers it on the next run.
+- **`run_scheduled_check()` calls `set_time_limit(0)`** when the host permits it (`set_time_limit` not in `disable_functions`). On hosts that allow this — most managed-WP setups do — the scan can run as long as it needs. On shared hosts that block it, the lock's PHP-derived TTL kicks in for recovery.
+- **`handle_run_now()` accepts `&return=` query** (broken-links | maintenance) so the Broken Links button comes back to its own page and the Maintenance button comes back to its own. Both surfaces also detect an already-running scan and redirect with `?isoft_fmf_running=1` instead of trying to run anyway.
+
+## [0.10.13] — 2026-06-18
+
+### Changed
+- **Stats dashboard 30-day queries now read from `isoft_fmf_download_daily`** instead of `isoft_fmf_download_log`. The daily aggregate is the table the logger writes to in parallel with the per-event log specifically for time-bucketed reads (the HOT cron uses it for the same reason — comment at `class-download-logger.php:62`). Two upsides: (1) the dashboard picks up demo-seeded activity rather than only counting real click events, fixing the "0.10.12 demo regen still shows empty chart" symptom; (2) it scans a much smaller table — one row per download per day vs N rows per download per day. The per-click log table remains the source for the Log viewer (audit trail).
+- **Demo daily-activity seed now models a real document lifecycle** instead of a smooth linear ramp. `seed_download_stats()` builds per-day weights via: (a) a release spike at the entry's post date (or off the left edge for entries posted >30 days ago, since we only chart the last 30); (b) exponential decay afterward with a 5-day half-life; (c) a decay floor of 0.04 so older entries still show low background activity instead of flatlining to zero; (d) weekend dampening at 30% of weekday traffic — municipal / document content gets a fraction of weekday volume on Sat/Sun in practice. Activity is also capped at each entry's `days_ago` so a download posted 7 days ago can't have recorded clicks from 30 days ago. Recent-share per entry depends on age: in-window entries get 100% of their all-time count (entire life fits), 30-60 days old gets 30% (trailing decay), 60+ days gets 15%; HOT entries get +10% so they keep winning the cron's 7-day election once the release spike falls outside the last week. Final-shape chart shows release spikes for recent posts, weekend valleys, and a low background tail — looks like an actual document download history instead of an algorithm.
+- **Bar chart tooltip shows count instead of date** in `admin/views/stats-dashboard.php`. The date is already rendered as the label under each bar — duplicating it on hover was noise. Bar label now also highlights on hover (`admin/css/admin-style.css`).
+
+### Fixed
+- **Stats overview transient busts on every download.** Previously `isoft_fmf_stats_overview` was cached for 5 minutes — when a user clicked a download, the count moved in the log/daily tables but the dashboard kept serving the stale aggregate until the cache expired. Added `delete_transient( 'isoft_fmf_stats_overview' )` to `ISOFT_FMF_Download_Logger::log()` and to both demo lifecycle paths (`create_downloads()` after seeding, `remove_demo_posts()` after deletion).
+- **Demo removal also clears per-event log rows.** The 0.10.12 cleanup only DELETEd from `isoft_fmf_download_daily`; per-event rows in `isoft_fmf_download_log` stayed as orphaned `download_id`s, showing up in the dashboard's "Top Downloads (Last 30 Days)" as `(deleted)` entries after repeated demo regenerate cycles. Now DELETEs from both tables for each removed demo post.
+- **Maintenance tab save failed with "options page is not in the allowed options list"** — regression from the 0.10.8 per-tab settings-group split. `admin/views/maintenance-tab.php` is a separate view file (not part of `settings-page.php`'s if/elseif chain) and still called `settings_fields( 'isoft_fmf_settings' )`. That group name was removed in 0.10.8 when options were re-grouped per tab. Updated to `settings_fields( 'isoft_fmf_maintenance' )`. The four integrity-check options in this group (`isoft_fmf_integrity_check_enabled`, `isoft_fmf_integrity_check_time`, `isoft_fmf_integrity_autorelink`, `isoft_fmf_integrity_use_inode`) were always registered to `isoft_fmf_maintenance` in `ISOFT_FMF_Settings::register_settings()` — the form just wasn't asking for that group.
+
+## [0.10.12] — 2026-06-18
+
+### Changed
+- **Demo content gains realistic stats.** Each demo download definition now carries `downloads` (all-time count), optional `hot` (boolean), and `days_ago` (post-date offset) fields in `ISOFT_FMF_Demo_Content::download_definitions()`. After creating a download's files, `seed_download_stats()` splits the total across the file rows (first file ~60%, others split the remainder via `split_count()`), writes the per-file `download_count` column on `wp_isoft_fmf_files`, syncs the `_isoft_fmf_download_count` post-meta sum, and — for HOT entries — inserts seven days of `wp_isoft_fmf_download_daily` rows summing to ~20% of all-time activity. The nightly HOT cron re-ranks from that table, so the seeded HOT badge survives the next 01:00 recalculation instead of being wiped (the cron unconditionally `DELETE`s every `_isoft_fmf_is_hot` row before re-electing winners from the daily table). Post `post_date` is back-dated by `days_ago` so the public-facing date column doesn't say "today" for every entry. Demo distribution: Budget Decision 2026 (1,247 downloads, HOT, 14d), Procurement Plan 2026 (893, HOT, 21d), Session I Minutes (412, 30d), Final Account 2025 (187, 60d), Urban Development Plan — Draft (56 split 34+22, 7d), Appointment Decision (23, 45d).
+- **`remove_demo_posts()`** now also `DELETE`s the seeded daily-log rows per post so the cleanup path is symmetric with the seeding path; without this, leftover rows linger in `wp_isoft_fmf_download_daily` forever (orphaned download_ids that no longer point at posts).
+
 ## [0.10.11] — 2026-06-17
 
 ### Changed

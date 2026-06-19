@@ -11,9 +11,47 @@ defined( 'ABSPATH' ) || exit;
  */
 class ISOFT_FMF_Bundle_Handler {
 
+	private const SWEEP_HOOK = 'isoft_fmf_bundle_cache_sweep';
+
 	public function register_hooks(): void {
 		add_filter( 'query_vars', array( $this, 'add_query_var' ) );
 		add_action( 'template_redirect', array( $this, 'handle' ) );
+
+		/*
+		 * Cache cleanup hooks:
+		 * - integrity-check-complete is the primary trigger so the sweep
+		 *   runs immediately after the daily missing-files scan finishes.
+		 * - A daily fallback cron at midnight covers the case where the
+		 *   integrity check is disabled, so the cache still gets cleaned.
+		 * - before_delete_post fires immediate cleanup when an admin
+		 *   permanently deletes a download (cache for trashed posts is
+		 *   intentionally kept in case of untrash).
+		 * - admin-post action backs the "Clear bundle cache" button.
+		 */
+		add_action( 'isoft_fmf_integrity_check_complete', array( $this, 'sweep_cache' ) );
+		add_action( 'init', array( $this, 'maybe_schedule_sweep' ) );
+		add_action( self::SWEEP_HOOK, array( $this, 'sweep_cache' ) );
+		add_action( 'before_delete_post', array( $this, 'delete_cache_for_post' ), 10, 1 );
+		add_action( 'admin_post_isoft_fmf_clear_bundle_cache', array( $this, 'handle_manual_clear' ) );
+		add_action( 'isoft_fmf_deactivate', array( $this, 'unschedule_sweep' ) );
+	}
+
+	public function unschedule_sweep(): void {
+		$timestamp = wp_next_scheduled( self::SWEEP_HOOK );
+		if ( $timestamp ) {
+			wp_unschedule_event( $timestamp, self::SWEEP_HOOK );
+		}
+	}
+
+	public function maybe_schedule_sweep(): void {
+		if ( wp_next_scheduled( self::SWEEP_HOOK ) ) {
+			return;
+		}
+		// Schedule for midnight site time. The integrity-check-complete
+		// hook is the primary cleanup trigger; this is the fallback.
+		$tz       = wp_timezone();
+		$midnight = ( new DateTimeImmutable( 'tomorrow midnight', $tz ) )->getTimestamp();
+		wp_schedule_event( $midnight, 'daily', self::SWEEP_HOOK );
 	}
 
 	public function add_query_var( array $vars ): array {
@@ -104,6 +142,19 @@ class ISOFT_FMF_Bundle_Handler {
 	 * stream it and exit. Returns silently on miss so the caller can fall
 	 * through to a fresh build.
 	 *
+	 * Two TTL layers:
+	 *   - idle TTL ($duration) — `time() - last_served_at`. Popular bundles
+	 *     stay cached as long as people keep clicking; idle bundles expire.
+	 *   - hard ceiling (3× $duration) — `time() - generated_at`. Paranoia
+	 *     floor that forces a rebuild eventually no matter how often the
+	 *     bundle is served. Catches the hypothetical case where
+	 *     signatures_match() returns a false positive (says the cache is
+	 *     valid when contents really did change). With duration=7 days the
+	 *     ceiling kicks in at 21 days.
+	 *
+	 * Content-signature check (file_ids + max_mtime) runs separately and
+	 * catches any real content change on every hit, independent of either TTL.
+	 *
 	 * @param object[] $files Local-only file rows from ISOFT_FMF_File_Manager.
 	 */
 	private function try_serve_from_cache( int $download_id, array $files ): void {
@@ -125,13 +176,30 @@ class ISOFT_FMF_Bundle_Handler {
 
 		$duration_days    = max( 1, (int) get_option( 'isoft_fmf_zip_cache_days', 7 ) );
 		$duration_seconds = $duration_days * DAY_IN_SECONDS;
-		if ( ( time() - (int) ( $meta['generated_at'] ?? 0 ) ) > $duration_seconds ) {
-			return; // Expired — fall through to fresh build, which will overwrite.
+		$ceiling_seconds  = $duration_seconds * 3;
+
+		$now            = time();
+		$generated_at   = (int) ( $meta['generated_at'] ?? 0 );
+		$last_served_at = (int) ( $meta['last_served_at'] ?? $generated_at );
+
+		if ( ( $now - $last_served_at ) > $duration_seconds ) {
+			return; // Idle too long — let the rebuild path overwrite.
+		}
+		if ( ( $now - $generated_at ) > $ceiling_seconds ) {
+			return; // Paranoia ceiling: even popular bundles get a forced rebuild eventually.
 		}
 
 		if ( ! $this->signatures_match( $this->current_file_signature( $files ), $meta ) ) {
-			return; // File set changed since cache was written.
+			return; // File set or content changed since cache was written.
 		}
+
+		// Touch the sidecar so the idle TTL renews. Failure to write is
+		// non-fatal — the cache will just expire on schedule from
+		// generated_at rather than rolling forward, which is acceptable
+		// degradation (worst case: behaves like the old build-only TTL).
+		$meta['last_served_at'] = $now;
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents,WordPress.PHP.NoSilencedErrors.Discouraged -- Internal cache metadata sidecar under our storage dir; silent best-effort touch.
+		@file_put_contents( $paths['meta'], wp_json_encode( $meta ), LOCK_EX );
 
 		$this->dispatch_zip( $download_id, $files, $paths['zip'], count( $files ), false );
 	}
@@ -285,10 +353,14 @@ class ISOFT_FMF_Bundle_Handler {
 		}
 
 		$sig  = $this->current_file_signature( $files );
+		$now  = time();
 		$meta = array(
-			'file_ids'     => $sig['file_ids'],
-			'max_mtime'    => $sig['max_mtime'],
-			'generated_at' => time(),
+			'file_ids'       => $sig['file_ids'],
+			'max_mtime'      => $sig['max_mtime'],
+			'generated_at'   => $now,
+			// Initialised to generated_at so a fresh cache that's never
+			// served won't be considered "idle" the moment it's written.
+			'last_served_at' => $now,
 		);
 
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Internal cache metadata sidecar under our storage dir.
@@ -352,5 +424,153 @@ class ISOFT_FMF_Bundle_Handler {
 			'zip'  => "{$dir}/bundle-{$download_id}.zip",
 			'meta' => "{$dir}/bundle-{$download_id}.json",
 		);
+	}
+
+	// -------------------------------------------------------------------------
+	// Cache lifecycle — proactive cleanup
+	//
+	// The hit-path try_serve_from_cache() only checks the TTL when a bundle is
+	// requested. Bundles that are never requested again — or whose download
+	// has been deleted — would otherwise sit on disk forever. These methods
+	// run from the integrity-check-complete action (primary) and a daily
+	// fallback cron (secondary, covers the integrity-disabled case).
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Walk .bundle-cache/ and delete files that are:
+	 *   - past 2× the configured cache duration (grace window past TTL — a
+	 *     request inside that window would have rebuilt in-place anyway),
+	 *   - or orphaned (their download_id no longer maps to a post),
+	 *   - or have a missing pair member (.zip without .json or vice versa).
+	 */
+	public function sweep_cache(): int {
+		$dir = isoft_fmf_files_dir() . '/.bundle-cache';
+		if ( ! is_dir( $dir ) ) {
+			return 0;
+		}
+
+		$duration_days    = max( 1, (int) get_option( 'isoft_fmf_zip_cache_days', 7 ) );
+		$duration_seconds = $duration_days * DAY_IN_SECONDS;
+		$ceiling_seconds  = $duration_seconds * 3;
+		$now              = time();
+		$deleted          = 0;
+
+		$entries = @scandir( $dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- silent failure: nothing to clean if dir can't be read.
+		if ( ! $entries ) {
+			return 0;
+		}
+
+		// First pass: catalog .zip + .json pairs by download_id.
+		$pairs = array();
+		foreach ( $entries as $entry ) {
+			if ( ! preg_match( '/^bundle-(\d+)\.(zip|json)$/', $entry, $m ) ) {
+				continue;
+			}
+			$id                   = (int) $m[1];
+			$ext                  = $m[2];
+			$pairs[ $id ][ $ext ] = $dir . '/' . $entry;
+		}
+
+		foreach ( $pairs as $download_id => $files ) {
+			$reason = null;
+
+			// Missing pair member — incomplete cache, delete what's left.
+			if ( ! isset( $files['zip'], $files['json'] ) ) {
+				$reason = 'incomplete';
+			} elseif ( null === get_post( $download_id ) || 'isoft_fmf_file' !== get_post_type( $download_id ) ) {
+				$reason = 'orphan';
+			} else {
+				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Internal cache sidecar under our storage dir.
+				$meta_raw = file_get_contents( $files['json'] );
+				$meta     = $meta_raw ? json_decode( $meta_raw, true ) : null;
+				if ( ! is_array( $meta ) ) {
+					$reason = 'expired';
+				} else {
+					$gen_at  = (int) ( $meta['generated_at'] ?? 0 );
+					$last_at = (int) ( $meta['last_served_at'] ?? $gen_at );
+					// Same dual-TTL rule as the request path: expired if
+					// idle past the user setting OR past the hard ceiling.
+					$idle_too_long = ( $now - $last_at ) > $duration_seconds;
+					$past_ceiling  = ( $now - $gen_at ) > $ceiling_seconds;
+					if ( $gen_at <= 0 || $idle_too_long || $past_ceiling ) {
+						$reason = 'expired';
+					}
+				}
+			}
+
+			if ( null === $reason ) {
+				continue;
+			}
+
+			foreach ( $files as $path ) {
+				wp_delete_file( $path );
+				if ( ! file_exists( $path ) ) {
+					++$deleted;
+				}
+			}
+			do_action( 'isoft_fmf_bundle_cache_deleted', (int) $download_id, $reason );
+		}
+
+		return $deleted;
+	}
+
+	/**
+	 * Delete the cache pair for one download. Fires on before_delete_post
+	 * (permanent delete only — trashed downloads keep their cache in case
+	 * of untrash).
+	 */
+	public function delete_cache_for_post( int $post_id ): void {
+		if ( 'isoft_fmf_file' !== get_post_type( $post_id ) ) {
+			return;
+		}
+		$paths = $this->cache_paths( $post_id );
+		foreach ( $paths as $path ) {
+			if ( file_exists( $path ) ) {
+				wp_delete_file( $path );
+			}
+		}
+	}
+
+	/**
+	 * Admin-post handler for the "Clear bundle cache" button in
+	 * Settings → Display. Nukes the entire .bundle-cache/ directory
+	 * regardless of age or orphan status.
+	 */
+	public function handle_manual_clear(): void {
+		if ( ! current_user_can( 'isoft_fmf_manage_settings' ) ) {
+			wp_die( esc_html__( 'You do not have permission to clear the bundle cache.', 'isoft-fm-foundation' ) );
+		}
+		check_admin_referer( 'isoft_fmf_clear_bundle_cache' );
+
+		$dir     = isoft_fmf_files_dir() . '/.bundle-cache';
+		$deleted = 0;
+		if ( is_dir( $dir ) ) {
+			$entries = @scandir( $dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+			if ( $entries ) {
+				foreach ( $entries as $entry ) {
+					if ( '.' === $entry || '..' === $entry ) {
+						continue;
+					}
+					$path = $dir . '/' . $entry;
+					wp_delete_file( $path );
+					if ( ! file_exists( $path ) ) {
+						++$deleted;
+					}
+				}
+			}
+		}
+
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'post_type'               => 'isoft_fmf_file',
+					'page'                    => 'isoft-fmf-settings',
+					'tab'                     => 'display',
+					'isoft_fmf_cache_cleared' => $deleted,
+				),
+				admin_url( 'edit.php' )
+			)
+		);
+		exit;
 	}
 }

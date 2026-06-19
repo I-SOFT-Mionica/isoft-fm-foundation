@@ -24,4 +24,8 @@ jobs:
         run: composer install --no-interaction --no-progress --prefer-dist
 
       - name: Run PHPCS
-        run: vendor/bin/phpcs --standard=phpcs.xml.dist -q --report=checkstyle | cs2pr
+        # --graceful-warnings: cs2pr still emits ##[warning] annotations for
+        # warning-severity issues, but exits 0 so the step only fails on real
+        # errors. Without it, every alignment warning or discouraged-function
+        # notice would turn into a red CI run.
+        run: vendor/bin/phpcs --standard=phpcs.xml.dist -q --report=checkstyle | cs2pr --graceful-warnings

@@ -15,11 +15,22 @@ $last_run   = get_option( 'isoft_fmf_integrity_last_run', array() );
 list( $cur_h, $cur_m ) = array_pad( explode( ':', $time ), 2, '00' );
 
 $run_now_url = wp_nonce_url(
-	admin_url( 'admin-post.php?action=isoft_fmf_integrity_check_now' ),
+	admin_url( 'admin-post.php?action=isoft_fmf_integrity_check_now&return=maintenance' ),
 	'isoft_fmf_integrity_check_now'
 );
 
-$just_ran = isset( $_GET['isoft_fmf_ran'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+$just_ran    = isset( $_GET['isoft_fmf_ran'] );      // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+$saw_running = isset( $_GET['isoft_fmf_running'] );  // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
+$lock           = ISOFT_FMF_File_Integrity::lock_state();
+$limits         = ISOFT_FMF_File_Integrity::server_limits();
+$max_exec_label = $limits['max_execution_time'] > 0
+	/* translators: %d: number of seconds */
+	? sprintf( _n( '%d second', '%d seconds', $limits['max_execution_time'], 'isoft-fm-foundation' ), $limits['max_execution_time'] )
+	: __( 'unlimited', 'isoft-fm-foundation' );
+$mem_label = $limits['memory_limit_bytes'] > 0
+	? size_format( $limits['memory_limit_bytes'] )
+	: __( 'unlimited', 'isoft-fm-foundation' );
 ?>
 <div class="isoft-fmf-maintenance-tab" style="margin-top:1.5em;">
 
@@ -29,7 +40,7 @@ $just_ran = isset( $_GET['isoft_fmf_ran'] ); // phpcs:ignore WordPress.Security.
 	</p>
 
 	<form method="post" action="options.php">
-		<?php settings_fields( 'isoft_fmf_settings' ); ?>
+		<?php settings_fields( 'isoft_fmf_maintenance' ); ?>
 
 		<table class="form-table">
 			<tr>
@@ -92,15 +103,84 @@ $just_ran = isset( $_GET['isoft_fmf_ran'] ); // phpcs:ignore WordPress.Security.
 	<hr>
 
 	<h2><?php esc_html_e( 'Run Now', 'isoft-fm-foundation' ); ?></h2>
-	<p>
-		<a href="<?php echo esc_url( $run_now_url ); ?>" class="button button-secondary">
-			<?php esc_html_e( 'Run integrity check now', 'isoft-fm-foundation' ); ?>
-		</a>
-		<?php if ( $just_ran ) : ?>
-			<span style="color:#008a20;margin-left:1em;">
-				<?php esc_html_e( 'Check completed. See the summary below.', 'isoft-fm-foundation' ); ?>
+
+	<?php if ( $saw_running ) : ?>
+		<div class="notice notice-warning inline" style="margin:0 0 1em;">
+			<p><?php esc_html_e( 'A check is already running. Please wait for it to finish, then refresh.', 'isoft-fm-foundation' ); ?></p>
+		</div>
+	<?php endif; ?>
+
+	<?php if ( null !== $lock && 'active' === $lock['status'] ) : ?>
+		<p>
+			<span class="dashicons dashicons-update" style="color:#2271b1;"></span>
+			<strong>
+				<?php
+				printf(
+					/* translators: %d: seconds elapsed since the run started */
+					esc_html__( 'Check running — started %d seconds ago.', 'isoft-fm-foundation' ),
+					(int) $lock['age_seconds']
+				);
+				?>
+			</strong>
+			<br>
+			<span class="description">
+				<?php
+				printf(
+					/* translators: %d: seconds the lock will be held before considered stale */
+					esc_html__( 'If the run is interrupted, the lock auto-clears after %d seconds and the next click will start a fresh scan.', 'isoft-fm-foundation' ),
+					(int) $lock['ttl_seconds']
+				);
+				?>
 			</span>
-		<?php endif; ?>
+		</p>
+		<p>
+			<button type="button" class="button button-secondary" disabled>
+				<?php esc_html_e( 'Run integrity check now', 'isoft-fm-foundation' ); ?>
+			</button>
+		</p>
+	<?php elseif ( null !== $lock && 'stale' === $lock['status'] ) : ?>
+		<p style="color:#996800;">
+			<span class="dashicons dashicons-warning"></span>
+			<strong>
+				<?php
+				printf(
+					/* translators: 1: seconds since the run started, 2: stale-after seconds */
+					esc_html__( 'A previous run started %1$d seconds ago and did not finish (exceeded the %2$d-second timeout). Likely cut off by a PHP limit. Clicking the button below will clear the stale lock and start a fresh scan.', 'isoft-fm-foundation' ),
+					(int) $lock['age_seconds'],
+					(int) $lock['ttl_seconds']
+				);
+				?>
+			</strong>
+		</p>
+		<p>
+			<a href="<?php echo esc_url( $run_now_url ); ?>" class="button button-secondary">
+				<?php esc_html_e( 'Run integrity check now', 'isoft-fm-foundation' ); ?>
+			</a>
+		</p>
+	<?php else : ?>
+		<p>
+			<a href="<?php echo esc_url( $run_now_url ); ?>" class="button button-secondary"
+				onclick="return confirm('<?php echo esc_js( __( 'The scan runs synchronously and may take a minute or more on large sites. Continue?', 'isoft-fm-foundation' ) ); ?>');">
+				<?php esc_html_e( 'Run integrity check now', 'isoft-fm-foundation' ); ?>
+			</a>
+			<?php if ( $just_ran ) : ?>
+				<span style="color:#008a20;margin-left:1em;">
+					<?php esc_html_e( 'Check completed. See the summary below.', 'isoft-fm-foundation' ); ?>
+				</span>
+			<?php endif; ?>
+		</p>
+	<?php endif; ?>
+
+	<p class="description" style="margin-top:.6em;font-size:11px;color:#646970;">
+		<?php
+		printf(
+			/* translators: 1: php max_execution_time label, 2: memory_limit label, 3: yes/no whether set_time_limit() works */
+			esc_html__( 'Server limits: max execution %1$s · memory %2$s · set_time_limit %3$s.', 'isoft-fm-foundation' ),
+			esc_html( $max_exec_label ),
+			esc_html( $mem_label ),
+			$limits['can_extend_time'] ? esc_html__( 'available (run can extend its time budget)', 'isoft-fm-foundation' ) : esc_html__( 'blocked (run is capped at the server limit above)', 'isoft-fm-foundation' )
+		);
+		?>
 	</p>
 
 	<?php if ( ! empty( $last_run ) && is_array( $last_run ) ) : ?>

@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.0
 Requires PHP: 8.4
-Stable tag: 0.10.11
+Stable tag: 0.10.17
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -161,6 +161,31 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 5. Download handler settings — security, logging, and serve method.
 
 == Changelog ==
+
+= 0.10.17 =
+* **ZIP bundle cache TTL now measures idle time, not build time.** Previously a popular bundle being downloaded daily still got rebuilt every N days (counted from the build). Now it only expires after N days of no requests. A hard ceiling at 3× the configured duration forces a rebuild eventually no matter what, so an undetected content-signature bug couldn't keep stale data alive forever. Content-change invalidation (file added / removed / modified) remains exact and runs on every hit independent of either timer.
+
+= 0.10.16 =
+* **ZIP bundle cache now cleans itself up.** Previously the cache duration setting only triggered a rebuild when someone requested a stale bundle — files that were never re-requested (or whose download was deleted) sat on disk forever. Now: a daily sweep runs right after the file-integrity check (with a midnight fallback if integrity is disabled) and removes any cache file past 2× the duration or whose download has been deleted. Deleting a download also clears its cache immediately. Settings → Display has a "Clear bundle cache now" button for the manual nuke.
+
+= 0.10.15 =
+* **File rename / cross-category move now auto-recovers on Windows hosting too.** Previously the integrity check could only relink files via POSIX inodes — useless on Windows/NTFS where inodes aren't stable. Added a content-hash fallback (SHA-256) with a file-size pre-filter so the cost stays proportional to candidates, not total file count. The automatic check (Run Now / nightly cron) handles rename-in-place within the file's own category folder; the manual recovery dialog on Broken Links handles cross-category moves with the existing Move-back / Reassign / Split options.
+
+= 0.10.14 =
+* **"Run integrity check now" button added to the Broken Links screen** so users can trigger a scan from the page where they're already looking at broken files (previously only on Settings → Maintenance). Both surfaces now show the host's PHP limits (`max_execution_time`, `memory_limit`, `set_time_limit` availability) so users know what scope the host allows.
+* **Lock to prevent overlapping runs.** Manual click + scheduled cron can no longer run the scan simultaneously; the second one silently waits its turn.
+* **Auto-recovery for crashed runs.** If the scan dies mid-flight (PHP timeout, out of memory, browser closed), the lock auto-clears past the host's max execution time and the next click starts fresh — no manual intervention.
+
+= 0.10.13 =
+* **Stats dashboard now reads from the daily aggregate table** instead of scanning the full per-event log. The "Top Downloads (Last 30 Days)" panel and the 30-day chart both query `isoft_fmf_download_daily` — the canonical aggregate the logger maintains alongside the per-click log. Faster, and it picks up demo-seeded activity instead of only counting individual log events.
+* **Dashboard stats refresh on every download.** The overview was cached for 5 minutes; new clicks didn't show until the cache expired. Cache now busts on every log write.
+* **Chart bar tooltip shows download count** (was redundantly showing the date that's already on the X-axis label). Bar label also highlights on hover.
+* **Demo content's seeded activity now models a real document lifecycle:** release-day spike on the post date, exponential decay afterward (half-life 5 days), weekend dampening (~30% of weekday traffic), and a low background floor so older documents still show ongoing activity. Capped at each entry's `days_ago` so a download posted 7 days ago can't have activity from 30 days ago. HOT entries get a heavier share so they still win the 7-day HOT-cron election once the release spike falls outside the last week.
+* **Demo removal now also clears per-event log rows** for the removed downloads, so repeat-regenerate cycles don't accumulate orphan `(deleted)` entries in the dashboard.
+* **Fixed: Saving on the Maintenance tab failed with "The isoft_fmf_settings options page is not in the allowed options list."** Regression from the 0.10.8 per-tab settings-group split — `admin/views/maintenance-tab.php` is a separate view file and still posted to the old shared group name. Now uses the `isoft_fmf_maintenance` group like the other tabs.
+
+= 0.10.12 =
+* **Demo content now ships with realistic download counts, HOT badges, and varied post dates** so first-impression screenshots (admin list, public listings, single download) don't look empty. Two of the six demo downloads carry a HOT badge with seeded daily-log activity so the nightly HOT cron re-elects them instead of clearing the badge. Removing demo content cleans the seeded daily-log rows along with everything else.
 
 = 0.10.11 =
 * **Fixed: Download Category Grid block still showed "No categories found"** on new pages despite the 0.10.8 fix. The earlier attempt combined `orderby='meta_value_num'` + `meta_key` + a meta_query OR clause; `WP_Term_Query` merges those internally in ways that vary by version and silently INNER-joins termmeta, dropping every term without the sort-order meta set. Replaced with two clean `get_terms()` calls using documented arguments only: (A) terms that have the sort meta, ordered by it; (B) terms that don't, ordered by name. Result is concatenated.

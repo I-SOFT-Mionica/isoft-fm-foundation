@@ -7,6 +7,28 @@
 	<?php settings_errors( 'isoft_fmf_settings' ); ?>
 
 	<?php
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Cosmetic post-action banner; the action itself is nonce-protected.
+	if ( isset( $_GET['isoft_fmf_cache_cleared'] ) ) :
+		$cleared = (int) $_GET['isoft_fmf_cache_cleared']; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		?>
+		<div class="notice notice-success is-dismissible">
+			<p>
+				<?php
+				if ( $cleared > 0 ) {
+					printf(
+						/* translators: %d: number of cache files deleted */
+						esc_html( _n( 'Bundle cache cleared. %d file removed.', 'Bundle cache cleared. %d files removed.', $cleared, 'isoft-fm-foundation' ) ),
+						(int) $cleared
+					);
+				} else {
+					esc_html_e( 'Bundle cache was already empty.', 'isoft-fm-foundation' );
+				}
+				?>
+			</p>
+		</div>
+	<?php endif; ?>
+
+	<?php
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only tab selector; nonce belongs on form submit, not nav.
 	$active_tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'general';
 	$tabs       = array(
@@ -191,7 +213,26 @@
 						<?php esc_html_e( 'days', 'isoft-fm-foundation' ); ?>
 					</label>
 					<p class="description">
-						<?php esc_html_e( 'Cache is invalidated automatically when files are added, removed, or modified — the duration is just an upper bound. Cached bundles live under wp-content/uploads/isoft-fmf-files/.bundle-cache/.', 'isoft-fm-foundation' ); ?>
+						<?php esc_html_e( 'Cache is invalidated automatically when files are added, removed, or modified. The duration counts idle time — a bundle that keeps getting downloaded stays cached as long as people use it. A hard ceiling at 3× the duration above forces a rebuild eventually no matter what. Cached bundles live under wp-content/uploads/isoft-fmf-files/.bundle-cache/.', 'isoft-fm-foundation' ); ?>
+					</p>
+					<p class="description" style="margin-top:.6em;">
+						<?php esc_html_e( 'A daily cleanup also runs after the integrity check (or at midnight if integrity is disabled) and removes cache files past 2× the duration above plus any cache for deleted downloads.', 'isoft-fm-foundation' ); ?>
+					</p>
+					<?php
+					// Manual nuke — goes through admin-post.php (NOT this form's
+					// options.php submission), so it's a sibling link, not a form
+					// control. Safe to render inside the cell.
+					$clear_url = wp_nonce_url(
+						admin_url( 'admin-post.php?action=isoft_fmf_clear_bundle_cache' ),
+						'isoft_fmf_clear_bundle_cache'
+					);
+					?>
+					<p style="margin-top:.8em;">
+						<a href="<?php echo esc_url( $clear_url ); ?>"
+							class="button"
+							onclick="return confirm('<?php echo esc_js( __( 'Delete every cached bundle ZIP right now?', 'isoft-fm-foundation' ) ); ?>');">
+							<?php esc_html_e( 'Clear bundle cache now', 'isoft-fm-foundation' ); ?>
+						</a>
 					</p>
 				</td>
 			</tr>

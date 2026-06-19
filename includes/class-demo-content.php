@@ -186,14 +186,22 @@ class ISOFT_FMF_Demo_Content {
 		foreach ( $downloads as $def ) {
 			$cat_id = $cats[ $def['category'] ] ?? 0;
 
-			$post_id = wp_insert_post(
-				array(
-					'post_title'   => $def['title'],
-					'post_status'  => 'publish',
-					'post_type'    => 'isoft_fmf_file',
-					'post_content' => $def['description'] ?? '',
-				)
+			// Back-date posts so the demo looks like it's been in service.
+			// post_date is what the public-facing date column reads.
+			$days_ago  = (int) ( $def['days_ago'] ?? 0 );
+			$post_args = array(
+				'post_title'   => $def['title'],
+				'post_status'  => 'publish',
+				'post_type'    => 'isoft_fmf_file',
+				'post_content' => $def['description'] ?? '',
 			);
+			if ( $days_ago > 0 ) {
+				$ts                         = time() - ( $days_ago * DAY_IN_SECONDS );
+				$post_args['post_date']     = wp_date( 'Y-m-d H:i:s', $ts );
+				$post_args['post_date_gmt'] = gmdate( 'Y-m-d H:i:s', $ts );
+			}
+
+			$post_id = wp_insert_post( $post_args );
 
 			if ( is_wp_error( $post_id ) || ! $post_id ) {
 				continue;
@@ -212,10 +220,183 @@ class ISOFT_FMF_Demo_Content {
 				$this->create_demo_file( $post_id, $file_def, $cat_id, $cat_path, $i, $file_mgr );
 			}
 
+			$total = (int) ( $def['downloads'] ?? 0 );
+			if ( $total > 0 ) {
+				$this->seed_download_stats(
+					(int) $post_id,
+					$total,
+					! empty( $def['hot'] ),
+					$days_ago
+				);
+			}
+
 			$created[] = (int) $post_id;
 		}
 
+		delete_transient( 'isoft_fmf_stats_overview' );
+
 		return $created;
+	}
+
+	/**
+	 * Give demo entries realistic-looking download counters and (optionally) a
+	 * HOT badge so screenshots aren't full of zeros. Splits the all-time count
+	 * across the download's files (first file ~60%, rest split the remainder),
+	 * syncs the post-level cached SUM, and seeds 30 days of daily activity
+	 * weighted toward recent days so the stats dashboard chart looks like a
+	 * site that's been in service. HOT entries get a heavier recent share so
+	 * the nightly HOT cron — which ranks by SUM(count) over the last 7 days
+	 * in isoft_fmf_download_daily — re-elects them instead of clearing the
+	 * badge we set directly.
+	 */
+	private function seed_download_stats( int $post_id, int $total, bool $hot, int $days_ago = 30 ): void {
+		global $wpdb;
+
+		$files_table = $wpdb->prefix . 'isoft_fmf_files';
+		$daily_table = $wpdb->prefix . 'isoft_fmf_download_daily';
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- One-shot demo seed; not a hot path.
+		$file_ids = $wpdb->get_col(
+			$wpdb->prepare(
+				'SELECT id FROM %i WHERE download_id = %d ORDER BY sort_order, id',
+				$files_table,
+				$post_id
+			)
+		);
+
+		if ( empty( $file_ids ) ) {
+			return;
+		}
+
+		$counts = $this->split_count( $total, count( $file_ids ) );
+		foreach ( $file_ids as $i => $file_id ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Demo seed.
+			$wpdb->update(
+				$files_table,
+				array( 'download_count' => $counts[ $i ] ),
+				array( 'id' => (int) $file_id )
+			);
+		}
+
+		update_post_meta( $post_id, '_isoft_fmf_download_count', $total );
+
+		// Spread window: clamp to min(30, $days_ago) — a download posted 7
+		// days ago can't have activity from 30 days ago, and we don't show
+		// data older than 30 days on the dashboard.
+		$age          = $days_ago > 0 ? $days_ago : 30;
+		$window       = max( 1, min( 30, $age ) );
+		$past_release = max( 0, $age - $window );
+
+		// Share of all-time activity that lives in the chart window.
+		// Entries whose entire life is in-window: all of it. Older entries:
+		// just the trailing decay tail. HOT entries get +0.10 so they keep
+		// winning the 7-day HOT-cron election once the release spike has
+		// fallen outside the last 7 days.
+		if ( $days_ago <= $window ) {
+			$share = 1.0;
+		} elseif ( $days_ago <= 60 ) {
+			$share = 0.30;
+		} else {
+			$share = 0.15;
+		}
+		if ( $hot ) {
+			$share = min( 1.0, $share + 0.10 );
+		}
+		$recent_total = min( $total, max( 0, (int) round( $total * $share ) ) );
+
+		if ( $recent_total <= 0 ) {
+			if ( $hot ) {
+				update_post_meta( $post_id, '_isoft_fmf_is_hot', 1 );
+			}
+			return;
+		}
+
+		// Per-day weights: release spike at the oldest visible day (or off
+		// the left edge for older entries), exponential decay toward today,
+		// floored so old entries still show low background activity, and
+		// damped on Sat/Sun — municipal / document content gets ~30% of
+		// weekday traffic on weekends in practice. Produces a chart that
+		// looks like a real document lifecycle: spike on release, taper
+		// over the following week, weekend valleys, low ongoing background.
+		$half_life     = 5.0;
+		$weekend_mult  = 0.30;
+		$decay_floor   = 0.04;
+		$release_index = $window - 1;
+		$weights       = array();
+		for ( $d = 0; $d < $window; $d++ ) {
+			$days_since_release = ( $release_index - $d ) + $past_release;
+			$decay              = max( $decay_floor, exp( -$days_since_release / $half_life ) );
+
+			$dow    = (int) gmdate( 'N', time() - ( $d * DAY_IN_SECONDS ) );
+			$weight = $decay * ( $dow >= 6 ? $weekend_mult : 1.0 );
+
+			$weights[ $d ] = $weight;
+		}
+		$sum_w = array_sum( $weights );
+		if ( $sum_w <= 0 ) {
+			return;
+		}
+		$assigned = 0;
+
+		for ( $d = 0; $d < $window - 1; $d++ ) {
+			$count     = (int) round( $recent_total * ( $weights[ $d ] / $sum_w ) );
+			$assigned += $count;
+			if ( 0 === $count ) {
+				continue;
+			}
+			$log_date = gmdate( 'Y-m-d', time() - ( $d * DAY_IN_SECONDS ) );
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Demo seed.
+			$wpdb->replace(
+				$daily_table,
+				array(
+					'download_id' => $post_id,
+					'log_date'    => $log_date,
+					'count'       => $count,
+				)
+			);
+		}
+		// Last bucket absorbs the rounding remainder so the sum matches recent_total.
+		$tail = max( 0, $recent_total - $assigned );
+		if ( $tail > 0 ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Demo seed.
+			$wpdb->replace(
+				$daily_table,
+				array(
+					'download_id' => $post_id,
+					'log_date'    => gmdate( 'Y-m-d', time() - ( ( $window - 1 ) * DAY_IN_SECONDS ) ),
+					'count'       => $tail,
+				)
+			);
+		}
+
+		if ( $hot ) {
+			update_post_meta( $post_id, '_isoft_fmf_is_hot', 1 );
+		}
+	}
+
+	/**
+	 * Split an integer total across N buckets with a front-loaded bias —
+	 * first bucket gets ~60% for two-bucket splits, smoothing toward even for
+	 * larger N. Always sums exactly to $total (remainder lands in bucket 0).
+	 *
+	 * @return list<int>
+	 */
+	private function split_count( int $total, int $buckets ): array {
+		if ( $buckets <= 1 ) {
+			return array( $total );
+		}
+		$out      = array_fill( 0, $buckets, 0 );
+		$weighted = 0;
+		// Front-load: bucket 0 gets a heavier share than the rest.
+		$weights    = array_fill( 0, $buckets, 1.0 );
+		$weights[0] = max( 1.5, $buckets * 0.6 );
+		$sum_w      = array_sum( $weights );
+		for ( $i = 0; $i < $buckets - 1; $i++ ) {
+			$out[ $i ] = (int) floor( $total * ( $weights[ $i ] / $sum_w ) );
+			$weighted += $out[ $i ];
+		}
+		$out[ $buckets - 1 ] = max( 0, $total - $weighted );
+		return $out;
 	}
 
 	/**
@@ -287,6 +468,9 @@ class ISOFT_FMF_Demo_Content {
 				'category'    => 'session-i',
 				'access'      => 'public',
 				'description' => 'Municipal budget decision for fiscal year 2026, adopted at Session I of the Municipal Assembly.',
+				'downloads'   => 1247,
+				'hot'         => true,
+				'days_ago'    => 14,
 				'files'       => array(
 					array(
 						'name'   => 'budget-decision-2026',
@@ -300,6 +484,8 @@ class ISOFT_FMF_Demo_Content {
 				'category'    => 'session-i',
 				'access'      => 'subscriber',
 				'description' => 'Minutes from the first session of the Municipal Assembly, term 2025-2029.',
+				'downloads'   => 412,
+				'days_ago'    => 30,
 				'files'       => array(
 					array(
 						'name'   => 'session-i-minutes',
@@ -313,6 +499,9 @@ class ISOFT_FMF_Demo_Content {
 				'category'    => 'open-procedures',
 				'access'      => 'public',
 				'description' => 'Annual public procurement plan for the municipality.',
+				'downloads'   => 893,
+				'hot'         => true,
+				'days_ago'    => 21,
 				'files'       => array(
 					array(
 						'name'   => 'procurement-plan-2026',
@@ -326,6 +515,8 @@ class ISOFT_FMF_Demo_Content {
 				'category'    => 'final-account',
 				'access'      => 'public',
 				'description' => 'Municipal budget final account for fiscal year 2025.',
+				'downloads'   => 187,
+				'days_ago'    => 60,
 				'files'       => array(
 					array(
 						'name'   => 'final-account-2025',
@@ -339,6 +530,8 @@ class ISOFT_FMF_Demo_Content {
 				'category'    => 'urban-planning',
 				'access'      => 'editor',
 				'description' => 'Draft general regulation plan for the municipal area.',
+				'downloads'   => 56,
+				'days_ago'    => 7,
 				'files'       => array(
 					array(
 						'name'   => 'urban-plan-draft',
@@ -357,6 +550,8 @@ class ISOFT_FMF_Demo_Content {
 				'category'    => 'resolutions',
 				'access'      => 'public',
 				'description' => 'Decision on the appointment of the Municipal Administration Chief.',
+				'downloads'   => 23,
+				'days_ago'    => 45,
 				'files'       => array(
 					array(
 						'name'   => 'appointment-decision',
@@ -590,6 +785,10 @@ class ISOFT_FMF_Demo_Content {
 			)
 		);
 
+		global $wpdb;
+		$daily_table = $wpdb->prefix . 'isoft_fmf_download_daily';
+		$log_table   = $wpdb->prefix . 'isoft_fmf_download_log';
+
 		$file_mgr = new ISOFT_FMF_File_Manager();
 		foreach ( $posts as $post_id ) {
 			// Pages have no associated isoft_fmf_files rows; only run file cleanup for downloads.
@@ -604,9 +803,18 @@ class ISOFT_FMF_Demo_Content {
 					}
 					$file_mgr->delete_file( (int) $file->id );
 				}
+				// Clear seeded daily-log rows + per-event log rows so a
+				// re-generate / remove cycle doesn't leave orphaned
+				// download_ids cluttering the dashboard's "(deleted)" row.
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- One-shot demo cleanup.
+				$wpdb->delete( $daily_table, array( 'download_id' => (int) $post_id ) );
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- One-shot demo cleanup.
+				$wpdb->delete( $log_table, array( 'download_id' => (int) $post_id ) );
 			}
 			wp_delete_post( $post_id, true );
 		}
+
+		delete_transient( 'isoft_fmf_stats_overview' );
 	}
 
 	private function remove_demo_terms(): void {

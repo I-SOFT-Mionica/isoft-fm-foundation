@@ -39,6 +39,10 @@ gh api "repos/I-SOFT-Mionica/isoft-fm-foundation/check-runs/$CHECK_RUN/annotatio
   --jq '.[] | "\(.path):\(.start_line) \(.message)"' | grep -v "Node.js 20"
 \```
 
+The CI log (`gh run view --log-failed`) lists rule names and messages but **strips file paths and line numbers** — the annotations API is the only way to get those without re-running PHPCS locally. The raw log is fine for spotting the pattern (e.g. all the failures are `InlineComment.SpacingBefore`) and counting; use the annotations API as soon as you need to actually fix something.
+
+For an even faster loop on PHPCS failures, run it locally before pushing — see `wp-conventions` skill for the PHP-8.2 workaround if your system PHP doesn't match the composer.json pin.
+
 PHPUnit annotations are sparse — use `gh run view <run_id> --log-failed | tail -60` for assertion failure detail. See `qa` skill for parsing PHPUnit output.
 
 ## Version bump procedure

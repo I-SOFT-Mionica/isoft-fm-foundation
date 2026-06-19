@@ -354,8 +354,14 @@
 	transition: background .15s;
 }
 
-.isoft-fmf-bar-wrap:hover .isoft-fmf-bar {
+.isoft-fmf-bar-wrap:hover .isoft-fmf-bar,
+.isoft-fmf-bar-wrap:focus-visible .isoft-fmf-bar {
 	background: #135e96;
+}
+.isoft-fmf-bar-wrap:hover .isoft-fmf-bar-label,
+.isoft-fmf-bar-wrap:focus-visible .isoft-fmf-bar-label {
+	color: #135e96;
+	font-weight: 600;
 }
 
 .isoft-fmf-bar-label {
