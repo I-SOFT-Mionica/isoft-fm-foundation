@@ -1,5 +1,5 @@
 === I-Soft File Manager: Foundation ===
-Contributors: chillic, isoftmionica
+Contributors: chillic
 Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.0
