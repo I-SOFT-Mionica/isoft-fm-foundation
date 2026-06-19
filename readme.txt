@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.0
 Requires PHP: 8.4
-Stable tag: 0.10.17
+Stable tag: 0.10.18
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -161,6 +161,10 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 5. Download handler settings — security, logging, and serve method.
 
 == Changelog ==
+
+= 0.10.18 =
+* **Fixed: downloads failed to start on hosts where `auto`-mode picked a serve method the server couldn't actually fulfill.** The handler was choosing X-Sendfile when `SERVER_SOFTWARE` reported Apache and X-Accel-Redirect when it reported nginx, but neither check verified that `mod_xsendfile` was loaded or that the `/isoft-fmf-internal/` nginx alias was configured. On real hosts without that server config, the response was empty and downloads silently failed. Auto-mode now resolves to PHP streaming until an explicit server-capability probe lands in a later release. Admins who actually have X-Sendfile or X-Accel set up can opt in via Settings → Security → File Serving Method.
+* **Fixed: PHP-streaming downloads hung on hosts with output gzip, nested output buffers, or aggressive FastCGI buffering.** The stream now (a) drains every level of `ob_*`, (b) disables `zlib.output_compression`, (c) sets `Content-Encoding: identity` so server-level gzip doesn't recompress and skew `Content-Length`, and (d) reads + flushes in 8 KB chunks so the client starts receiving bytes immediately instead of waiting for the entire response to assemble.
 
 = 0.10.17 =
 * **ZIP bundle cache TTL now measures idle time, not build time.** Previously a popular bundle being downloaded daily still got rebuilt every N days (counted from the build). Now it only expires after N days of no requests. A hard ceiling at 3× the configured duration forces a rebuild eventually no matter what, so an undetected content-signature bug couldn't keep stale data alive forever. Content-change invalidation (file added / removed / modified) remains exact and runs on every hit independent of either timer.

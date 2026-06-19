@@ -2,6 +2,18 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.10.18] — 2026-06-19
+
+### Fixed
+
+- **Auto-mode serve method no longer guesses from `SERVER_SOFTWARE` and silently breaks downloads on hosts where `mod_xsendfile` isn't loaded or the `/isoft-fmf-internal/` nginx alias isn't configured.** Surfaced on the first production install (kc.mionica.rs, 2026-06-19) — every download silently failed because `ISOFT_FMF_Download_Handler::serve_local_file()` was sending `X-Accel-Redirect` headers that nginx had nothing to do with. New private `resolve_serve_method()` collapses auto-mode to PHP streaming until a real capability probe ships (planned for 0.10.19+, design in `project_serve_method_probe` memory). The explicit `xsendfile` and `xaccel` options remain available for admins who know their host supports them.
+- **PHP-streaming downloads no longer hang on hosts with output gzip, nested output buffers, or aggressive FastCGI/nginx upstream buffering.** `php_stream()` now:
+  - Drains every level of output buffering in a `while ( ob_get_level() )` loop instead of the old single `if`. A leftover buffer holds the entire response in PHP memory until script exit, which on slow connections looks like a stuck download.
+  - Disables PHP-level `zlib.output_compression`. If on, the wire byte count doesn't match the `Content-Length` we promised, and the browser hangs waiting for the missing tail.
+  - Sets `Content-Encoding: identity` on the response so server-level gzip (Apache `mod_deflate`, nginx `gzip on`) doesn't recompress the body and skew `Content-Length`.
+  - Streams the file in 8 KB chunks with explicit `flush()` after each chunk, instead of one big `readfile()` call. Forces bytes to hit the FastCGI / upstream buffer immediately rather than being held until the PHP script exits.
+  - Retains `readfile()` as a last-resort fallback if `fopen()` returns false.
+
 ## [0.10.17] — 2026-06-19
 
 ### Changed

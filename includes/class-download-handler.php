@@ -130,43 +130,87 @@ class ISOFT_FMF_Download_Handler {
 			$file
 		);
 
-		$method = get_option( 'isoft_fmf_serve_method', 'auto' );
-		$server = strtolower( sanitize_text_field( wp_unslash( $_SERVER['SERVER_SOFTWARE'] ?? '' ) ) );
+		$method = $this->resolve_serve_method();
 
-		// Tier 1a — Apache X-Sendfile
-		if ( 'auto' === $method || 'xsendfile' === $method ) {
-			if ( str_contains( $server, 'apache' ) || 'xsendfile' === $method ) {
-				$this->send_headers( $headers );
-				header( "X-Sendfile: {$file_path}" );
-				exit;
-			}
+		// Tier 1a — Apache X-Sendfile. Reaches here only when admin explicitly
+		// selected 'xsendfile'; auto-mode never picks this until the planned
+		// serve-method probe lands (see project_serve_method_probe memory).
+		if ( 'xsendfile' === $method ) {
+			$this->send_headers( $headers );
+			header( "X-Sendfile: {$file_path}" );
+			exit;
 		}
 
-		// Tier 1b — Nginx X-Accel-Redirect
-		if ( 'auto' === $method || 'xaccel' === $method ) {
-			if ( str_contains( $server, 'nginx' ) || 'xaccel' === $method ) {
-				$this->send_headers( $headers );
-				$basename = basename( $file_path );
-				header( "X-Accel-Redirect: /isoft-fmf-internal/{$basename}" );
-				exit;
-			}
+		// Tier 1b — Nginx X-Accel-Redirect. Same caveat: requires manual opt-in
+		// because the `location /isoft-fmf-internal/` alias has to exist in
+		// nginx config and we have no way to detect that yet.
+		if ( 'xaccel' === $method ) {
+			$this->send_headers( $headers );
+			$basename = basename( $file_path );
+			header( "X-Accel-Redirect: /isoft-fmf-internal/{$basename}" );
+			exit;
 		}
 
-		// Tier 2 — PHP streaming (works everywhere)
+		// Tier 2 — PHP streaming (works everywhere).
 		$this->php_stream( $file_path, $headers );
 	}
 
+	/**
+	 * Resolve the actual serve method from the user's setting.
+	 *
+	 * Auto-mode used to dispatch X-Sendfile / X-Accel-Redirect based on
+	 * SERVER_SOFTWARE alone — but the server string says nothing about whether
+	 * mod_xsendfile is loaded or the /isoft-fmf-internal/ alias is configured.
+	 * On the very first real install (kc.mionica.rs, 2026-06-19) every download
+	 * silently failed because the host advertised nginx but had no alias set.
+	 *
+	 * Until a real capability probe ships, auto-mode resolves to 'php' — the
+	 * one tier that works everywhere. Admins who actually have X-Sendfile or
+	 * X-Accel set up can opt in via Settings → Security.
+	 */
+	private function resolve_serve_method(): string {
+		$setting = get_option( 'isoft_fmf_serve_method', 'auto' );
+		return 'auto' === $setting ? 'php' : $setting;
+	}
+
 	private function php_stream( string $path, array $headers ): void {
-		if ( ob_get_level() ) {
+		// Drain every level of output buffering. Caching plugins, theme
+		// buffers, and mu-plugins routinely stack multiple buffers; a single
+		// ob_end_clean() leaves the rest in place and the response sits in
+		// PHP memory until the script exits — which on a slow connection
+		// looks like a dead download.
+		while ( ob_get_level() ) {
 			ob_end_clean();
 		}
+
+		// Disable PHP-level gzip. If zlib.output_compression is on, the wire
+		// bytes won't match the Content-Length we promised, and the browser
+		// hangs waiting for the missing tail.
+		@ini_set( 'zlib.output_compression', 'Off' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,WordPress.PHP.IniSet.Risky -- Streaming raw binary download; gzip would break Content-Length, and the @ guards against hosts where ini_set is on a runtime deny-list.
+
+		// Force identity transfer-encoding so server-level gzip (Apache
+		// mod_deflate, nginx gzip) doesn't recompress and skew Content-Length.
+		// Most servers respect Content-Encoding set by upstream.
+		$headers['Content-Encoding'] = 'identity';
+
 		$this->send_headers( $headers );
 
-		// Direct binary stream to the client. Cannot route through WP_Filesystem
-		// (it returns strings, not stream chunks) and cannot be HTML-escaped
-		// (the payload is raw file bytes — escaping would corrupt downloads).
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile -- See note above.
-		readfile( $path );
+		// Chunked stream with explicit flush so bytes hit the client as they
+		// come off disk instead of being held by FPM / nginx fastcgi buffer
+		// until the script exits.
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Streaming binary download; WP_Filesystem returns strings, not chunks.
+		$handle = fopen( $path, 'rb' );
+		if ( ! $handle ) {
+			// Fallback: try readfile if fopen failed for whatever reason.
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile -- Last-resort fallback when fopen() returned false.
+			readfile( $path );
+			exit;
+		}
+		while ( ! feof( $handle ) ) {
+			echo fread( $handle, 8192 ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fread,WordPress.Security.EscapeOutput.OutputNotEscaped -- Streaming raw binary file content; WP_Filesystem returns strings (not chunks) and escaping would corrupt the download.
+			flush();
+		}
+		fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Closing the fopen handle from above; matched pair.
 		exit;
 	}
 
