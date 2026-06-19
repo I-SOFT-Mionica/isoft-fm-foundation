@@ -99,6 +99,35 @@ wp_handle_upload( ... );  // immediately
 - **Block comments need a blank line above them.** `Squiz.Commenting.BlockComment.NoEmptyLineBefore`. If you convert an inline-comment block to `/* */`, also put a blank line before it.
 - **Every `_n()` / `_nx()` and every `sprintf( __( '%s…' ) )` needs a `/* translators: … */` comment on the line immediately above.** Even trivially obvious ones like `%d seconds` — the WPCS sniff doesn't reason about content, only presence. The comment must touch the call (no blank line between).
 - **Indentation has to follow scope.** Wrapping an existing block in `try { … } finally { … }` (or any new outer scope) means every line of the body needs one more tab. Re-tabulate before committing — PHPCS's `Generic.WhiteSpace.ScopeIndent` will flag every line of a misindented body, and that can be dozens of errors from one logical edit.
+- **`phpcs:ignore` on the line above only catches some rules.** It reliably ignores the NEXT line's standard violations, but `@-prefixed` calls (`@unlink`, `@file_put_contents`) tokenise oddly and the previous-line ignore frequently misses one of the rules. **Default to end-of-line `phpcs:ignore` with a comma-separated rule list for any silenced call:**
+
+  \```php
+  @file_put_contents( $p, $data ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- rationale.
+  \```
+
+  Multiple rules go in one ignore separated by commas — not multiple ignores stacked. Always include `-- rationale` after the rules so reviewers can tell why.
+- **`unlink()` and `file_get_contents()` etc. have WP-canonical alternatives.** Use them by default, even on internal paths:
+
+  | Raw PHP | WP equivalent | Why |
+  |---|---|---|
+  | `unlink( $f )` | `wp_delete_file( $f )` | Fires `wp_delete_file` filter so security plugins (Wordfence etc.) can audit/log/block. |
+  | `file_get_contents( $f )` (local) | `WP_Filesystem` | Plugin Check flags raw PHP fs calls. For one-off reads our internal dirs, `phpcs:ignore` is fine — but document the reason. |
+  | `file_put_contents` (local) | `WP_Filesystem` | Same. |
+
+  `wp_delete_file()` returns void, so to count successful deletions: `wp_delete_file( $p ); if ( ! file_exists( $p ) ) { ++$count; }`.
+
+### CI exit-code traps
+
+- **`cs2pr` exits 1 on warnings, not just errors.** The pipeline `phpcs … --report=checkstyle | cs2pr` fails the build for any annotation by default. Our workflow passes `--graceful-warnings` to cs2pr so warning-severity issues still annotate the PR but don't fail the build. If you copy a similar pipeline elsewhere, remember the flag.
+- **`-q` on PHPCS hides progress, not warnings.** Warnings still affect PHPCS's own exit code (1 on any issue). Combined with `set -e` in bash steps, that propagates as a failed step. `--graceful-warnings` on cs2pr is what neutralises this in our setup.
+
+### `phpcbf` for bulk auto-fix
+
+For alignment / spacing warnings on files you actually touched, run `phpcbf` scoped to those paths only — don't unleash it on the whole tree, or you'll commit a 50-file whitespace churn unrelated to the PR:
+
+\```bash
+vendor/bin/phpcbf --standard=phpcs.xml.dist <file1> <file2> …
+\```
 
 ### Running PHPCS locally with system PHP 8.2
 
