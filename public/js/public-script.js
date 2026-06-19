@@ -2,6 +2,37 @@
 ( function () {
 	'use strict';
 
+	// -------------------------------------------------------------------------
+	// Defeat theme-level click interceptors on download links.
+	//
+	// Themes that use ajax navigation libraries (djax / pjax / swup /
+	// hotwire-turbo / instantclick) attach click handlers that intercept
+	// every <a> click, XHR-fetch the URL, and try to swap in the response
+	// as HTML. For a download URL the response is a binary file (PDF, ZIP)
+	// — jQuery's HTML parser explodes on bytes like "%PDF-1.7" and the
+	// download silently fails.
+	//
+	// Capture-phase listener runs BEFORE the theme's bubble-phase handler.
+	// stopImmediatePropagation() prevents any other click handler on the
+	// document from firing. We do NOT preventDefault — the browser still
+	// performs its native link navigation, sees Content-Disposition:
+	// attachment, and triggers the download manager.
+	//
+	// Skip links inside the agreement modal flow; those have their own
+	// handler that pops a modal first then navigates via window.location.
+	// -------------------------------------------------------------------------
+	document.addEventListener(
+		'click',
+		function ( e ) {
+			var btn = e.target.closest( '.isoft-fmf-download-btn' );
+			if ( ! btn || btn.classList.contains( 'isoft-fmf-requires-agree' ) ) {
+				return;
+			}
+			e.stopImmediatePropagation();
+		},
+		true // capture phase — beats theme handlers attached in bubble phase
+	);
+
 	var overlay = document.getElementById( 'isoft-fmf-agree-overlay' );
 	if ( ! overlay ) {
 		return;

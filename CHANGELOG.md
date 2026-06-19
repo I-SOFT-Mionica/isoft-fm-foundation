@@ -13,6 +13,10 @@ All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads
   - Sets `Content-Encoding: identity` on the response so server-level gzip (Apache `mod_deflate`, nginx `gzip on`) doesn't recompress the body and skew `Content-Length`.
   - Streams the file in 8 KB chunks with explicit `flush()` after each chunk, instead of one big `readfile()` call. Forces bytes to hit the FastCGI / upstream buffer immediately rather than being held until the PHP script exits.
   - Retains `readfile()` as a last-resort fallback if `fopen()` returns false.
+  - Loop guards: `false === $chunk` (read error) and `'' === $chunk` (EOF before feof flips) both break out so a bad handle can't spin until `max_execution_time` fatals.
+- **Download links no longer silently fail on themes that use AJAX navigation** (djax, pjax, swup, hotwire-turbo, instantclick, etc.). Those libraries intercept every `<a>` click and XHR-fetch the target expecting HTML; when the response is a binary file (PDF, ZIP), jQuery's HTML parser explodes on the file header (`%PDF-1.7…`) and the browser's native download handler never runs. Surfaced on kc.mionica.rs running the Timber theme (which uses djax — visible in the console as `jquery.min.js:Sizzle Syntax error, unrecognized expression: %PDF-1.71 0 obj<<...`). Two defenses:
+  - Direct download / bundle `<a>` tags now ship with the HTML5 `download` attribute and `rel="nofollow"`, which most interceptors respect as "don't intercept this — it's a file." Added in `public/views/download-card.php` (3 sites) and `includes/class-shortcodes.php::render_download_button()`. External links are exempt (browsers ignore `download` cross-origin).
+  - `public/js/public-script.js` adds a capture-phase click handler on `.isoft-fmf-download-btn` that calls `stopImmediatePropagation()`. Capture phase runs before the theme's bubble-phase handler, so the interceptor never sees the click. Skips `.isoft-fmf-requires-agree` buttons — those have their own modal flow.
 
 ## [0.10.17] — 2026-06-19
 

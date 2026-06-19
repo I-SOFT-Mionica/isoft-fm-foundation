@@ -712,7 +712,17 @@ class ISOFT_FMF_Shortcodes {
 				. '</a></div>';
 		}
 
-		return '<a href="' . esc_url( $url ) . '" class="' . esc_attr( $class ) . '">'
+		// `download` + `rel="nofollow"` on direct download links signal to
+		// click-interceptors (djax, pjax, swup, hotwire-turbo) that this isn't
+		// a page navigation. Without them, themes that ajax-hijack every <a>
+		// click feed the binary file body back into jQuery's HTML parser and
+		// the download silently fails. External links don't get `download`
+		// because browsers ignore it cross-origin and forcing it would just
+		// confuse the markup.
+		$is_external = 'external' === $file->file_type;
+		$extra_attrs = $is_external ? '' : ' download rel="nofollow"';
+
+		return '<a href="' . esc_url( $url ) . '" class="' . esc_attr( $class ) . '"' . $extra_attrs . '>'
 			. '<span class="dashicons dashicons-download"></span>'
 			. esc_html( $text )
 			. '</a>';

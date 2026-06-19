@@ -207,7 +207,14 @@ class ISOFT_FMF_Download_Handler {
 			exit;
 		}
 		while ( ! feof( $handle ) ) {
-			echo fread( $handle, 8192 ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fread,WordPress.Security.EscapeOutput.OutputNotEscaped -- Streaming raw binary file content; WP_Filesystem returns strings (not chunks) and escaping would corrupt the download.
+			$chunk = fread( $handle, 8192 ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fread -- Streaming raw binary file content.
+			// fread returns false on read error and '' at EOF; feof() only flips
+			// true AFTER an unsuccessful read, so we'd spin forever on either
+			// failure mode without an explicit break. Guard against both.
+			if ( false === $chunk || '' === $chunk ) {
+				break;
+			}
+			echo $chunk; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Binary file content; escaping would corrupt the download.
 			flush();
 		}
 		fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Closing the fopen handle from above; matched pair.

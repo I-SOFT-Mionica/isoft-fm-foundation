@@ -73,7 +73,9 @@ $use_summary  = $is_multi && ! $expand_files;
 	<div class="isoft-fmf-download-card__bundle-action">
 		<a href="<?php echo esc_url( isoft_fmf_get_bundle_url( (int) $post->ID ) ); ?>"
 			class="wp-element-button isoft-fmf-download-btn isoft-fmf-download-btn--bundle"
-			title="<?php echo esc_attr( $bundle_label ); ?>">
+			title="<?php echo esc_attr( $bundle_label ); ?>"
+			download
+			rel="nofollow">
 			<?php echo esc_html( $bundle_label ); ?>
 		</a>
 	</div>
@@ -189,7 +191,9 @@ $use_summary  = $is_multi && ! $expand_files;
 				?>
 				<a href="<?php echo esc_url( isoft_fmf_get_bundle_url( (int) $post->ID ) ); ?>"
 					class="wp-element-button isoft-fmf-download-btn isoft-fmf-download-btn--bundle"
-					title="<?php echo esc_attr( $bundle_label ); ?>">
+					title="<?php echo esc_attr( $bundle_label ); ?>"
+					download
+					rel="nofollow">
 					<?php echo esc_html( $bundle_label ); ?>
 				</a>
 			<?php else : ?>
@@ -294,7 +298,9 @@ $use_summary  = $is_multi && ! $expand_files;
 				</a>
 				<?php else : ?>
 				<a href="<?php echo esc_url( isoft_fmf_get_download_url( (int) $file->id ) ); ?>"
-					class="wp-element-button isoft-fmf-download-btn">
+					class="wp-element-button isoft-fmf-download-btn"
+					download
+					rel="nofollow">
 					<?php echo esc_html( $btn_text ); ?>
 				</a>
 				<?php endif; ?>
