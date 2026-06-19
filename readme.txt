@@ -89,6 +89,25 @@ Yes. Uploaded filenames and category slugs are automatically transliterated from
 
 Yes. The plugin detects FSE themes and injects the download card via `the_content` filter. Classic theme templates under `templates/` are used as a fallback.
 
+= Does it work with Elementor, WPBakery, Divi, Beaver Builder, Bricks? =
+
+Yes. Foundation ships four shortcodes that drop into every major builder's HTML / shortcode widget:
+
+* `[isoft_fmf_list]` — a category-filtered grid or list of downloads (the same renderer as the Download List block)
+* `[isoft_fmf_download id="123"]` — a single download card
+* `[isoft_fmf_categories]` — a category grid
+* `[isoft_fmf_search]` — a search box that filters the list above
+
+Where to paste in each builder:
+
+* **Elementor**: Widgets panel → "Shortcode"
+* **WPBakery**: Add element → "Text Block" (paste in source view) or "Raw HTML"
+* **Divi**: Module → "Code"
+* **Beaver Builder**: Basic Modules → "HTML"
+* **Bricks**: Basic Elements → "Shortcode"
+
+Native, point-and-click widgets for each builder (with full attribute panels instead of writing shortcode strings) are planned as separate companion plugins.
+
 == Customizing appearance ==
 
 I-Soft File Manager: Foundation exposes its styling via CSS custom properties on `:root` so you can recolor cards from **Appearance → Customize → Additional CSS** without writing any selectors.
