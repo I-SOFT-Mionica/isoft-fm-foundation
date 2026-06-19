@@ -85,6 +85,36 @@ wp_handle_upload( ... );  // immediately
 - **Array `=>` alignment within a contiguous block.** PHPCS wants all `=>` in adjacent array rows to line up. Break the block with a comment or blank line to start a new alignment group.
 - **`LongIndexSpaceBeforeDoubleArrow`** — when the gap between shortest and longest key is large, PHPCS flips and demands **single space** instead of alignment. The exact threshold isn't documented; bias to single-space when keys vary by more than 4-5 chars.
 - **Equals-sign alignment** between adjacent variable assignments works the same way: contiguous block, aligned to the longest LHS, broken by intervening code.
+- **Multi-line `//` comments with leading-space layout fail `Squiz.Commenting.InlineComment.SpacingBefore`.** Anything like `//   - bullet` or `//      continuation` counts as "extra spaces before comment text". Use a real block comment instead:
+
+  \```php
+  /*
+   * Cache cleanup hooks:
+   * - integrity-check-complete is the primary trigger.
+   * - daily fallback cron at midnight.
+   */
+  \```
+
+  Default to `/* … */` whenever the rationale is more than one line or uses bullets / indentation. Single-line `// comment` is fine.
+- **Block comments need a blank line above them.** `Squiz.Commenting.BlockComment.NoEmptyLineBefore`. If you convert an inline-comment block to `/* */`, also put a blank line before it.
+- **Every `_n()` / `_nx()` and every `sprintf( __( '%s…' ) )` needs a `/* translators: … */` comment on the line immediately above.** Even trivially obvious ones like `%d seconds` — the WPCS sniff doesn't reason about content, only presence. The comment must touch the call (no blank line between).
+- **Indentation has to follow scope.** Wrapping an existing block in `try { … } finally { … }` (or any new outer scope) means every line of the body needs one more tab. Re-tabulate before committing — PHPCS's `Generic.WhiteSpace.ScopeIndent` will flag every line of a misindented body, and that can be dozens of errors from one logical edit.
+
+### Running PHPCS locally with system PHP 8.2
+
+Composer's lock file pins `php >= 8.4`, so `vendor/bin/phpcs` aborts on local PHP 8.2 with a platform_check fatal. Temporary workaround for a one-off lint run without bumping local PHP:
+
+\```bash
+cp vendor/composer/platform_check.php vendor/composer/platform_check.php.bak
+printf '<?php\n' > vendor/composer/platform_check.php
+vendor/bin/phpcs --standard=phpcs.xml.dist --no-colors -q --report=full --exclude=Generic.Files.LineEndings --ignore=blocks/build/*
+mv vendor/composer/platform_check.php.bak vendor/composer/platform_check.php
+\```
+
+- `--exclude=Generic.Files.LineEndings` strips noise from CRLF files (Windows checkout; CI runs on LF).
+- `--ignore=blocks/build/*` skips wp-scripts-generated asset.php files — they fail single-line-array sniffs but are gitignored, so CI never sees them.
+- The CI workflow runs with `-q`, so warnings (alignment, `unlink`, `file_put_contents`) don't fail the build — only `ERROR` rows do. Focus the local pass on errors first.
+- Always restore `platform_check.php` afterwards; leaving it blank silently breaks future composer installs.
 
 ## Plugin Check traps that keep recurring
 
