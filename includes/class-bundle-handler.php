@@ -17,15 +17,17 @@ class ISOFT_FMF_Bundle_Handler {
 		add_filter( 'query_vars', array( $this, 'add_query_var' ) );
 		add_action( 'template_redirect', array( $this, 'handle' ) );
 
-		// Cache cleanup hooks:
-		// - integrity-check-complete is the primary trigger so the sweep
-		//   runs immediately after the daily missing-files scan finishes.
-		// - A daily fallback cron at midnight covers the case where the
-		//   integrity check is disabled, so the cache still gets cleaned.
-		// - before_delete_post fires immediate cleanup when an admin
-		//   permanently deletes a download (cache for trashed posts is
-		//   intentionally kept in case of untrash).
-		// - admin-post action backs the "Clear bundle cache" button.
+		/*
+		 * Cache cleanup hooks:
+		 * - integrity-check-complete is the primary trigger so the sweep
+		 *   runs immediately after the daily missing-files scan finishes.
+		 * - A daily fallback cron at midnight covers the case where the
+		 *   integrity check is disabled, so the cache still gets cleaned.
+		 * - before_delete_post fires immediate cleanup when an admin
+		 *   permanently deletes a download (cache for trashed posts is
+		 *   intentionally kept in case of untrash).
+		 * - admin-post action backs the "Clear bundle cache" button.
+		 */
 		add_action( 'isoft_fmf_integrity_check_complete', array( $this, 'sweep_cache' ) );
 		add_action( 'init', array( $this, 'maybe_schedule_sweep' ) );
 		add_action( self::SWEEP_HOOK, array( $this, 'sweep_cache' ) );

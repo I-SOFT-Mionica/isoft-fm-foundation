@@ -34,19 +34,22 @@ class ISOFT_FMF_File_Integrity {
 	}
 
 	// -------------------------------------------------------------------------
-	// Concurrency lock
-	//
-	// run_scheduled_check() is the same code path for the daily cron AND the
-	// manual "Run check now" button. Two failure modes we guard against:
-	//   1. Double-trigger (admin double-clicks, cron fires mid-manual-run) —
-	//      add_option() is the atomic acquire; competing callers see the
-	//      existing row and bail out before any scan work happens.
-	//   2. PHP exits mid-run via fatal (OOM / max_execution_time / wp_die).
-	//      The lock stays in the DB. After the staleness window — derived
-	//      from PHP's actual max_execution_time at the time the lock was
-	//      acquired — any new run silently takes over. Automatic recovery,
-	//      no human force-restart needed in the common case.
-	// -------------------------------------------------------------------------
+
+	/*
+	 * Concurrency lock
+	 *
+	 * run_scheduled_check() is the same code path for the daily cron AND the
+	 * manual "Run check now" button. Two failure modes we guard against:
+	 *   1. Double-trigger (admin double-clicks, cron fires mid-manual-run) —
+	 *      add_option() is the atomic acquire; competing callers see the
+	 *      existing row and bail out before any scan work happens.
+	 *   2. PHP exits mid-run via fatal (OOM / max_execution_time / wp_die).
+	 *      The lock stays in the DB. After the staleness window — derived
+	 *      from PHP's actual max_execution_time at the time the lock was
+	 *      acquired — any new run silently takes over. Automatic recovery,
+	 *      no human force-restart needed in the common case.
+	 * -------------------------------------------------------------------------
+	 */
 
 	/**
 	 * Snapshot of PHP runtime limits relevant to the scan.
@@ -330,55 +333,55 @@ class ISOFT_FMF_File_Integrity {
 		try {
 			global $wpdb;
 
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Scheduled scan of file rows; rows touched once per run, cache layer would never be hit.
-		$offset = 0;
-		while ( true ) {
-			$rows = $wpdb->get_results(
-				$wpdb->prepare(
-					"SELECT * FROM {$wpdb->prefix}isoft_fmf_files
-					  WHERE file_type = 'local'
-					  ORDER BY id ASC
-					  LIMIT %d OFFSET %d",
-					self::CHUNK_SIZE,
-					$offset
-				)
-			);
-			if ( ! $rows ) {
-				break;
-			}
-
-			foreach ( $rows as $row ) {
-				++$summary['checked'];
-				$outcome = $this->check_one( $row );
-				if ( isset( $summary[ $outcome ] ) ) {
-					++$summary[ $outcome ];
+			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Scheduled scan of file rows; rows touched once per run, cache layer would never be hit.
+			$offset = 0;
+			while ( true ) {
+				$rows = $wpdb->get_results(
+					$wpdb->prepare(
+						"SELECT * FROM {$wpdb->prefix}isoft_fmf_files
+						  WHERE file_type = 'local'
+						  ORDER BY id ASC
+						  LIMIT %d OFFSET %d",
+						self::CHUNK_SIZE,
+						$offset
+					)
+				);
+				if ( ! $rows ) {
+					break;
 				}
+
+				foreach ( $rows as $row ) {
+					++$summary['checked'];
+					$outcome = $this->check_one( $row );
+					if ( isset( $summary[ $outcome ] ) ) {
+						++$summary[ $outcome ];
+					}
+				}
+
+				$offset += self::CHUNK_SIZE;
 			}
 
-			$offset += self::CHUNK_SIZE;
-		}
+			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$summary['finished_at'] = current_time( 'mysql' );
+			update_option( 'isoft_fmf_integrity_last_run', $summary, false );
 
-		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
-		$summary['finished_at'] = current_time( 'mysql' );
-		update_option( 'isoft_fmf_integrity_last_run', $summary, false );
+			if ( $summary['checked'] > 0 ) {
+				isoft_fmf_notify_admin(
+					sprintf(
+						/* translators: 1: healed, 2: relinked, 3: still missing */
+						__( 'File integrity check: %1$d healed, %2$d relinked, %3$d still missing.', 'isoft-fm-foundation' ),
+						$summary['healed'],
+						$summary['relinked'],
+						$summary['still_gone']
+					),
+					$summary['still_gone'] > 0 ? 'warning' : 'info'
+				);
+			}
 
-		if ( $summary['checked'] > 0 ) {
-			isoft_fmf_notify_admin(
-				sprintf(
-					/* translators: 1: healed, 2: relinked, 3: still missing */
-					__( 'File integrity check: %1$d healed, %2$d relinked, %3$d still missing.', 'isoft-fm-foundation' ),
-					$summary['healed'],
-					$summary['relinked'],
-					$summary['still_gone']
-				),
-				$summary['still_gone'] > 0 ? 'warning' : 'info'
-			);
-		}
+			delete_transient( 'isoft_fmf_missing_count' );
+			do_action( 'isoft_fmf_integrity_check_complete', $summary );
 
-		delete_transient( 'isoft_fmf_missing_count' );
-		do_action( 'isoft_fmf_integrity_check_complete', $summary );
-
-		return $summary;
+			return $summary;
 		} finally {
 			// Release the lock no matter how we exit (normal return, exception,
 			// or shutdown after a fatal — finally runs in all three cases). A

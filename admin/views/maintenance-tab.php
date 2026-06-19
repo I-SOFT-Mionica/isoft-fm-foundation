@@ -25,6 +25,7 @@ $saw_running = isset( $_GET['isoft_fmf_running'] );  // phpcs:ignore WordPress.S
 $lock           = ISOFT_FMF_File_Integrity::lock_state();
 $limits         = ISOFT_FMF_File_Integrity::server_limits();
 $max_exec_label = $limits['max_execution_time'] > 0
+	/* translators: %d: number of seconds */
 	? sprintf( _n( '%d second', '%d seconds', $limits['max_execution_time'], 'isoft-fm-foundation' ), $limits['max_execution_time'] )
 	: __( 'unlimited', 'isoft-fm-foundation' );
 $mem_label = $limits['memory_limit_bytes'] > 0

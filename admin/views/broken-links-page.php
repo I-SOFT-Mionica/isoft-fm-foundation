@@ -16,6 +16,7 @@ $run_now_url = wp_nonce_url(
 	'isoft_fmf_integrity_check_now'
 );
 $max_exec_label = $limits['max_execution_time'] > 0
+	/* translators: %d: number of seconds */
 	? sprintf( _n( '%d second', '%d seconds', $limits['max_execution_time'], 'isoft-fm-foundation' ), $limits['max_execution_time'] )
 	: __( 'unlimited', 'isoft-fm-foundation' );
 $mem_label = $limits['memory_limit_bytes'] > 0
