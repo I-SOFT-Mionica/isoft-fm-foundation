@@ -111,6 +111,37 @@ Secrets required in repo settings (one-time):
 - `SVN_USERNAME` — wp.org login (case-sensitive)
 - `SVN_PASSWORD` — application password from <https://profiles.wordpress.org/me/profile/edit/group/3/?screen=svn-password> (not the wp.org login password)
 
+## What the WP.org plugin page actually shows (and where)
+
+The plugin page at `wordpress.org/plugins/<slug>/` has **exactly four tabs** — three are rendered from `readme.txt`, one is platform-generated. **The mapping is not 1:1 with readme.txt section names**; many sections that look like they'd get their own tab actually render inside Details. Verified against the live page, 2026-06-20.
+
+| Tab | Source | Contains |
+|---|---|---|
+| **Details** | One long scrolling page from readme.txt | `== Description ==`, `== Frequently Asked Questions ==`, every custom `== Section ==` (e.g. `== Shortcodes ==`, `== Customizing appearance ==`, `== Source code ==`), and the `== Screenshots ==` gallery |
+| **Installation** | `== Installation ==` only | Installation steps + any subsections (e.g. Server requirements) |
+| **Reviews** | Platform-generated | User ratings and reviews |
+| **Development** | `== Changelog ==` + platform-generated | Full changelog, SVN browse link, RSS subscribe link |
+
+Implications for any readme work:
+
+- **Description is first-impression real estate.** Lead with the marketing-voice summary, name the target audience (not generic "organizations" — say which kind), and end each feature bullet with a concrete benefit. The "tagline" line directly under the readme header block (capped at 150 chars) shows under the plugin title and should sell the plugin in one sentence.
+- **Custom `== Section ==` headers do NOT become their own tabs.** They're H2 subsections on the Details tab, stacked in source order. Order accordingly: marketing first (Description, Architecture), reference next (Shortcodes, Customizing), footer last (Source code, Screenshots).
+- **The Changelog has its own tab.** Tone there can stay end-user-friendly without competing with Description for first-impression space — anyone reaching Development is already evaluating seriously. Don't dump commit-message prose there; rewrite per-version in the user-facing voice.
+- **Anchor links work within the Details tab.** WP.org's parser generates IDs on H2 / H3 headings (slugified — `== Customizing appearance ==` → `#customizing-appearance`, `= Subhead =` → `#subhead`). Markdown anchor links (`[shortcode reference](#shortcodes)`) render as live `<a href>` and jump between sections on the same tab. Cross-tab anchor links don't navigate the tab UI.
+- **Installation lives on its own tab.** Don't bury setup steps inside Description bullets — users click Installation specifically. Server requirements belong there as a subsection, not under Description.
+- **Use `*` bullets in the changelog, not indented prose.** WP.org's parser collapses 4-space-indented lines into one paragraph; only proper `*` markers render as bulleted lists.
+- **Don't ship duplicated `== Section ==` headers** (e.g. `== Changelog ==` written twice on consecutive lines) — the second instance renders as a stray heading inside the previous section.
+
+## `Contributors:` line traps
+
+The `Contributors:` header must contain only valid WordPress.org usernames (the part before `@profiles.wordpress.org`). Anything else triggers an automated takedown notice to the contact email:
+
+> Your readme has a problem in the Contributors section, where you've used an account that isn't registered on WordPress.org: <name>. The Contributors field should only contain WordPress.org usernames.
+
+We've been hit twice for `isoftmionica` (not a registered account). Canonical Contributors line for this plugin: `chillic`. Don't add organization names, real-name strings, or unregistered handles even if they "should" exist.
+
+Re-shipping with the same invalid contributor regenerates the notice — the WP.org review team scans every push, not just first submission.
+
 ## `.wordpress-org/` asset specs
 
 Files in this directory (NOT in the plugin zip — separate SVN namespace):

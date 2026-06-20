@@ -1,5 +1,5 @@
 === I-Soft File Manager: Foundation ===
-Contributors: chillic, isoftmionica
+Contributors: chillic
 Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.0
@@ -8,40 +8,35 @@ Stable tag: 0.10.19
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Hierarchical file download manager. Category-as-folder storage, multi-file entries, per-user ACL, and audit logging.
+Document and download manager with real on-disk folder organization, per-department access control, and multi-file downloads.
 
 == Description ==
 
-**I-Soft File Manager: Foundation** is a modular download manager built for modern WordPress, designed for organizations with many documents, a structured category tree, and editorial teams that need per-department write permissions.
+**I-Soft File Manager: Foundation** is a modular download manager built for modern WordPress.
+
+Unlike standard media plugins that dump every upload into a single dated folder, Foundation is designed for municipalities, universities, libraries, and any team that needs to manage thousands of public documents, maintain a strict category tree, and give different departments their own secure upload spaces.
 
 = Key features =
 
-* **Category-as-folder storage.** Every `isoft_fmf_category` term maps 1:1 to a physical folder under `wp-content/uploads/isoft-fmf-files/`. Folder names mirror the category slug chain (`skupstina-opstine/saziv-2025-2029/iv-sednica/`). Rename a category slug and the folder renames on disk plus every affected file path updates in the database.
-* **Drag-and-drop upload.** Multi-file dropzone inside the download edit screen, with per-file progress bars. Files land directly in the target category folder.
-* **"From Folder" browser.** Files dropped into a category folder via SFTP, rclone, or any other external tool show up as untracked candidates in the admin. One click links them to a download.
-* **Per-user category ACL.** Assign each editor a set of allowed categories. They inherit access to the whole subtree. Admins are unrestricted. Non-allowed categories are hidden from their admin list, edit screens, and category picker.
-* **Unpublished visibility control.** Draft and private downloads are invisible to users whose allowed-category set doesn't cover them — even to logged-in editors from other departments.
-* **Secure download handler.** Files live under an `.htaccess`-protected directory. All downloads route through a PHP handler with nonce verification, access-role checks, rate limiting, hotlink protection, and X-Sendfile / X-Accel-Redirect support.
-* **Audit logging.** Optional per-download log with timestamp, file, user, IP (detailed logging), user agent, and referer. Configurable retention.
-* **Gutenberg blocks.** Download List (with layout, filter, search, and subcategory toggle), Download Entry (embed a single download card), and Category Grid.
-* **Classic editor shortcodes.** `[isoft_fmf_list]`, `[isoft_fmf_download id="123"]`, `[isoft_fmf_categories]`, `[isoft_fmf_search]`.
-* **Cyrillic filename and slug handling.** Automatic Serbian Cyrillic → Latin transliteration for category slugs, post slugs, and uploaded filenames (configurable extension allow-list, double-extension strip, 80-char cap).
-* **License management.** Assign licenses per download, with optional "require agreement before download" modal.
-* **PDF thumbnails.** Auto-generate post thumbnails from the first page of a PDF (requires the Imagick PHP extension).
-* **REST API.** Every taxonomy and the CPT are exposed to `wp/v2` with custom endpoints for listing and searching.
-* **Statistics dashboard.** Per-file and per-download counts, with a nightly HOT recalculation of the top downloads.
+* **True folder organization.** Every category you create maps 1:1 to a real folder on disk under `wp-content/uploads/isoft-fmf-files/`. Rename a category and the folder renames itself; every file path in the database updates instantly.
+* **Department-level access control.** Restrict editors to specific categories so HR uploads only land in the HR folder, IT uploads only in the IT folder, and so on. Restricted users cannot see drafts from other departments either.
+* **External file sync and "From Folder" browser.** Because categories are real folders, drop files into them via SFTP, rclone, or any external sync tool. The From Folder browser detects untracked files instantly so you can link them to a download with one click.
+* **One-click multi-file downloads.** Upload multiple files to a single entry via drag-and-drop. Visitors can grab individual files or everything at once as an automatically generated ZIP bundle.
+* **Built-in analytics and audit log.** Statistics dashboard tracks per-file and aggregate counts, recalculates HOT badges nightly, and the optional audit log records timestamps, IP addresses, and user agents with configurable retention.
+* **Secure download handler.** Files live behind an `.htaccess`-protected directory; every download routes through PHP with nonce verification, role checks, rate limiting, and hotlink protection. X-Sendfile and X-Accel-Redirect supported for high-traffic hosts.
+* **Cyrillic transliteration.** Uploaded filenames and category slugs are automatically transliterated from Serbian Cyrillic to Latin for safe disk storage; display titles keep their original characters.
+* **Native builder support.** Gutenberg blocks ship out of the box. Eight shortcodes work in Elementor, WPBakery, Divi, Beaver Builder, and Bricks — see the [full shortcode reference](#shortcodes) below.
+* **Themeable via CSS variables.** Recolor every card, badge, and icon from **Appearance → Customize → Additional CSS** without writing complex selectors — see [customizing appearance](#customizing-appearance) below.
 
-= Architecture =
+= Architecture in one line =
 
-I-Soft File Manager: Foundation stores files outside the Media Library in a predictable per-category folder tree. This is the key difference from most download managers: the filesystem **is** the source of truth for what's stored where. Moving a download to a different category auto-moves its files on disk; deleting a category blocks if any downloads still reference it.
-
-This design exists so automation tools can sync files in and out without having to understand WordPress internals. Rclone mirroring a cloud folder, an SFTP drop from a government mainframe, or a scheduled scan — all just write to `isoft-fmf-files/<slug-path>/` and the plugin picks them up.
+The filesystem **is** the source of truth. Moving a download to a different category auto-moves its files on disk; deleting a category is blocked if any download still references it. This is what lets external automation tools sync files in and out without having to understand WordPress internals.
 
 = Extensions (coming soon) =
 
-* **I-Soft File Manager: Sentinel** — server-side automation. Monitors category folders for new files, creates draft download entries, and supports rclone mirroring, SFTP bulk upload, and WP-cron folder scans.
+* **I-Soft File Manager: Sentinel** — server-side automation. Monitors category folders for new files, creates draft download entries, and supports rclone mirroring, SFTP bulk upload, and scheduled folder scans.
 * **I-Soft File Manager: Orbit** — Google Shared Drive sync. Departments drop files into shared folders; Orbit imports them as drafts for review.
-* **I-Soft File Manager: Nomad** — one-shot importer from jDownloads. Reads the legacy tables directly and rebuilds categories, downloads, files, and counters in Foundation's data model, preserving the slug tree so URLs and category folder names stay stable.
+* **I-Soft File Manager: Nomad** — one-shot importer from jDownloads. Rebuilds your categories, downloads, files, and counters in Foundation, preserving slug paths so existing URLs keep working.
 
 == Installation ==
 
@@ -49,19 +44,62 @@ This design exists so automation tools can sync files in and out without having 
 2. Activate through the **Plugins** menu.
 3. Visit **I-Soft File Manager: Foundation → Settings** to configure storage, access roles, PDF thumbnails, and log retention.
 4. Create at least one **Download Category** — this is required before any file can be uploaded. Categories map directly to folder names under `wp-content/uploads/isoft-fmf-files/`.
-5. Assign allowed categories to each editor on their **Users → Edit User** profile screen, under **I-Soft File Manager: Foundation — Allowed Categories**. Leave empty for no access. Administrators are always unrestricted.
+5. To restrict an editor to specific folders, edit their user profile (**Users → Edit User**) and check the allowed categories under **I-Soft File Manager: Foundation — Allowed Categories**. Leave empty for no access. Administrators are always unrestricted.
 
 = Server requirements =
 
 * PHP 8.4 or higher
-* WordPress 6.6 or higher
+* WordPress 6.7 or higher
 * MySQL 5.7+ or MariaDB 10.3+
-* Apache with `mod_rewrite` + `mod_authz_core` **or** Nginx (see Settings → Security for configuration snippets)
-* For PDF thumbnails: Imagick PHP extension
+* Apache with `mod_rewrite` + `mod_authz_core`, or Nginx
+* Database user with `CREATE`, `ALTER`, `INDEX`, `REFERENCES`, and `DROP` on the WordPress database (needed once on activation to create the plugin's tables; common on locked-down shared hosts to be missing)
+* Imagick PHP extension for PDF thumbnails
+
+== Frequently Asked Questions ==
+
+= Why not just use the default WordPress Media Library? =
+
+The Media Library flattens everything into `wp-content/uploads/YYYY/MM/`, which breaks predictable automation and makes category-based permissions impossible. Foundation keeps files organized by category — which is what large organizations actually need when managing thousands of documents.
+
+= How does the Category-as-Folder architecture work? =
+
+Foundation stores files outside the Media Library in a predictable per-category folder tree (`wp-content/uploads/isoft-fmf-files/`). The filesystem is the source of truth. Moving a download to a different category auto-moves its files on disk. This lets external automation tools (Rclone, SFTP, scheduled scans) sync files in and out without having to understand WordPress internals.
+
+= Can I migrate from jDownloads? =
+
+Yes — but via a separate companion plugin, **I-Soft File Manager: Nomad** (coming soon). Foundation's data model is intentionally close to jDownloads to make a one-shot import practical; Nomad reads the legacy tables directly and rebuilds the category tree, downloads, files, and counters into Foundation, preserving slug paths so existing URLs keep working.
+
+= How do I restrict a user to only some categories? =
+
+Open their user profile (**Users → Edit User**), scroll to **I-Soft File Manager: Foundation — Allowed Categories**, and check the boxes. Users inherit access to every descendant of a checked category. Administrators bypass all access checks.
+
+= What happens to downloads if I delete a category? =
+
+Deletion is blocked if any download is still assigned to that category — the files would otherwise be orphaned. Reassign or delete the downloads first, then delete the category.
+
+= What file types are allowed? =
+
+Configured under **Settings → General → Allowed File Extensions**. The default list covers common document, archive, image, audio, and video formats. Executables (`.exe`, `.sh`, `.bat`) are not in the default list and should only be added if you know what you're doing.
+
+= Does it support Cyrillic or other non-Latin filenames? =
+
+Yes. Uploaded filenames and category slugs are automatically transliterated from Serbian Cyrillic to Latin for disk storage. Display titles keep the original characters. A setting under **Settings → General → Cyrillic Titles** can auto-fill download titles in Cyrillic from uploaded Latin filenames.
+
+= Does it work with Full Site Editing (block) themes? =
+
+Yes. The plugin detects FSE themes and injects the download card via the `the_content` filter. Classic theme templates under `templates/` are used as a fallback.
+
+= Does it work with Elementor, WPBakery, Divi, Beaver Builder, or Bricks? =
+
+Yes. Foundation ships eight shortcodes that drop into every major builder's HTML or Shortcode widget. See the [full shortcode reference](#shortcodes) below for attributes; the [builder widget table](#shortcodes) at the end of that section shows which widget to paste into in each builder. Native, point-and-click widgets for each builder are planned as separate companion plugins.
+
+= The plugin installed but every upload fails with "Could not save file record." What's wrong? =
+
+Your WordPress database user almost certainly lacks the `CREATE` privilege, so the plugin's tables never got created on activation. As of 0.10.19 every admin page shows the exact MySQL error plus a ready-to-paste `GRANT` statement to fix it; visit any plugin admin page to see the notice. On many cPanel hosts you'll need to also re-add the user to the database via cPanel after granting in SQL — the literal-vs-wildcard underscore escaping bites here.
 
 == Shortcodes ==
 
-Foundation ships eight shortcodes. Drop them in any classic-editor page, any Gutenberg "Shortcode" block, or any builder's HTML / Shortcode widget (see the builder-compatibility FAQ below). Every `category` and `tag` attribute accepts either the term **slug** (preferred — stable across exports) or its numeric **term ID**. Slugs are visible on the Downloads → Categories screen and as the chip next to the category name on the download edit screen.
+Foundation ships eight shortcodes. Drop them in any classic-editor page, any Gutenberg "Shortcode" block, or any builder's HTML / Shortcode widget. Every `category` and `tag` attribute accepts either the term **slug** (preferred — stable across exports) or its numeric **term ID**. Slugs are visible on the Downloads → Categories screen and as the chip next to the category name on the download edit screen.
 
 = [isoft_fmf_list] — filtered list of downloads =
 
@@ -158,52 +196,17 @@ Renders just a number — either a single file's count or a whole download post'
 
 Exactly one of `id` or `file_id` should be set.
 
-== Frequently Asked Questions ==
+= Builder widget reference =
 
-= Why not just use the Media Library? =
+The shortcodes above drop into every major builder's HTML or Shortcode widget. Where to paste:
 
-The Media Library flattens everything into `wp-content/uploads/YYYY/MM/`, which breaks predictable automation and makes category-based permissions impossible. I-Soft File Manager: Foundation keeps files organized by category, which is what governments, libraries, and municipalities actually need when they're managing thousands of documents.
-
-= Can I migrate from jDownloads? =
-
-Yes — but via a separate companion plugin, **I-Soft File Manager: Nomad** (coming soon). Foundation's data model is intentionally close to jDownloads to make a one-shot import practical; Nomad reads the legacy tables directly and rebuilds the category tree, downloads, files, and counters into Foundation, preserving slug paths so existing URLs keep working. Watch the Extensions tab in Settings for the release.
-
-= How do I restrict a user to only some categories? =
-
-Open their user profile (**Users → Edit User**), scroll to **I-Soft File Manager: Foundation — Allowed Categories**, check the boxes. Users inherit access to every descendant of a checked category. Administrators bypass all ACL checks.
-
-= What happens to downloads if I delete a category? =
-
-Deletion is blocked if any download is still assigned to that category — the files would otherwise be orphaned. Reassign or delete the downloads first, then delete the category.
-
-= What file types are allowed? =
-
-Configured under **Settings → General → Allowed File Extensions**. Default list covers common document, archive, image, audio, and video formats. Executables (`.exe`, `.sh`, `.bat`) are **not** in the default list and should only be added if you know what you're doing.
-
-= Does it support Cyrillic / non-Latin filenames? =
-
-Yes. Uploaded filenames and category slugs are automatically transliterated from Serbian Cyrillic to Latin for disk storage. Display titles retain the original characters. A setting under **Settings → General → Cyrillic Titles** can auto-fill download titles in Cyrillic from uploaded Latin filenames.
-
-= Does it work with FSE (block) themes? =
-
-Yes. The plugin detects FSE themes and injects the download card via `the_content` filter. Classic theme templates under `templates/` are used as a fallback.
-
-= Does it work with Elementor, WPBakery, Divi, Beaver Builder, Bricks? =
-
-Yes. Foundation ships four shortcodes that drop into every major builder's HTML / shortcode widget:
-
-* `[isoft_fmf_list]` — a category-filtered grid or list of downloads (the same renderer as the Download List block)
-* `[isoft_fmf_download id="123"]` — a single download card
-* `[isoft_fmf_categories]` — a category grid
-* `[isoft_fmf_search]` — a search box that filters the list above
-
-Where to paste in each builder:
-
-* **Elementor**: Widgets panel → "Shortcode"
-* **WPBakery**: Add element → "Text Block" (paste in source view) or "Raw HTML"
-* **Divi**: Module → "Code"
-* **Beaver Builder**: Basic Modules → "HTML"
-* **Bricks**: Basic Elements → "Shortcode"
+| Builder | Widget |
+|---|---|
+| Elementor | Widgets panel → **Shortcode** |
+| WPBakery | Add element → **Text Block** (source view) or **Raw HTML** |
+| Divi | Module → **Code** |
+| Beaver Builder | Basic Modules → **HTML** |
+| Bricks | Basic Elements → **Shortcode** |
 
 Native, point-and-click widgets for each builder (with full attribute panels instead of writing shortcode strings) are planned as separate companion plugins.
 
@@ -281,268 +284,62 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 == Changelog ==
 
 = 0.10.19 =
-* **Database setup failures are now visible.** When the plugin can't create its required tables (usually because the WordPress database user lacks `CREATE` privilege — common on locked-down shared hosts), every admin page now shows a clear warning with the exact MySQL error and a ready-to-paste GRANT statement to fix it. Previously the install appeared to succeed but every file upload, external link, and from-folder action silently failed with "Could not save file record" and the admin had no clue why.
-* **More helpful upload and save errors.** Failed file uploads now report the specific reason (file too large, server out of temp space, security plugin blocked it, etc.) instead of a generic "upload error". Failed database saves include the underlying MySQL error so the admin can see whether a column is missing, the disk is full, or something else.
+* **Database setup failures are now visible.** When the plugin can't create its required tables (usually because the WordPress database user lacks `CREATE` privilege — common on locked-down shared hosts), every admin page now shows a clear warning with the exact MySQL error and a ready-to-paste `GRANT` statement to fix it. Previously the install appeared to succeed but every upload silently failed with "Could not save file record" and the admin had no clue why.
+* **More helpful upload and save errors.** Failed file uploads now report the specific reason (file too large, server out of temp space, security plugin blocked it, etc.) instead of a generic "upload error." Failed database saves include the underlying MySQL error so you can see whether a column is missing, the disk is full, or something else.
 
 = 0.10.18 =
-* **New: "External Link Target" setting under Settings → Display.** Choose whether external-URL download buttons (Google Drive, Dropbox, etc.) open in a new tab or the same window. Defaults to new tab — the modern web convention and what visitors usually expect for off-site links. Local-file downloads are unaffected (always download in place).
-* **Fixed: downloads failed to start on hosts where `auto`-mode picked a serve method the server couldn't actually fulfill.** The handler was choosing X-Sendfile when `SERVER_SOFTWARE` reported Apache and X-Accel-Redirect when it reported nginx, but neither check verified that `mod_xsendfile` was loaded or that the `/isoft-fmf-internal/` nginx alias was configured. On real hosts without that server config, the response was empty and downloads silently failed. Auto-mode now resolves to PHP streaming until an explicit server-capability probe lands in a later release. Admins who actually have X-Sendfile or X-Accel set up can opt in via Settings → Security → File Serving Method.
-* **Fixed: PHP-streaming downloads hung on hosts with output gzip, nested output buffers, or aggressive FastCGI buffering.** The stream now (a) drains every level of `ob_*`, (b) disables `zlib.output_compression`, (c) sets `Content-Encoding: identity` so server-level gzip doesn't recompress and skew `Content-Length`, and (d) reads + flushes in 8 KB chunks so the client starts receiving bytes immediately instead of waiting for the entire response to assemble. fread/feof loop is hardened against read errors so a bad handle can't spin forever.
-* **Fixed: publishing a download with a Cyrillic title kept the locale-specific auto-draft slug** (e.g. `automatski-nacrt` under sr-RS Latin, `auto-draft` under en_US) instead of transliterating the title. WordPress creates auto-drafts with a non-empty default slug derived from `__( 'Auto Draft' )`; our slug filter preferred the existing non-empty `post_name` and never looked at the title, so the auto-draft default stuck forever. Now also triggers a fresh derive-from-title when the post is transitioning out of `auto-draft` status, regardless of locale. User-customised slugs (post already exists, user edited the permalink) are still preserved.
-* **Fixed: download links silently failed on themes that use AJAX navigation (djax / pjax / swup / hotwire-turbo / instantclick).** Those libraries intercept every `<a>` click, XHR-fetch the URL, and try to swap the response in as HTML. For a download URL the response is a binary file — jQuery's HTML parser explodes on bytes like `%PDF-1.7` and the browser's native download handler never fires. Surfaced on a production install running a theme that bundles djax. Two defenses: download buttons now ship with the HTML5 `download` attribute and `rel="nofollow"` (most interceptors respect these), and `public-script.js` adds a capture-phase click handler that `stopImmediatePropagation()`s on `.isoft-fmf-download-btn` so theme handlers attached in bubble phase never fire. External-link buttons are exempt (browsers ignore `download` cross-origin anyway).
+* **New: External Link Target setting** under Settings → Display. Choose whether external-URL download buttons (Google Drive, Dropbox, etc.) open in a new tab or the same window. Defaults to new tab — the modern web convention and what visitors usually expect for off-site links. Local-file downloads are unaffected.
+* **Fixed: downloads failed to start on Nginx and similar hosts** where auto-mode picked a serve method the server couldn't actually fulfill. Auto-mode now safely streams via PHP; admins who have X-Sendfile or X-Accel-Redirect properly configured can opt in via Settings → Security → File Serving Method.
+* **Fixed: PHP-streamed downloads hung** on hosts with output gzip, nested output buffers, or aggressive FastCGI buffering. The stream now drains every level of output buffering, disables on-the-fly compression, and pushes data in 8 KB chunks so the file starts arriving immediately instead of waiting for the whole response to assemble.
+* **Fixed: Cyrillic-titled downloads kept the locale's auto-draft slug** (for example `automatski-nacrt` under Serbian Latin, `auto-draft` under English) instead of transliterating the title. User-customized slugs are still preserved as before.
+* **Fixed: download links silently failed on themes using AJAX page navigation** (djax, pjax, swup, hotwire-turbo, instantclick). Those libraries intercept every link click and try to swap the response into the page as HTML — which explodes when the response is a binary file. Download buttons now ship with the HTML5 `download` attribute and the plugin's own click handler runs first so the theme can't hijack the request.
 
 = 0.10.17 =
-* **ZIP bundle cache TTL now measures idle time, not build time.** Previously a popular bundle being downloaded daily still got rebuilt every N days (counted from the build). Now it only expires after N days of no requests. A hard ceiling at 3× the configured duration forces a rebuild eventually no matter what, so an undetected content-signature bug couldn't keep stale data alive forever. Content-change invalidation (file added / removed / modified) remains exact and runs on every hit independent of either timer.
+* **Smart ZIP bundle cache expiry.** Bundle cache now expires on *idle time* (last access), not build age — so a bundle being downloaded daily no longer gets rebuilt on a schedule. A hard ceiling at 3× the configured duration guarantees an eventual refresh regardless.
 
-= 0.10.16 =
-* **ZIP bundle cache now cleans itself up.** Previously the cache duration setting only triggered a rebuild when someone requested a stale bundle — files that were never re-requested (or whose download was deleted) sat on disk forever. Now: a daily sweep runs right after the file-integrity check (with a midnight fallback if integrity is disabled) and removes any cache file past 2× the duration or whose download has been deleted. Deleting a download also clears its cache immediately. Settings → Display has a "Clear bundle cache now" button for the manual nuke.
+= 0.10.13 — 0.10.16 =
+* **Faster statistics dashboard.** Now reads from a daily aggregate table instead of scanning the full per-event log; refreshes immediately on every download instead of after a 5-minute cache.
+* **ZIP bundle self-cleanup.** A daily sweep removes stale or orphaned bundles from disk; deleting a download immediately clears its cache. A "Clear bundle cache now" button covers manual cleanup.
+* **Broken-link recovery on Windows hosts.** Renamed or moved files are now relinked via SHA-256 content matching, not just POSIX inode (Linux/POSIX still uses the faster inode path).
+* **Manual "Run integrity check now" button** on the Broken Links screen, with overlap protection and auto-recovery if the scan crashes mid-flight.
+* **Realistic demo content** that models a real document lifecycle (release-day spike, decay, weekend dampening) so first-impression screenshots look like a live site.
 
-= 0.10.15 =
-* **File rename / cross-category move now auto-recovers on Windows hosting too.** Previously the integrity check could only relink files via POSIX inodes — useless on Windows/NTFS where inodes aren't stable. Added a content-hash fallback (SHA-256) with a file-size pre-filter so the cost stays proportional to candidates, not total file count. The automatic check (Run Now / nightly cron) handles rename-in-place within the file's own category folder; the manual recovery dialog on Broken Links handles cross-category moves with the existing Move-back / Reassign / Split options.
+= 0.10.0 — 0.10.12 =
+* **Category-level access roles.** Categories can declare their own minimum role (Public, Subscriber+, Editor+, etc.). Downloads can be set to inherit the strictest permission across their assigned categories.
+* **One-click ZIP bundles** for multi-file downloads. Visitors can grab everything as a single archive; optional on-disk cache via Settings → Display.
+* **Multi-file summary tiles.** In listings, multi-file downloads now render as a single summary card (file count, distinct types, total size, single "Download all" button) instead of one row per file.
+* **User-agent blocklist** under Settings → Security for blocking specific scrapers or bots.
+* **Featured-first listings.** Downloads marked Featured pin to the top of any list regardless of sort order.
+* **External-only flag** for downloads where the external URL is canonical and the local file is just a backup.
+* Plus a bundle of fixes for the Category Grid block and a settings-tab regression where saving one tab wiped checkboxes on the others.
 
-= 0.10.14 =
-* **"Run integrity check now" button added to the Broken Links screen** so users can trigger a scan from the page where they're already looking at broken files (previously only on Settings → Maintenance). Both surfaces now show the host's PHP limits (`max_execution_time`, `memory_limit`, `set_time_limit` availability) so users know what scope the host allows.
-* **Lock to prevent overlapping runs.** Manual click + scheduled cron can no longer run the scan simultaneously; the second one silently waits its turn.
-* **Auto-recovery for crashed runs.** If the scan dies mid-flight (PHP timeout, out of memory, browser closed), the lock auto-clears past the host's max execution time and the next click starts fresh — no manual intervention.
+= 0.8.0 — 0.9.1 =
+* **WordPress.org review preparation.** Full Coding Standards compliance pass, escape and nonce audits, REST capability hardening, and the official rename to **I-Soft File Manager: Foundation** (slug `isoft-fm-foundation`).
 
-= 0.10.13 =
-* **Stats dashboard now reads from the daily aggregate table** instead of scanning the full per-event log. The "Top Downloads (Last 30 Days)" panel and the 30-day chart both query `isoft_fmf_download_daily` — the canonical aggregate the logger maintains alongside the per-click log. Faster, and it picks up demo-seeded activity instead of only counting individual log events.
-* **Dashboard stats refresh on every download.** The overview was cached for 5 minutes; new clicks didn't show until the cache expired. Cache now busts on every log write.
-* **Chart bar tooltip shows download count** (was redundantly showing the date that's already on the X-axis label). Bar label also highlights on hover.
-* **Demo content's seeded activity now models a real document lifecycle:** release-day spike on the post date, exponential decay afterward (half-life 5 days), weekend dampening (~30% of weekday traffic), and a low background floor so older documents still show ongoing activity. Capped at each entry's `days_ago` so a download posted 7 days ago can't have activity from 30 days ago. HOT entries get a heavier share so they still win the 7-day HOT-cron election once the release spike falls outside the last week.
-* **Demo removal now also clears per-event log rows** for the removed downloads, so repeat-regenerate cycles don't accumulate orphan `(deleted)` entries in the dashboard.
-* **Fixed: Saving on the Maintenance tab failed with "The isoft_fmf_settings options page is not in the allowed options list."** Regression from the 0.10.8 per-tab settings-group split — `admin/views/maintenance-tab.php` is a separate view file and still posted to the old shared group name. Now uses the `isoft_fmf_maintenance` group like the other tabs.
+= 0.7.0 — 0.7.2 =
+* **Themeable via CSS custom properties.** Every color in the public stylesheet is exposed as a `--isoft-fmf-*` variable on `:root` — recolor anything by overriding a single variable in Customizer → Additional CSS.
+* **Demo content creates a showcase page** automatically so new users can see all three embed patterns side-by-side.
 
-= 0.10.12 =
-* **Demo content now ships with realistic download counts, HOT badges, and varied post dates** so first-impression screenshots (admin list, public listings, single download) don't look empty. Two of the six demo downloads carry a HOT badge with seeded daily-log activity so the nightly HOT cron re-elects them instead of clearing the badge. Removing demo content cleans the seeded daily-log rows along with everything else.
+= 0.5.0 — 0.6.1 =
+* **Rate limiting and hotlink protection** fully enforced (configurable per IP/hour, configurable referer check).
+* **Lighter PDF thumbnail backend** — Imagick-only; removed every `exec()` call from the codebase.
 
-= 0.10.11 =
-* **Fixed: Download Category Grid block still showed "No categories found"** on new pages despite the 0.10.8 fix. The earlier attempt combined `orderby='meta_value_num'` + `meta_key` + a meta_query OR clause; `WP_Term_Query` merges those internally in ways that vary by version and silently INNER-joins termmeta, dropping every term without the sort-order meta set. Replaced with two clean `get_terms()` calls using documented arguments only: (A) terms that have the sort meta, ordered by it; (B) terms that don't, ordered by name. Result is concatenated.
-* **Demo content now generated in English only.** Previously branched on the `cyrillic_titles` setting (which is for transliterating uploaded filenames — unrelated to demo language). All category names, download titles, descriptions, and PDF/DOCX bodies are now English. Translations will be delivered the standard WordPress way via `/languages/` `.po` / `.mo` files when those land, not by hard-coding a second language into the source.
+= 0.4.0 — 0.4.9 =
+* **Broken-link recovery.** Daily scheduled scan detects missing files. Visitors hitting a missing file see a friendly "temporarily unavailable" page instead of an error.
+* **Object cache layer** for hot-path reads, and the **Broken Links admin screen** with per-row recovery options (Move back, Reassign, Split, Reupload, Detach).
+* **Container-query grid** that adapts to any sidebar or column width.
 
-= 0.10.10 =
-* **Fixed: Single download page (post permalink) was showing the summary tile too, hiding individual files.** The 0.10.9 change correctly switched multi-file *listings* to a summary tile, but the single-download page reuses the same template and inherited the same collapse — so users who clicked through to a multi-file download could only see one "Download all" button, not the individual files. The summary tile now only applies in listings. The single-download page shows the full per-file list (as before 0.10.9), with the "Download all (ZIP)" button moved to the top of the file list so the bundle option is still reachable.
+= 0.3.0 — 0.3.9 =
+* **Per-user category access control** with subtree inheritance.
+* **Grid view redesign** with colored file-type badges and clean layout bands.
 
-= 0.10.9 =
-* **Multi-file downloads now render as a single summary tile** instead of a list of file rows. The tile shows the download title (linking to the post permalink for individual file access), aggregate meta (file count, distinct file types, total size, post date, total downloads), and a "Download all (ZIP)" bundle button as the action. Visual shape is now identical to single-file cards in grid mode — no more side-by-side mismatch between the two card types.
-* **Fixed: Dashicons glyphs invisible on themes that don't auto-enqueue them.** The bundle button and meta-row icons (calendar, archive, download, lock) rendered as blank squares on themes that hadn't loaded the `dashicons` style themselves. Plugin now enqueues it explicitly as a dependency of `isoft-fmf-public`.
-
-= 0.10.8 =
-* **Fixed: Fatal error on pages containing the Category Grid block or `[isoft_fmf_categories]` shortcode.** The 0.10.6 fix passed `orderby` as an array, but `WP_Term_Query` only accepts a scalar (unlike `WP_Query`). The page crashed with a `strtolower(): Argument must be of type string` TypeError. Primary sort now runs in MySQL as before; the secondary name tiebreaker runs in PHP on the already-ordered result set.
-* **Fixed: Settings tabs were silently wiping each other.** Saving any Settings tab also reset every checkbox on the other tabs to off — including `Download Counting`, which then caused per-file and bundle downloads to stop incrementing. Each tab now posts to its own option group, so saves only touch the fields visible on the active tab.
-* **Bundle "Download all" button visible on light themes.** The icon-only chip in the top-right of multi-file cards was transparent + grey text, which disappeared on near-white theme backgrounds. Now has a subtle filled background and 1px border in the default state; on hover/focus it inverts to the existing dark fill.
-
-= 0.10.7 =
-* **ZIP bundle cache** — new toggle on Settings → Display that stores generated bundles to disk so repeated requests for the same multi-file download don't rebuild the ZIP every time. Configurable duration (default 7 days). Cache is invalidated automatically when any of the bundled files is added, removed, or replaced — duration is just an upper bound. Cache files live under `wp-content/uploads/isoft-fmf-files/.bundle-cache/` (covered by the existing deny-all `.htaccess`).
-
-= 0.10.6 =
-* **Fixed: Category Grid (and `[isoft_fmf_categories]` shortcode) showed "No categories found"** even when categories existed. The query ordered by the optional `_isoft_fmf_cat_sort_order` term meta, which silently dropped every term that didn't have that meta set — which is most of them on a fresh install. Categories now appear regardless of whether they've been ordered, sorted by sort-order first, name second.
-
-= 0.10.5 =
-* **Fixed: ZIP bundle download didn't increment download counters.** Per-file `download_count` rows stayed at zero after a bundle was served, and the post-level cached total never moved. Each file in a bundle now gets +1 (gated, as for per-file downloads, by Settings → General → Count downloads); the parent-level counter recalculates as the sum of file counters via the existing `ISOFT_FMF_File_Manager::increment_count()` flow.
-
-= 0.10.4 =
-* **Bundle button label shortened** to "Download all (162 KB)" — dropped the redundant "(N files, …) as ZIP" wording. Same label now used for the visible hover state and the tooltip / aria-label, so there's one canonical string to translate.
-
-= 0.10.3 =
-* **"Download all as ZIP" button restyled** as a compact icon-only chip in the top-right of multi-file cards. On hover or keyboard focus the icon swaps for "Download all · 162 KB" so the size stays a one-glance read; the full "(2 files, 162 KB) as ZIP" label is preserved on the native tooltip and the `aria-label` for assistive tech. Fixes the long-label-overlapping-title visual on narrow cards.
-
-= 0.10.2 =
-* **Fixed: Category Grid block stuck on the loading spinner** for the "Show children of" picker. The block fetched top-level terms via a REST query with `parent: 0`, which trips a known core-data resolver quirk around numeric-zero query keys — the selector returned undefined forever. Switched to fetching all categories in one call (same as the Download List block) and filtering top-level on the client. Also added a "No top-level categories found" message so the panel surfaces an empty state instead of an unusable spinner.
-
-= 0.10.1 =
-* **Fixed: fatal error when clicking "Download all as ZIP".** `wp_tempnam()` lives in `wp-admin/includes/file.php` and isn't loaded on the front end where the bundle handler runs. Swapped for PHP's built-in `tempnam( sys_get_temp_dir(), ... )` which has the same semantics and is always available. No other 0.10.0 frontend code path was affected.
-
-= 0.10.0 =
-* **Category-level access role + per-download Inherit.** Categories can now declare their own access role (Public / Subscriber+ / Contributor+ / Author+ / Editor+ / Administrator only) — the field is on the add / edit category screens. Downloads get a new "— Inherit from category —" option in the access dropdown (the default for new downloads); when set, the download takes the most-restrictive role across its assigned categories. Explicit per-download roles still win. Resolution is cached in `_isoft_fmf_effective_access_role` post meta so the listing-query filter stays flat. Existing downloads are backfilled on upgrade.
-* **ZIP bundle download** for multi-file downloads. Optional Settings → Display toggle adds a "Download all (N files, X MB) as ZIP" button above multi-file cards. External-URL files are skipped. One bundle counts as one rate-limit hit and produces one audit-log entry.
-* **User-agent blocklist** on Settings → Security. One pattern per line, case-insensitive substring match against the request `User-Agent` header. Enforced by both the per-file download handler and the new bundle handler.
-* **Featured-first listings** — downloads flagged `Featured` on the Version & License meta box always sort to the top of every listing, regardless of the requested orderby. Existing date / title / count sorts become the secondary sort within each group.
-* **External-only flag** per download — hides local file rows on the public card so only external links render. For the "external URL is canonical, local files are just a backup" pattern.
-* **Nomad addon announced** on the Extensions tab. One-shot jDownloads importer, shipping as its own plugin so Foundation core stays lean.
-
-= 0.9.1 =
-* **Plugin prefix renamed from `isfm` (4 chars) to `isoft_fmf` (8 chars)** to comfortably clear the WordPress.org "don't try to use two- or three-letter prefixes anymore" guidance and reduce collision risk against the 90,000+ plugin directory. Every PHP class (`ISFM_X` → `ISOFT_FMF_X`), function, post type (`isfm_file` → `isoft_fmf_file`), taxonomy (`isfm_category` → `isoft_fmf_category`, `isfm_tag` → `isoft_fmf_tag`), DB table (`wp_isfm_*` → `wp_isoft_fmf_*`), option, postmeta, capability, CSS class (`.isfm-X` → `.isoft-fmf-X`), and custom property (`--isfm-X` → `--isoft-fmf-X`) moves in lockstep. The plugin slug, text domain, REST namespace, and block names already use `isoft-fm-foundation` and stay unchanged.
-* **No migration path** — plugin has not yet shipped publicly. Existing test installs should remove the old `isfm-files/` directory under `wp-content/uploads/` and the `wp_isfm_*` tables, then activate fresh.
-
-= 0.9.0 =
-* **Round-3 WordPress.org review fixes.** Explicit nonce + capability checks on every flagged save path (`save_term_fields`, `ajax_guard_delete`, `enforce_category_on_save`, `save_profile_field`). License + log admin views now self-guard with `current_user_can()`. Upload mime detection no longer trusts `$_FILES['file']['type']` — uses `mime_content_type()` with `wp_check_filetype()` fallback.
-* **Output escaping** — `wp_kses_post()` / `wp_kses()` around every previously phpcs-ignored echo: admin column links, `paginate_links()`, the four search/download-button shortcode outputs, the license agreement HTML block, and the integrity-scan time picker.
-* **`readfile()` instead of an `fread` loop** in the download streamer.
-* **Plugin URI + Author URI** now point at the public GitHub repo (https://github.com/I-SOFT-Mionica/isoft-fm-foundation). Will swap back to isoft.rs once that domain's TLS cert covers the bare hostname.
-* **New == Source code == readme section** explaining where the React/JSX sources for the three Gutenberg blocks live and how to rebuild them with `npm install && npm run build`.
-
-= 0.8.3 =
-* **Lazy-enqueue + defer.** Public CSS/JS only enqueue on pages that actually render plugin content (single download, download archive/taxonomy, post containing one of our shortcodes/blocks). Script now uses `'strategy' => 'defer'`.
-
-= 0.8.2 =
-* **Uninstall cleanup uses the WP API** instead of a wildcard `DELETE` query. Plugin Check no longer flags the direct DB query, and `_isoft_fmf_allowed_categories` user meta now gets removed too (the old wildcard only hit the options table).
-* **`languages/.gitkeep` renamed to `languages/index.php`** with the WordPress "Silence is golden" convention — Plugin Check flagged the dotfile as a hidden file. The folder still exists for the `Domain Path` header to point at.
-
-= 0.8.1 =
-* **Compatibility fixes flagged by Plugin Check after WordPress 7.0 release.** Bumped "Tested up to" to 7.0 and "Requires at least" to 6.7 (the version that introduced `register_block_template()`, which the single-download block template uses). Recreated the empty `languages/` directory the `Domain Path` header points to.
-* Suppressed `WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound` warnings in view, template, block-render, and uninstall files — these "globals" are actually local variables passed by the including class. Added a single `phpcs:disable` line per file with a `--` reason.
-
-= 0.8.0 =
-* **Plugin renamed to "I-Soft File Manager: Foundation"** (slug `isoft-fm-foundation`), per the WordPress.org plugin-review team's accepted name. Internal identifiers (classes `ISOFT_FMF_*`, functions `isoft_fmf_*`, post type `isoft_fmf_file`, taxonomies `isoft_fmf_category`/`isoft_fmf_tag`, database tables `wp_isoft_fmf_*`, options/meta/capabilities `isoft_fmf_*`, CSS classes `.isoft-fmf-*` and `--isoft-fmf-*` custom properties, block namespace `isoft-fm-foundation/*`, REST namespace `isoft-fm-foundation/v1`, file storage dir `isoft-fmf-files/`) all renamed to match. Since the plugin had not yet shipped publicly, no migration path is needed.
-
-= 0.7.2 =
-* **Demo content now creates a showcase page.** Installing demo content also adds a published WP page titled "I-Soft File Manager: Foundation — Demo Page" with three sections demonstrating the Download Entry block (single download), Download List block in list mode, and Download List block in grid mode — so new users can see all three embed patterns side-by-side without manually composing a page. Removed cleanly by the existing Remove Demo Content button.
-
-= 0.7.1 =
-* **Theming docs surfaced in admin.** The Display tab now includes a "Theming" section listing all 18 CSS variables, the public BEM class hierarchy, a copy-paste snippet, and a one-click link to Customizer → Additional CSS. Same content as the readme; previously only visible on the WordPress.org plugin page.
-
-= 0.7.0 =
-* **Theming via CSS custom properties.** Every color in the public stylesheet is now exposed as a `--isoft-fmf-*` variable on `:root`. Override one variable in **Appearance → Customize → Additional CSS** to recolor any element — no selector knowledge needed. Replaces the removed Custom CSS feature with a WordPress-approved customization path.
-* **New "Customizing appearance" section** in this readme listing all 18 variables and the public BEM class hierarchy.
-* **File-type colors deduplicated** — the same color now drives both the list-mode tile and the grid-mode badge for each file type.
-* Grid-mode meta text consolidated from `#555` to `#666` (matches list mode). Override with `--isoft-fmf-meta-color` if you preferred the darker tone.
-
-= 0.6.1 =
-* **Removed Custom CSS textarea** from Settings → Advanced. Arbitrary CSS injection is disallowed by WordPress.org plugin guidelines. Existing `isoft_fmf_custom_css` option rows are deleted on upgrade.
-* **REST hardening.** `/isoft-fm-foundation/v1/stats/overview` and `/isoft-fm-foundation/v1/logs` now require the `isoft_fmf_view_logs` capability instead of the broader `edit_posts`.
-* **Block render escaping.** All three block render callbacks (Download List, Download Entry, Category Grid) now run their HTML through `wp_kses()` with a plugin-specific allowlist.
-* **Inline assets enqueued.** Moved the inline `<style>` block on Settings → Extensions into the admin stylesheet, and replaced the inline `<script>` config in the TinyMCE modal with `wp_localize_script()`.
-* **PHP 8.4 chained constructor calls** rewritten to `( new Class() )->method()` form across 14 sites in 9 files. Functionally identical; satisfies older static analyzers used in plugin review.
-
-= 0.6.0 =
-* **WPCS compliance.** Full WordPress Coding Standards pass — phpcbf auto-fixes plus manual remediation. Zero errors, zero warnings against `phpcs --standard=WordPress`.
-* **i18n audit.** All 440 translatable strings verified; regenerated POT file. Unified duplicate translator comments.
-* **Removed Ghostscript backend** from PDF thumbnail generation. Imagick-only — eliminates `exec()`/`shell_exec()` calls flagged by WPCS.
-* **Updated phpcs.xml.dist** with project-specific rule exclusions and prefix configuration.
-
-= 0.5.3 =
-* **Plugin Check compliance.** Added phpcs suppression comments with rationale for all WordPress Plugin Check warnings (DirectQuery, SlowDBQuery, NonceVerification, InterpolatedNotPrepared). Fixed unescaped output in category deletion guard.
-
-= 0.5.1 =
-* **Fixed: Default Access Role** now applies to new downloads. Previously all new downloads defaulted to "Public" regardless of the setting.
-* **Fixed: Download Counting** toggle now works. Previously downloads were counted unconditionally even when the setting was disabled.
-* **Fixed: Items Per Page** setting now used as the default for `[isoft_fmf_list]` shortcode. Previously hardcoded to 10.
-* **Fixed: Custom CSS** is now enqueued on the frontend via `wp_add_inline_style()`. Previously the CSS was saved but never applied.
-
-= 0.5.0 =
-* **Rate limiting enforced.** The "Rate Limit (per IP/hour)" setting in Security now actually works — uses per-IP transients with 1-hour TTL. Returns HTTP 429 when exceeded. Fires `isoft_fmf_rate_limit_exceeded` action for custom logging.
-* **Hotlink protection enforced.** The "Block downloads from external referers" checkbox now checks HTTP_REFERER against `home_url()` and blocks mismatches with HTTP 403.
-* Registered `isoft_fmf_block_user_agents` and `isoft_fmf_enable_zip_bundle` settings for future versions (user-agent blocklist; one-click ZIP bundle for multi-file downloads).
-
-= 0.4.9 =
-* **`%i` identifier placeholder** across all custom-table queries. Table names and ORDER BY columns now use WP 6.2+ `%i` in `$wpdb->prepare()` instead of string interpolation — eliminates every `InterpolatedNotPrepared` and `UnescapedDBParameter` warning without suppression.
-* Admin columns file count now routes through the cached `ISOFT_FMF_File_Manager::get_files()` — drops both `DirectQuery` and `NoCaching` warnings on the download list screen.
-
-= 0.4.8 =
-* **Object cache layer** for `ISOFT_FMF_File_Manager` and `ISOFT_FMF_License_Manager`. Hot-path reads (`get_files`, `get_file`, `get_all`, `get`) now cache under the `isoft_fmf_files` / `isoft_fmf_licenses` groups with `HOUR_IN_SECONDS` TTL. On a 60-item download listing this collapses N+1 file lookups to a single warm-up query plus cache hits. All write paths bust the affected keys; `ISOFT_FMF_File_Manager::bust_cache_for()` is exposed for external callers (broken-links AJAX, integrity scan, category-folder rename).
-* **5-minute transient cache** for the stats dashboard. New `isoft_fmf_get_stats_overview()` helper wraps the four COUNT(*) + three aggregate queries behind a single `isoft_fmf_stats_overview` transient; both the admin dashboard and the REST `stats/overview` endpoint share the same cache.
-* **SQL-fragment refactor** in `class-log-table`, `class-export`, and `class-rest-api::get_logs`. Removed the `$base_sql` / `$where` string-building pattern; each call site now hands `$wpdb->prepare()` a single literal SQL string per branch, so static analysis can verify it. This kills every `InterpolatedNotPrepared` and `UnescapedDBParameter` warning on those three files with zero suppressions.
-* **Structured suppression sweep** across the remaining Plugin Check warnings: every `phpcs:ignore` now carries a rationale-tagged comment a reviewer can verify locally (write-path / cron / activator / one-shot / false-positive), not a generic "custom table" excuse.
-* 12 new phpunit tests (`FileManagerCacheTest`, `LicenseManagerCacheTest`) covering cache-hit, cache-bust on every write path, and external `bust_cache_for()` invalidation.
-
-= 0.4.7 =
-* **File integrity & broken-link recovery.** New scheduled check detects files missing from disk (configurable daily time). Serve-time detection replaces the raw 404 with a friendly "temporarily unavailable" page and a Contact admin button.
-* **Inode-based rename recovery** (Linux/POSIX). When a file is renamed in place the scan finds it via stored inode + hash verify and auto-relinks. Toggle in Maintenance settings — disable on Windows hosting.
-* **Broken Links admin screen** (Downloads → Broken Links) with per-row recovery: Move back, Reassign download to new category, Split into new draft, Reupload, Detach. Cross-category hunt finds files moved anywhere under the downloads folder.
-* Partial-missing downloads stay published with missing files rendered strike-through; fully-missing downloads auto-unpublish and auto-republish on recovery.
-* New Maintenance settings tab with enable toggle, daily time picker, auto-relink + inode options, and Run Now button.
-* 10 new phpunit tests covering missing-flag detection, idempotent notices, inode relink, auto-republish guard.
-
-= 0.4.6 =
-* Full WordPress Coding Standards (WPCS 3.0) pass: 0 errors, 18 intentional warnings (all with rationale suppressions).
-* PHPUnit test suite added under `tests/` covering activation, file manager CRUD, helpers, and the Cyrillic-slug → ASCII-folder pipeline.
-* Composer requires PHP 8.4 to match the plugin header.
-
-= 0.4.5 =
-* Marked Sentinel and Orbit extensions as "Coming soon" in the Extensions tab.
-
-= 0.4.4 =
-* Frontend query filter hides unpublished downloads from users whose allowed-category set doesn't cover them (via `posts_clauses` for SQL-level OR).
-* Classic editor category metabox filters `get_terms_args` to hide forbidden terms from the picker.
-
-= 0.4.3 =
-* Fixed external-link downloads silently redirecting to `wp-admin` — `wp_safe_redirect()` rejects off-site URLs; switched to `wp_redirect()` with explicit URL validation.
-
-= 0.4.2 =
-* Multi-file grid cards (detected via `:has(.isoft-fmf-download-card__title)`) release the portrait aspect lock and stack files compactly instead of bursting out of a fixed-height tile.
-
-= 0.4.1 =
-* Fixed CSS specificity bug: grid-mode file-type badges rendered grey instead of colored, and list-mode showed duplicate badges.
-
-= 0.4.0 =
-* File-type badges on the public card are now grid-only, removing duplication on single-download views and the Download Button block.
-
-= 0.3.9 =
-* Converted media queries to container queries — the download list now adapts to whatever container it's dropped into (sidebar, full-width, two-column), not the viewport.
-* Most pixel values converted to rem/em where lossless. Kept px for hairlines, tap targets, and dashicon glyph sizing.
-
-= 0.3.8 =
-* Mobile: released the portrait aspect lock on narrow viewports so cards size to their content.
-
-= 0.3.7 =
-* Fixed grid-card title clipping instead of wrapping (cascaded `white-space: nowrap` from list mode).
-
-= 0.3.6 =
-* Grid-card layout rewritten with three fixed bands: 30% title strip, 55% meta block, 15% full-width download button.
-
-= 0.3.5 =
-* Grid card rework: file type as a colored inline badge, title on top with 3-line clamp, full-width bottom button.
-
-= 0.3.4 =
-* Grid tracks switched to `auto-fill minmax` so cells never stretch wider than a card.
-
-= 0.3.3 =
-* Added "Include subcategories" toggle to the Download List block and `[isoft_fmf_list]` shortcode.
-* Rewrite flush on upgrade fixes `isoft_fmf_category` taxonomy archive 404s.
-
-= 0.3.2 =
-* Fixed category ACL lockout on draft save — `can_edit_download()` now permits edits on posts with no assigned category, relying on save-time target enforcement instead.
-* Dropped the broken save-time source-category check (source is already enforced by `map_meta_cap` at screen entry).
-
-= 0.3.1 =
-* Transliterate Cyrillic in `isoft_fmf_file` post slugs to Latin (post slug filter, same pattern as category fix).
-* Fixed dropzone click not opening the file picker — `jQuery.trigger('click')` fires a synthetic event; browsers require a native `click()` for file dialogs.
-
-= 0.3.0 =
-* **User-category ACL** — per-user `_isoft_fmf_allowed_categories` meta with subtree inheritance. `map_meta_cap` gate on edit/delete/publish. `save_post_isoft_fmf_file` target enforcement. Admin list filter. Collapsible category tree on user profile screen. Admins always unrestricted.
-
-= 0.2.9 =
-* **Per-file inline metadata editing** — Edit button on each file row opens an inline editor for title and description.
-
-= 0.2.8 =
-* **Dead-weight purge**: dropped `attachment_id` column via activator migration, removed `attach_media()` + `ajax_attach_media` handler, media-library fallback in download handler + PDF thumbnail, `isoft_fmf_storage_mode` / `isoft_fmf_custom_folder` options, `_isoft_fmf_storage_mode` postmeta, `wp_enqueue_media()` call.
-
-= 0.2.7 =
-* Fixed Cyrillic category slug transliteration — `sanitize_title()` URL-encodes non-ASCII so `force_latin_slug()` needs to `urldecode()` first before testing for Cyrillic.
-
-= 0.2.6 =
-* `created_isoft_fmf_category` / `edited_isoft_fmf_category` hooks bumped to `PHP_INT_MAX` priority so no later callback can overwrite the rewritten slug.
-
-= 0.2.5 =
-* `pre_term_slug` filter to transliterate Cyrillic at slug-generation time.
-
-= 0.2.4 =
-* `force_latin_slug()` DB-level rewrite with uniqueness handling.
-
-= 0.2.3 =
-* **Upload popup rewrite**: Upload / From Folder / External URL tabs. Drag-drop dropzone with per-file XHR progress. Untracked filesystem browser with one-click link.
-* New `ISOFT_FMF_File_Manager::add_local_file()`.
-* Dropped `wp_enqueue_media()` dependency.
-
-= 0.2.2 =
-* PHP 8.4 required. Cleaned up parenthesized `(new X())->` instantiations now that `new X()->` is valid syntax.
-* `const ISOFT_FMF_VERSION` instead of `define()`.
-
-= 0.2.1 =
-* **Custom folder + category filesystem architecture** replacing media-library mode.
-* `isoft-fmf-files/` base directory with `.htaccess` deny-all.
-* Category folders auto-materialize from slug chains. Slug edits rename folders on disk and prefix-replace affected `file_path` rows.
-* Filename sanitization pipeline: extension allow-list, double-extension strip, Cyrillic transliteration, slugify, 80-char cap.
-* Category delete blocks if any download is still assigned.
-* Auto-move files when a download's category changes (`set_object_terms` hook).
-* Download handler serves from `isoft_fmf_files_dir()` with `realpath` traversal guard.
-* `isoft_fmf_allowed_extensions` and `isoft_fmf_cyrillic_titles` settings.
+= 0.2.1 — 0.2.9 =
+* **Category-as-folder architecture introduced.** Creating a category creates a real physical folder on the server.
+* **From Folder browser** for files dropped in via external tools.
+* **Cyrillic-to-Latin transliteration** for safe filesystem storage.
+* **Inline metadata editing** directly from the file list.
 
 == Upgrade Notice ==
 
-= 0.4.6 =
-Code-quality and test-coverage release. No behavior changes, no migration steps. Requires PHP 8.4.
-
-= 0.4.0 =
-This release completes the custom-folder architecture and adds per-user category ACL. Review your editors' allowed-category assignments under **Users → Edit User** after upgrading. Requires PHP 8.4.
+= 0.10.19 =
+If the plugin appeared to install but your uploads kept failing with "Could not save file record," this release surfaces the underlying cause (usually a missing database privilege) and gives you the SQL to fix it. Otherwise routine.
