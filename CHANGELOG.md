@@ -4,6 +4,10 @@ All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads
 
 ## [0.10.18] — 2026-06-19
 
+### Added
+
+- **"External Link Target" setting** (Settings → Display) lets admins choose whether external-URL download buttons open in a new tab (`_blank`, default) or the same window (`_self`). Applies wherever an external-link download button is rendered — `public/views/download-card.php` and `ISOFT_FMF_Shortcodes::render_download_button()`. Local-file downloads are unaffected. New-tab mode also adds `rel="noopener nofollow"` for the standard same-origin / SEO hygiene. Stored as `isoft_fmf_external_link_target`, sanitised via a small whitelist (`_self` | `_blank`) on `ISOFT_FMF_Settings::sanitize_link_target()`.
+
 ### Fixed
 
 - **Auto-mode serve method no longer guesses from `SERVER_SOFTWARE` and silently breaks downloads on hosts where `mod_xsendfile` isn't loaded or the `/isoft-fmf-internal/` nginx alias isn't configured.** Surfaced on the first production install (kc.mionica.rs, 2026-06-19) — every download silently failed because `ISOFT_FMF_Download_Handler::serve_local_file()` was sending `X-Accel-Redirect` headers that nginx had nothing to do with. New private `resolve_serve_method()` collapses auto-mode to PHP streaming until a real capability probe ships (planned for 0.10.19+, design in `project_serve_method_probe` memory). The explicit `xsendfile` and `xaccel` options remain available for admins who know their host supports them.

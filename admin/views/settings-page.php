@@ -181,6 +181,19 @@
 				</td>
 			</tr>
 			<tr>
+				<th><?php esc_html_e( 'External Link Target', 'isoft-fm-foundation' ); ?></th>
+				<td>
+					<?php $target = get_option( 'isoft_fmf_external_link_target', '_blank' ); ?>
+					<select name="isoft_fmf_external_link_target">
+						<option value="_blank" <?php selected( $target, '_blank' ); ?>><?php esc_html_e( 'Open in new tab', 'isoft-fm-foundation' ); ?></option>
+						<option value="_self" <?php selected( $target, '_self' ); ?>><?php esc_html_e( 'Open in same window', 'isoft-fm-foundation' ); ?></option>
+					</select>
+					<p class="description">
+						<?php esc_html_e( 'Where external-URL download buttons open the linked page (e.g. Google Drive, Dropbox). Only affects external links — local files always download in place.', 'isoft-fm-foundation' ); ?>
+					</p>
+				</td>
+			</tr>
+			<tr>
 				<th><?php esc_html_e( 'ZIP Bundle', 'isoft-fm-foundation' ); ?></th>
 				<td>
 					<label>

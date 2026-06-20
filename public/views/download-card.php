@@ -296,11 +296,25 @@ $use_summary  = $is_multi && ! $expand_files;
 					data-agree-title="<?php echo $license ? esc_attr( $license->title ) : esc_attr( get_the_title( $post->ID ) ); ?>">
 					<?php echo esc_html( $btn_text ); ?>
 				</a>
-				<?php else : ?>
+					<?php
+				else :
+					// Local files get HTML5 `download` so click-interceptors back off
+					// and the browser's download manager handles them. External
+					// links are cross-origin from the user's POV (point at Drive,
+					// Dropbox, etc.) — `download` is a no-op there, and admin
+					// chooses whether they open in the same tab or a new one.
+					$is_external_file = 'external' === $file->file_type;
+					if ( $is_external_file ) {
+						$ext_target = get_option( 'isoft_fmf_external_link_target', '_blank' );
+						$ext_attrs  = '_blank' === $ext_target
+							? ' target="_blank" rel="noopener nofollow"'
+							: ' rel="nofollow"';
+					} else {
+						$ext_attrs = ' download rel="nofollow"';
+					}
+					?>
 				<a href="<?php echo esc_url( isoft_fmf_get_download_url( (int) $file->id ) ); ?>"
-					class="wp-element-button isoft-fmf-download-btn"
-					download
-					rel="nofollow">
+					class="wp-element-button isoft-fmf-download-btn"<?php echo $ext_attrs; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static whitelisted attribute set. ?>>
 					<?php echo esc_html( $btn_text ); ?>
 				</a>
 				<?php endif; ?>
