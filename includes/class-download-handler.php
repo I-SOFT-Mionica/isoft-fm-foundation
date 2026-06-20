@@ -186,7 +186,7 @@ class ISOFT_FMF_Download_Handler {
 		// Disable PHP-level gzip. If zlib.output_compression is on, the wire
 		// bytes won't match the Content-Length we promised, and the browser
 		// hangs waiting for the missing tail.
-		@ini_set( 'zlib.output_compression', 'Off' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,WordPress.PHP.IniSet.Risky -- Streaming raw binary download; gzip would break Content-Length, and the @ guards against hosts where ini_set is on a runtime deny-list.
+		@ini_set( 'zlib.output_compression', 'Off' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,WordPress.PHP.IniSet.Risky,Squiz.PHP.DiscouragedFunctions.Discouraged -- Streaming raw binary download; gzip would break Content-Length, and the @ guards against hosts where ini_set is on a runtime deny-list.
 
 		// Force identity transfer-encoding so server-level gzip (Apache
 		// mod_deflate, nginx gzip) doesn't recompress and skew Content-Length.
