@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.0
 Requires PHP: 8.4
-Stable tag: 0.10.19
+Stable tag: 0.10.20
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -283,6 +283,10 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 
 == Changelog ==
 
+= 0.10.20 =
+* **HOT badge and Top Downloads panel now work on new and quiet sites.** The HOT recalculation was looking at the last 7 days only — fine for busy sites but it left brand-new installs and low-traffic sites with an empty Top Downloads panel forever, because there simply wasn't enough recent data. The cron now tries 7 days first, widens to 30 if that's empty, and last-resort falls back to all-time download counts. The Top Downloads dashboard panel labels itself honestly so you can see when it's showing all-time vs recent data.
+* **Fixed: the Top Downloads (Last 30 Days) panel was silently showing 8 days at most**, because the daily aggregate table was being purged too aggressively. The retention is now 32 days, so the panel and the 30-day chart actually show 30 days of data.
+
 = 0.10.19 =
 * **Database setup failures are now visible.** When the plugin can't create its required tables (usually because the WordPress database user lacks `CREATE` privilege — common on locked-down shared hosts), every admin page now shows a clear warning with the exact MySQL error and a ready-to-paste `GRANT` statement to fix it. Previously the install appeared to succeed but every upload silently failed with "Could not save file record" and the admin had no clue why.
 * **More helpful upload and save errors.** Failed file uploads now report the specific reason (file too large, server out of temp space, security plugin blocked it, etc.) instead of a generic "upload error." Failed database saves include the underlying MySQL error so you can see whether a column is missing, the disk is full, or something else.
@@ -340,6 +344,9 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 * **Inline metadata editing** directly from the file list.
 
 == Upgrade Notice ==
+
+= 0.10.20 =
+HOT downloads and the Top Downloads dashboard panel now work on new and low-traffic sites (silent fallback to all-time when there's no recent data). The 30-day chart and panel now actually cover 30 days of data instead of 8.
 
 = 0.10.19 =
 If the plugin appeared to install but your uploads kept failing with "Could not save file record," this release surfaces the underlying cause (usually a missing database privilege) and gives you the SQL to fix it. Otherwise routine.
