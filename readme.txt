@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.0
 Requires PHP: 8.4
-Stable tag: 0.10.18
+Stable tag: 0.10.19
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -279,6 +279,10 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 5. Download handler settings — security, logging, and serve method.
 
 == Changelog ==
+
+= 0.10.19 =
+* **Database setup failures are now visible.** When the plugin can't create its required tables (usually because the WordPress database user lacks `CREATE` privilege — common on locked-down shared hosts), every admin page now shows a clear warning with the exact MySQL error and a ready-to-paste GRANT statement to fix it. Previously the install appeared to succeed but every file upload, external link, and from-folder action silently failed with "Could not save file record" and the admin had no clue why.
+* **More helpful upload and save errors.** Failed file uploads now report the specific reason (file too large, server out of temp space, security plugin blocked it, etc.) instead of a generic "upload error". Failed database saves include the underlying MySQL error so the admin can see whether a column is missing, the disk is full, or something else.
 
 = 0.10.18 =
 * **New: "External Link Target" setting under Settings → Display.** Choose whether external-URL download buttons (Google Drive, Dropbox, etc.) open in a new tab or the same window. Defaults to new tab — the modern web convention and what visitors usually expect for off-site links. Local-file downloads are unaffected (always download in place).
