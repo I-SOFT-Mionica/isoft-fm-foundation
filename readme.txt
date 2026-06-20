@@ -59,6 +59,105 @@ This design exists so automation tools can sync files in and out without having 
 * Apache with `mod_rewrite` + `mod_authz_core` **or** Nginx (see Settings → Security for configuration snippets)
 * For PDF thumbnails: Imagick PHP extension
 
+== Shortcodes ==
+
+Foundation ships eight shortcodes. Drop them in any classic-editor page, any Gutenberg "Shortcode" block, or any builder's HTML / Shortcode widget (see the builder-compatibility FAQ below). Every `category` and `tag` attribute accepts either the term **slug** (preferred — stable across exports) or its numeric **term ID**. Slugs are visible on the Downloads → Categories screen and as the chip next to the category name on the download edit screen.
+
+= [isoft_fmf_list] — filtered list of downloads =
+
+Renders a grid, list, or table of downloads. Same renderer as the Download List block.
+
+| Attribute | Default | What |
+|---|---|---|
+| `category` | empty | slug or term ID; empty = all categories |
+| `include_subcategories` | `"1"` | also include downloads in descendant categories; `"0"` restricts to the exact category |
+| `tag` | empty | slug or term ID |
+| `limit` | per-page setting | how many to render |
+| `orderby` | `"date"` | `date` / `title` / `download_count` / any WP_Query orderby |
+| `order` | `"DESC"` | `ASC` / `DESC` |
+| `layout` | display setting | `grid` / `list` / `table` |
+| `show_search` | `"0"` | render a search box scoped to the same category |
+
+Common recipes:
+
+`[isoft_fmf_list category="resolutions"]`
+`[isoft_fmf_list category="resolutions" layout="grid" limit="12"]`
+`[isoft_fmf_list category="resolutions" orderby="download_count"]`
+`[isoft_fmf_list category="resolutions" show_search="1"]`
+
+= [isoft_fmf_download id="123"] — a single download card =
+
+Renders one download's full card by post ID.
+
+| Attribute | Default | What |
+|---|---|---|
+| `id` | required | the download post ID |
+| `show_description` | `"1"` | include the description below the title |
+| `show_files` | `"1"` | render the per-file list with download buttons |
+| `style` | `"card"` | `card` / `compact` / `button-only` |
+
+= [isoft_fmf_categories] — category grid =
+
+Clickable cards leading to each category's archive page. Same renderer as the Category Grid block.
+
+| Attribute | Default | What |
+|---|---|---|
+| `parent` | `0` | term ID of the parent category to show children of; `0` shows top-level |
+| `columns` | `3` | grid columns |
+| `show_count` | `"1"` | show the count of downloads per category |
+| `show_description` | `"1"` | show the category description text |
+
+= [isoft_fmf_search] — search box =
+
+Renders a search form that filters Foundation downloads.
+
+| Attribute | Default | What |
+|---|---|---|
+| `category` | empty | scope the search to a single category (slug or term ID) |
+| `placeholder` | "Search downloads…" | the input placeholder text |
+
+= [isoft_fmf_recent] — latest downloads =
+
+Pre-set list, newest first.
+
+| Attribute | Default | What |
+|---|---|---|
+| `limit` | `5` | how many to render |
+| `days` | `0` | restrict to downloads posted in the last N days; `0` = no time limit |
+| `category` | empty | scope to a single category |
+
+= [isoft_fmf_popular] — most-downloaded =
+
+Pre-set list, ordered by download count.
+
+| Attribute | Default | What |
+|---|---|---|
+| `limit` | `5` | how many to render |
+| `period` | `"all"` | `all` / `30d` / `7d` |
+| `category` | empty | scope to a single category |
+
+= [isoft_fmf_button file_id="42"] — a single download button =
+
+Renders just a download button for one specific file (not the whole download post). Useful inline in body content.
+
+| Attribute | Default | What |
+|---|---|---|
+| `file_id` | required | the file ID (visible in the per-file list on the download edit screen) |
+| `text` | "Download" | button label |
+| `class` | empty | extra CSS classes appended to the button |
+
+= [isoft_fmf_count] — download counter =
+
+Renders just a number — either a single file's count or a whole download post's total.
+
+| Attribute | Default | What |
+|---|---|---|
+| `id` | `0` | download post ID (uses the post's aggregate counter) |
+| `file_id` | `0` | specific file ID (uses that file's counter) |
+| `format` | `"%s"` | sprintf format string for the number, e.g. `"%s downloads"` |
+
+Exactly one of `id` or `file_id` should be set.
+
 == Frequently Asked Questions ==
 
 = Why not just use the Media Library? =
