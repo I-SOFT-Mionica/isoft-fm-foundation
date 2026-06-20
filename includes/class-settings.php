@@ -139,16 +139,17 @@ class ISOFT_FMF_Settings {
 				'isoft_fmf_cyrillic_titles'         => 'absint',
 			),
 			'isoft_fmf_display'     => array(
-				'isoft_fmf_default_button_text' => 'sanitize_text_field',
-				'isoft_fmf_listing_layout'      => 'sanitize_text_field',
-				'isoft_fmf_items_per_page'      => 'absint',
-				'isoft_fmf_show_file_size'      => 'absint',
-				'isoft_fmf_show_download_count' => 'absint',
-				'isoft_fmf_show_date'           => 'absint',
-				'isoft_fmf_date_format'         => 'sanitize_text_field',
-				'isoft_fmf_enable_zip_bundle'   => 'absint',
-				'isoft_fmf_enable_zip_cache'    => 'absint',
-				'isoft_fmf_zip_cache_days'      => 'absint',
+				'isoft_fmf_default_button_text'  => 'sanitize_text_field',
+				'isoft_fmf_listing_layout'       => 'sanitize_text_field',
+				'isoft_fmf_items_per_page'       => 'absint',
+				'isoft_fmf_show_file_size'       => 'absint',
+				'isoft_fmf_show_download_count'  => 'absint',
+				'isoft_fmf_show_date'            => 'absint',
+				'isoft_fmf_date_format'          => 'sanitize_text_field',
+				'isoft_fmf_enable_zip_bundle'    => 'absint',
+				'isoft_fmf_enable_zip_cache'     => 'absint',
+				'isoft_fmf_zip_cache_days'       => 'absint',
+				'isoft_fmf_external_link_target' => array( $this, 'sanitize_link_target' ),
 			),
 			'isoft_fmf_security'    => array(
 				'isoft_fmf_serve_method'           => 'sanitize_text_field',
@@ -186,6 +187,14 @@ class ISOFT_FMF_Settings {
 			return sprintf( '%02d:%02d', $h, $i );
 		}
 		return '02:30';
+	}
+
+	/**
+	 * Whitelist HTML link target attribute values. Anything else collapses
+	 * to '_blank' (the default we ship with).
+	 */
+	public function sanitize_link_target( $value ): string {
+		return in_array( $value, array( '_self', '_blank' ), true ) ? $value : '_blank';
 	}
 
 	public function handle_flush_rewrite(): void {

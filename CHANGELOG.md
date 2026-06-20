@@ -2,6 +2,27 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.10.18] — 2026-06-19
+
+### Added
+
+- **"External Link Target" setting** (Settings → Display) lets admins choose whether external-URL download buttons open in a new tab (`_blank`, default) or the same window (`_self`). Applies wherever an external-link download button is rendered — `public/views/download-card.php` and `ISOFT_FMF_Shortcodes::render_download_button()`. Local-file downloads are unaffected. New-tab mode also adds `rel="noopener nofollow"` for the standard same-origin / SEO hygiene. Stored as `isoft_fmf_external_link_target`, sanitised via a small whitelist (`_self` | `_blank`) on `ISOFT_FMF_Settings::sanitize_link_target()`.
+
+### Fixed
+
+- **Auto-mode serve method no longer guesses from `SERVER_SOFTWARE` and silently breaks downloads on hosts where `mod_xsendfile` isn't loaded or the `/isoft-fmf-internal/` nginx alias isn't configured.** Surfaced on a production install where every download silently failed — `ISOFT_FMF_Download_Handler::serve_local_file()` was sending `X-Accel-Redirect` headers that nginx had nothing to do with. New private `resolve_serve_method()` collapses auto-mode to PHP streaming until a real capability probe ships (planned for 0.10.19+, design in `project_serve_method_probe` memory). The explicit `xsendfile` and `xaccel` options remain available for admins who know their host supports them.
+- **PHP-streaming downloads no longer hang on hosts with output gzip, nested output buffers, or aggressive FastCGI/nginx upstream buffering.** `php_stream()` now:
+  - Drains every level of output buffering in a `while ( ob_get_level() )` loop instead of the old single `if`. A leftover buffer holds the entire response in PHP memory until script exit, which on slow connections looks like a stuck download.
+  - Disables PHP-level `zlib.output_compression`. If on, the wire byte count doesn't match the `Content-Length` we promised, and the browser hangs waiting for the missing tail.
+  - Sets `Content-Encoding: identity` on the response so server-level gzip (Apache `mod_deflate`, nginx `gzip on`) doesn't recompress the body and skew `Content-Length`.
+  - Streams the file in 8 KB chunks with explicit `flush()` after each chunk, instead of one big `readfile()` call. Forces bytes to hit the FastCGI / upstream buffer immediately rather than being held until the PHP script exits.
+  - Retains `readfile()` as a last-resort fallback if `fopen()` returns false.
+  - Loop guards: `false === $chunk` (read error) and `'' === $chunk` (EOF before feof flips) both break out so a bad handle can't spin until `max_execution_time` fatals.
+- **Publishing a Cyrillic-titled download no longer gets stuck on the locale-specific auto-draft slug.** WordPress creates auto-drafts with `post_name = sanitize_title( __( 'Auto Draft' ) )` — under sr-RS Latin that's `automatski-nacrt`, under en_US it's `auto-draft`, etc. The original `latinize_slug()` filter preferred the existing non-empty `post_name` over the `post_title`, and the auto-draft default contains no Cyrillic for the existing detection branch to trigger. Result: every Cyrillic-titled download published from a fresh auto-draft kept the placeholder slug forever. Fix: `ISOFT_FMF_Post_Type::latinize_slug()` now also fires when the post is transitioning out of `'auto-draft'` status (detected via `get_post_field( 'post_status', $postarr['ID'] )`) and the title has Cyrillic. User-customised slugs (post already in draft/publish with a manually edited permalink) are still preserved. Locale-independent — works for any auto-draft default string because it keys on status transition, not slug content.
+- **Download links no longer silently fail on themes that use AJAX navigation** (djax, pjax, swup, hotwire-turbo, instantclick, etc.). Those libraries intercept every `<a>` click and XHR-fetch the target expecting HTML; when the response is a binary file (PDF, ZIP), jQuery's HTML parser explodes on the file header (`%PDF-1.7…`) and the browser's native download handler never runs. Surfaced on a production install running a theme that bundles djax (visible in the browser console as `jquery.min.js:Sizzle Syntax error, unrecognized expression: %PDF-1.71 0 obj<<...`). Two defenses:
+  - Direct download / bundle `<a>` tags now ship with the HTML5 `download` attribute and `rel="nofollow"`, which most interceptors respect as "don't intercept this — it's a file." Added in `public/views/download-card.php` (3 sites) and `includes/class-shortcodes.php::render_download_button()`. External links are exempt (browsers ignore `download` cross-origin).
+  - `public/js/public-script.js` adds a capture-phase click handler on `.isoft-fmf-download-btn` that calls `stopImmediatePropagation()`. Capture phase runs before the theme's bubble-phase handler, so the interceptor never sees the click. Skips `.isoft-fmf-requires-agree` buttons — those have their own modal flow.
+
 ## [0.10.17] — 2026-06-19
 
 ### Changed

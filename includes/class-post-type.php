@@ -12,25 +12,63 @@ class ISOFT_FMF_Post_Type {
 
 	/**
 	 * Transliterate Cyrillic in isoft_fmf_file post slugs to Latin.
-	 * sanitize_title() URL-percent-encodes non-ASCII, so by the time we see
+	 *
+	 * Sanitize_title() URL-percent-encodes non-ASCII, so by the time we see
 	 * post_name it may be either raw Cyrillic or %XX sequences — urldecode
 	 * first before inspecting.
+	 *
+	 * Three cases to handle:
+	 *
+	 *   A. post_name itself contains Cyrillic (raw or %XX). Transliterate.
+	 *
+	 *   B. post_title is Cyrillic AND post_name is empty. Derive from title.
+	 *
+	 *   C. post_title is Cyrillic AND post_name is the auto-draft default
+	 *      carried over from when WordPress created the placeholder draft
+	 *      (e.g. "automatski-nacrt" under sr-RS Latin, "auto-draft" under
+	 *      en_US — sanitize_title( __( 'Auto Draft' ) ) varies by locale).
+	 *      Without this case, publishing a Cyrillic-titled draft for the
+	 *      first time keeps the locale-specific auto-draft slug forever
+	 *      because the original logic preferred a non-empty post_name and
+	 *      the auto-draft default contains no Cyrillic to trigger Case A.
+	 *
+	 * User-customised slugs (post already exists, user edited the permalink)
+	 * are preserved — only auto-draft transitions trigger Case C.
 	 */
 	public function latinize_slug( array $data, array $postarr ): array {
-		unset( $postarr );
 		if ( 'isoft_fmf_file' !== ( $data['post_type'] ?? '' ) ) {
 			return $data;
 		}
 
-		$source = $data['post_name'] !== '' ? $data['post_name'] : $data['post_title'];
-		if ( '' === $source ) {
+		$title = $data['post_title'] ?? '';
+		$name  = $data['post_name'] ?? '';
+
+		// Case A: post_name itself is Cyrillic.
+		$name_decoded = urldecode( $name );
+		if ( '' !== $name_decoded && preg_match( '/\p{Cyrillic}/u', $name_decoded ) ) {
+			$data['post_name'] = sanitize_title( isoft_fmf_cyrillic_to_latin( $name_decoded ) );
 			return $data;
 		}
 
-		$decoded = urldecode( $source );
-		if ( preg_match( '/\p{Cyrillic}/u', $decoded ) ) {
-			$data['post_name'] = sanitize_title( isoft_fmf_cyrillic_to_latin( $decoded ) );
+		// Cases B and C require a Cyrillic title.
+		if ( '' === $title || ! preg_match( '/\p{Cyrillic}/u', $title ) ) {
+			return $data;
 		}
+
+		// Case B: empty post_name. Derive from title.
+		if ( '' === $name ) {
+			$data['post_name'] = sanitize_title( isoft_fmf_cyrillic_to_latin( urldecode( $title ) ) );
+			return $data;
+		}
+
+		// Case C: transitioning out of auto-draft. Replace the locale-specific
+		// auto-draft default with a slug derived from the real title.
+		$post_id    = (int) ( $postarr['ID'] ?? 0 );
+		$old_status = $post_id ? get_post_field( 'post_status', $post_id ) : '';
+		if ( 'auto-draft' === $old_status ) {
+			$data['post_name'] = sanitize_title( isoft_fmf_cyrillic_to_latin( urldecode( $title ) ) );
+		}
+
 		return $data;
 	}
 
