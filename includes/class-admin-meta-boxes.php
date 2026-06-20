@@ -27,6 +27,47 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 		return (int) $terms[0];
 	}
 
+	/**
+	 * Append the most recent MySQL error (if any) to an AJAX error message
+	 * so the admin can see *why* a DB write failed instead of a generic
+	 * "Could not save…". These endpoints are capability-gated to users who
+	 * can edit the post, so exposing the raw MySQL error to them is safe.
+	 *
+	 * Surfaced when a host's WP DB user lacked CREATE — every AJAX endpoint
+	 * just said "Could not save file record" with no clue the underlying
+	 * cause was "Table 'wp_isoft_fmf_files' doesn't exist".
+	 */
+	private static function db_error_suffix(): string {
+		global $wpdb;
+		return $wpdb->last_error ? ' (' . $wpdb->last_error . ')' : '';
+	}
+
+	/**
+	 * Map a PHP UPLOAD_ERR_* code to a human-readable explanation of what
+	 * actually went wrong. The default WordPress message is the same for
+	 * every failure mode ("upload error") which tells the admin nothing.
+	 */
+	private static function upload_error_message( int $code ): string {
+		switch ( $code ) {
+			case UPLOAD_ERR_INI_SIZE:
+				return __( 'The file is larger than the server allows (php.ini upload_max_filesize). Ask your host to raise it.', 'isoft-fm-foundation' );
+			case UPLOAD_ERR_FORM_SIZE:
+				return __( 'The file is larger than the form size limit.', 'isoft-fm-foundation' );
+			case UPLOAD_ERR_PARTIAL:
+				return __( 'Upload was interrupted before completing. Try again.', 'isoft-fm-foundation' );
+			case UPLOAD_ERR_NO_FILE:
+				return __( 'No file was uploaded.', 'isoft-fm-foundation' );
+			case UPLOAD_ERR_NO_TMP_DIR:
+				return __( 'Server is missing a temporary upload folder. This is a host-level configuration issue.', 'isoft-fm-foundation' );
+			case UPLOAD_ERR_CANT_WRITE:
+				return __( 'Server could not write the upload to disk — check upload directory permissions.', 'isoft-fm-foundation' );
+			case UPLOAD_ERR_EXTENSION:
+				return __( 'A PHP extension blocked the upload (often a security plugin or mod_security rule).', 'isoft-fm-foundation' );
+			default:
+				return __( 'Upload error (unknown cause).', 'isoft-fm-foundation' );
+		}
+	}
+
 	public function enqueue( string $hook ): void {
 		global $post_type;
 		if ( ! in_array( $hook, array( 'post.php', 'post-new.php' ), true ) || 'isoft_fmf_file' !== $post_type ) {
@@ -235,7 +276,7 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 			wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'isoft-fm-foundation' ) ), 403 );
 		}
 		if ( ! ( new ISOFT_FMF_File_Manager() )->delete_file( $file_id ) ) {
-			wp_send_json_error( array( 'message' => __( 'Could not delete file.', 'isoft-fm-foundation' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Could not delete file.', 'isoft-fm-foundation' ) . self::db_error_suffix() ) );
 		}
 		wp_send_json_success();
 	}
@@ -276,7 +317,7 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 			)
 		);
 		if ( ! $file_id ) {
-			wp_send_json_error( array( 'message' => __( 'Could not add link.', 'isoft-fm-foundation' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Could not add link.', 'isoft-fm-foundation' ) . self::db_error_suffix() ) );
 		}
 		wp_send_json_success( array( 'file_id' => $file_id ) );
 	}
@@ -302,7 +343,7 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 		$description = sanitize_textarea_field( wp_unslash( $_POST['description'] ?? '' ) );
 
 		if ( ! $manager->update_meta( $file_id, $title, $description ) ) {
-			wp_send_json_error( array( 'message' => __( 'Could not save changes.', 'isoft-fm-foundation' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Could not save changes.', 'isoft-fm-foundation' ) . self::db_error_suffix() ) );
 		}
 
 		wp_send_json_success( array( 'file' => $manager->get_file( $file_id ) ) );
@@ -320,8 +361,13 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 			wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'isoft-fm-foundation' ) ), 403 );
 		}
 
-		if ( empty( $_FILES['file'] ) || ! empty( $_FILES['file']['error'] ) ) {
-			wp_send_json_error( array( 'message' => __( 'No file uploaded or upload error.', 'isoft-fm-foundation' ) ) );
+		if ( empty( $_FILES['file'] ) ) {
+			wp_send_json_error( array( 'message' => __( 'No file received by the server. The request may have been blocked by a security plugin or rejected at the web-server level.', 'isoft-fm-foundation' ) ) );
+		}
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- Reading the PHP-set integer error code; no admin input.
+		$upload_error_code = isset( $_FILES['file']['error'] ) ? (int) $_FILES['file']['error'] : UPLOAD_ERR_NO_FILE;
+		if ( UPLOAD_ERR_OK !== $upload_error_code ) {
+			wp_send_json_error( array( 'message' => self::upload_error_message( $upload_error_code ) ) );
 		}
 
 		$category_id = self::get_download_category( $download_id );
@@ -372,7 +418,7 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 			WP_Filesystem();
 		}
 		if ( ! $wp_filesystem->move( $handled['file'], $target_abs, true ) ) {
-			wp_send_json_error( array( 'message' => __( 'Failed to save the uploaded file.', 'isoft-fm-foundation' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Failed to write the uploaded file to the category folder. Check write permissions on wp-content/uploads/isoft-fmf-files/.', 'isoft-fm-foundation' ) ) );
 		}
 
 		// Mime resolution: prefer server-side magic-byte detection, fall back
@@ -400,7 +446,7 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 
 		if ( ! $file_id ) {
 			wp_delete_file( $target_abs );
-			wp_send_json_error( array( 'message' => __( 'Could not save file record.', 'isoft-fm-foundation' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Could not save file record.', 'isoft-fm-foundation' ) . self::db_error_suffix() ) );
 		}
 
 		wp_send_json_success( array( 'file' => $manager->get_file( $file_id ) ) );
@@ -506,7 +552,7 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 		);
 
 		if ( ! $file_id ) {
-			wp_send_json_error( array( 'message' => __( 'Could not save file record.', 'isoft-fm-foundation' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Could not save file record.', 'isoft-fm-foundation' ) . self::db_error_suffix() ) );
 		}
 
 		wp_send_json_success( array( 'file' => $manager->get_file( $file_id ) ) );

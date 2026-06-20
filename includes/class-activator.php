@@ -5,16 +5,124 @@ class ISOFT_FMF_Activator {
 
 	public static function activate(): void {
 		$from_version = (string) get_option( 'isoft_fmf_db_version', '0.0.0' );
+
 		self::create_tables();
+
+		// Verify the tables actually came into existence. dbDelta() does NOT
+		// throw on permission failures — it just emits a MySQL error and
+		// returns. If we stamped isoft_fmf_db_version anyway, the
+		// plugins_loaded recovery check would think the install is current
+		// and never retry, leaving every AJAX write failing on a missing
+		// table forever. Surfaced on a real install where the DB user had
+		// SELECT/INSERT/UPDATE/DELETE but no CREATE.
+		global $wpdb;
+		$missing = self::missing_tables();
+		if ( ! empty( $missing ) ) {
+			update_option(
+				'isoft_fmf_install_errors',
+				array(
+					'missing_tables' => $missing,
+					'last_error'     => (string) $wpdb->last_error,
+					'last_attempt'   => time(),
+				),
+				false
+			);
+			// Don't stamp db_version. The plugins_loaded check in the bootstrap
+			// will re-enter activate() on the next admin request, so once the
+			// host fixes the grant the install completes on its own.
+			return;
+		}
+
+		// All tables present. Clear any stale install-error state from a
+		// previous failed attempt, then run the rest of the install.
+		delete_option( 'isoft_fmf_install_errors' );
+
 		self::drop_legacy_columns();
 		self::register_capabilities();
 		self::seed_licenses();
 		self::create_file_storage();
 		self::run_migrations( $from_version );
+
 		// Can't flush here — the 'isoft_fmf_file' CPT isn't registered yet at activation-hook time
 		// (plugins_loaded hasn't fired). Set a flag; ISOFT_FMF_Post_Type::register() will flush
 		// on the very next request after the CPT is in place.
 		update_option( 'isoft_fmf_flush_rewrite_rules', 1 );
+		update_option( 'isoft_fmf_db_version', ISOFT_FMF_VERSION );
+	}
+
+	/**
+	 * Names of any plugin tables that don't exist in the current database.
+	 * Empty array means the schema is complete.
+	 *
+	 * @return string[]
+	 */
+	public static function missing_tables(): array {
+		global $wpdb;
+		$expected = array(
+			"{$wpdb->prefix}isoft_fmf_files",
+			"{$wpdb->prefix}isoft_fmf_download_log",
+			"{$wpdb->prefix}isoft_fmf_download_daily",
+			"{$wpdb->prefix}isoft_fmf_licenses",
+		);
+		$missing  = array();
+		foreach ( $expected as $table ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Schema introspection; can't be cached because the answer changes on activation.
+			$found = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) );
+			if ( ! $found ) {
+				$missing[] = $table;
+			}
+		}
+		return $missing;
+	}
+
+	/**
+	 * Admin notice when the install is half-finished because the DB user
+	 * couldn't create one or more tables. Shows the exact MySQL error and a
+	 * ready-to-paste GRANT for the current DB user and database name.
+	 *
+	 * Hooked on admin_notices from the plugin bootstrap.
+	 */
+	public static function render_install_error_notice(): void {
+		$errors = get_option( 'isoft_fmf_install_errors' );
+		if ( ! is_array( $errors ) || empty( $errors['missing_tables'] ) ) {
+			return;
+		}
+		if ( ! current_user_can( 'activate_plugins' ) ) {
+			return;
+		}
+
+		// Escape underscores in the DB name so the GRANT matches the literal
+		// database (otherwise the underscore is a wildcard and cPanel hosts
+		// commonly have a separate literal-escape grant row that takes
+		// precedence — chasing this exact failure mode is what motivated
+		// surfacing this notice in the first place).
+		$db_name_literal = str_replace( '_', '\\_', DB_NAME );
+		$grant_sql       = sprintf(
+			"GRANT CREATE, ALTER, INDEX, REFERENCES, DROP ON `%s`.* TO '%s'@'localhost';\nFLUSH PRIVILEGES;",
+			$db_name_literal,
+			DB_USER
+		);
+		?>
+		<div class="notice notice-error">
+			<p>
+				<strong><?php esc_html_e( 'I-Soft File Manager: Foundation — database tables could not be created.', 'isoft-fm-foundation' ); ?></strong>
+			</p>
+			<p>
+				<?php esc_html_e( 'The plugin needs these tables but they are not present:', 'isoft-fm-foundation' ); ?>
+				<code><?php echo esc_html( implode( ', ', $errors['missing_tables'] ) ); ?></code>
+			</p>
+			<?php if ( ! empty( $errors['last_error'] ) ) : ?>
+				<p>
+					<?php esc_html_e( 'MySQL reported:', 'isoft-fm-foundation' ); ?>
+					<code><?php echo esc_html( $errors['last_error'] ); ?></code>
+				</p>
+			<?php endif; ?>
+			<p>
+				<?php esc_html_e( 'Most commonly, the WordPress database user lacks the CREATE privilege. Ask your host (or run as MySQL root yourself) to grant the missing privileges, then deactivate and reactivate this plugin to retry:', 'isoft-fm-foundation' ); ?>
+			</p>
+			<pre style="background:#f6f7f7;border:1px solid #c3c4c7;padding:.8em;overflow:auto;font-size:12px;"><?php echo esc_html( $grant_sql ); ?></pre>
+		</div>
+		<?php
 	}
 
 	/**
@@ -187,7 +295,10 @@ HTACCESS;
 		) $charset_collate;"
 		);
 
-		update_option( 'isoft_fmf_db_version', ISOFT_FMF_VERSION );
+		// db_version stamping moved to activate() — only stamp after we've
+		// verified the tables actually exist. Stamping here let dbDelta
+		// silently fail (e.g. when the DB user lacks CREATE) while the
+		// option still updated, masking the install failure forever.
 	}
 
 	/**

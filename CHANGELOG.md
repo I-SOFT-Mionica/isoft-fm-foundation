@@ -2,6 +2,19 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.10.19] — 2026-06-20
+
+### Added
+
+- **`ISOFT_FMF_Activator::missing_tables()`** — public static helper that returns the list of plugin tables not present in the current database. Used by the activator to verify dbDelta actually created the tables before stamping `isoft_fmf_db_version`.
+- **`ISOFT_FMF_Activator::render_install_error_notice()`** — admin notice rendered on every admin page while the install is half-finished (tables missing). Lists the missing tables, surfaces `$wpdb->last_error` from the last attempt, and prints a ready-to-paste `GRANT CREATE, ALTER, INDEX, REFERENCES, DROP ON \`{DB_NAME-escaped}\`.* TO '{DB_USER}'@'localhost';` parameterised for the current install. Hooked from the plugin bootstrap.
+- **`ISOFT_FMF_Admin_Meta_Boxes::db_error_suffix()` / `upload_error_message()`** — private helpers that append the most recent `$wpdb->last_error` to AJAX "Could not save" / "Could not delete" messages and map `UPLOAD_ERR_*` codes to specific human-readable explanations (file too large vs. PHP no_tmp_dir vs. extension blocked, etc.). Applied to every relevant `wp_send_json_error()` call: `ajax_delete_file`, `ajax_add_external`, `ajax_update_file_meta`, `ajax_upload_file`, `ajax_import_file`.
+
+### Fixed
+
+- **Half-finished installs are no longer silent.** `ISOFT_FMF_Activator::activate()` used to call `dbDelta()` and immediately stamp `isoft_fmf_db_version = ISOFT_FMF_VERSION` regardless of whether the CREATE TABLE statements succeeded. On hosts where the WP DB user lacks `CREATE` privilege (very common on cPanel-style shared hosts with `SELECT, INSERT, UPDATE, DELETE, EXECUTE` grants only) dbDelta emitted a MySQL error but returned normally; the option still updated; the `plugins_loaded` recovery check then thought the install was current and never retried. Every AJAX write subsequently failed on `Table 'wp_isoft_fmf_files' doesn't exist`. The activator now: (1) runs dbDelta as before, (2) calls `missing_tables()` to verify, (3) on failure persists the missing-tables list + `$wpdb->last_error` to `isoft_fmf_install_errors` and returns WITHOUT stamping the version (so `plugins_loaded` retries on the next admin request once the grant is fixed), (4) on success clears any stale error state and continues with the rest of `activate()`. `db_version` is now stamped from `activate()` itself, not inside `create_tables()`.
+- **AJAX failure messages no longer hide the root cause.** Every "Could not save file record" / "Could not add link" / "Could not delete file" message now appends `(MYSQL_ERROR_TEXT)` when `$wpdb->last_error` is non-empty. Admin-only context, no info-leak concern. The upload-file endpoint maps `$_FILES['file']['error']` through `UPLOAD_ERR_*` constants instead of folding every failure into "No file uploaded or upload error" — admins now see "File is larger than the server allows (php.ini upload_max_filesize). Ask your host to raise it." or "PHP extension blocked the upload (often a security plugin or mod_security rule)." etc. The "Failed to save uploaded file" filesystem-move error now hints at the storage-dir permission check.
+
 ## [0.10.18] — 2026-06-19
 
 ### Added

@@ -3,7 +3,7 @@
  * Plugin Name: I-Soft File Manager: Foundation
  * Plugin URI:  https://github.com/I-SOFT-Mionica/isoft-fm-foundation
  * Description: Hierarchical file download manager — categories, multi-file entries, secure download handler, audit logging, and role-based access control.
- * Version:     0.10.18
+ * Version:     0.10.19
  * Author:      I-SOFT Mionica
  * Author URI:  https://github.com/I-SOFT-Mionica
  * License:     GPL v2 or later
@@ -16,7 +16,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-const ISOFT_FMF_VERSION = '0.10.18';
+const ISOFT_FMF_VERSION = '0.10.19';
 define( 'ISOFT_FMF_PLUGIN_FILE', __FILE__ );
 define( 'ISOFT_FMF_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'ISOFT_FMF_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -45,6 +45,11 @@ register_deactivation_hook( __FILE__, array( 'ISOFT_FMF_Deactivator', 'deactivat
 
 // Ensure custom capabilities are always registered (guards against activation timing issues).
 add_action( 'init', array( 'ISOFT_FMF_Activator', 'maybe_register_capabilities' ) );
+
+// Surface install failures (typically the DB user lacks CREATE) — without this
+// the AJAX endpoints would fail with vague "Could not save file record"
+// messages forever and the admin would have no clue why.
+add_action( 'admin_notices', array( 'ISOFT_FMF_Activator', 'render_install_error_notice' ) );
 
 // If the stored version differs from the current version, queue a rewrite flush and
 // run dbDelta so new table columns appear without manual deactivate/reactivate.
