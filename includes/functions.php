@@ -494,6 +494,7 @@ function isoft_fmf_mime_icon_class( string $ext ): string {
  *     total_log_entries:int,
  *     top_alltime:array<object>,
  *     top_30d:array<object>,
+ *     top_30d_window:string,
  *     daily_30d:array<object>
  * }
  */
@@ -506,6 +507,55 @@ function isoft_fmf_get_stats_overview(): array {
 	global $wpdb;
 
 	// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Aggregate dashboard query; result cached as 'isoft_fmf_stats_overview' transient for 5 minutes (acceptable freshness for stats).
+
+	$top_alltime = $wpdb->get_results(
+		"SELECT p.ID, p.post_title, COALESCE(SUM(f.download_count),0) AS total_count
+		   FROM {$wpdb->posts} p
+		   LEFT JOIN {$wpdb->prefix}isoft_fmf_files f ON f.download_id = p.ID
+		  WHERE p.post_type = 'isoft_fmf_file' AND p.post_status = 'publish'
+		  GROUP BY p.ID, p.post_title
+		  ORDER BY total_count DESC
+		  LIMIT 10"
+	) ?: array();
+
+	// Top 30d and the daily chart both read from isoft_fmf_download_daily
+	// (the aggregate table the logger maintains alongside the per-click
+	// log). It's the canonical source for time-bucketed counts — faster
+	// than scanning the full log, and the only table the HOT cron uses
+	// for the same reason. The per-click isoft_fmf_download_log table
+	// remains the source for the Log viewer (audit trail per event).
+	$top_30d = $wpdb->get_results(
+		$wpdb->prepare(
+			"SELECT d.download_id, p.post_title, SUM(d.count) AS count
+			   FROM {$wpdb->prefix}isoft_fmf_download_daily d
+			   LEFT JOIN {$wpdb->posts} p ON p.ID = d.download_id
+			  WHERE d.log_date >= DATE_SUB(CURDATE(), INTERVAL %d DAY)
+			  GROUP BY d.download_id, p.post_title
+			  ORDER BY count DESC
+			  LIMIT 10",
+			30
+		)
+	) ?: array();
+
+	// New / low-traffic install: 30-day daily aggregate has nothing. Surface
+	// the all-time list under the 30-day panel so the dashboard isn't blank,
+	// and record which window was actually used so the view can label it
+	// honestly ("Top Downloads (all-time)" instead of pretending it's 30d).
+	$top_30d_window = '30d';
+	if ( empty( $top_30d ) && ! empty( $top_alltime ) ) {
+		$top_30d = array_map(
+			static function ( $row ) {
+				return (object) array(
+					'download_id' => (int) $row->ID,
+					'post_title'  => $row->post_title,
+					'count'       => (int) $row->total_count,
+				);
+			},
+			$top_alltime
+		);
+		$top_30d_window = 'alltime';
+	}
+
 	$data = array(
 		'total_downloads'   => (int) $wpdb->get_var(
 			"SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'isoft_fmf_file' AND post_status = 'publish'"
@@ -519,33 +569,9 @@ function isoft_fmf_get_stats_overview(): array {
 		'total_log_entries' => (int) $wpdb->get_var(
 			"SELECT COUNT(*) FROM {$wpdb->prefix}isoft_fmf_download_log"
 		),
-		'top_alltime'       => $wpdb->get_results(
-			"SELECT p.ID, p.post_title, COALESCE(SUM(f.download_count),0) AS total_count
-			   FROM {$wpdb->posts} p
-			   LEFT JOIN {$wpdb->prefix}isoft_fmf_files f ON f.download_id = p.ID
-			  WHERE p.post_type = 'isoft_fmf_file' AND p.post_status = 'publish'
-			  GROUP BY p.ID, p.post_title
-			  ORDER BY total_count DESC
-			  LIMIT 10"
-		) ?: array(),
-		// Top 30d and the daily chart both read from isoft_fmf_download_daily
-		// (the aggregate table the logger maintains alongside the per-click
-		// log). It's the canonical source for time-bucketed counts — faster
-		// than scanning the full log, and the only table the HOT cron uses
-		// for the same reason. The per-click isoft_fmf_download_log table
-		// remains the source for the Log viewer (audit trail per event).
-		'top_30d'           => $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT d.download_id, p.post_title, SUM(d.count) AS count
-				   FROM {$wpdb->prefix}isoft_fmf_download_daily d
-				   LEFT JOIN {$wpdb->posts} p ON p.ID = d.download_id
-				  WHERE d.log_date >= DATE_SUB(CURDATE(), INTERVAL %d DAY)
-				  GROUP BY d.download_id, p.post_title
-				  ORDER BY count DESC
-				  LIMIT 10",
-				30
-			)
-		) ?: array(),
+		'top_alltime'       => $top_alltime,
+		'top_30d'           => $top_30d,
+		'top_30d_window'    => $top_30d_window,
 		'daily_30d'         => $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT log_date AS day, SUM(count) AS count

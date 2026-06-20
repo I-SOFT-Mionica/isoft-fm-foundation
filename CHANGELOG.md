@@ -2,6 +2,18 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.10.20] — 2026-06-20
+
+### Added
+
+- **HOT recalculation now falls back through 7d → 30d → all-time windows** so new and low-traffic installs still surface meaningful top downloads instead of a permanently empty HOT badge / Top Downloads panel. `ISOFT_FMF_Cron::recalculate_hot()` tries the 7-day window first (recency wins on busy sites), widens to 30 days if that returns nothing, and last-resort falls back to per-file aggregate counts (`{$wpdb->prefix}isoft_fmf_files.download_count` summed per `download_id`, with the same `LIMIT 10` cap). Window used is recorded in a new `isoft_fmf_hot_window` option so the dashboard can label honestly.
+- **`ISOFT_FMF_Cron::top_downloads_in_last_days()` / `top_downloads_alltime()`** — private helpers extracted from the old monolithic `recalculate_hot()` body. Same SQL pattern as before for the windowed query, plus the new alltime variant that joins the aggregate counter table.
+- **`top_30d_window` field** on the `isoft_fmf_get_stats_overview()` return shape. Indicates whether the `top_30d` list reflects actual 30-day data (`'30d'`) or fell back to all-time when 30-day was empty (`'alltime'`). The stats dashboard view uses this to swap the panel heading from "Top Downloads (Last 30 Days)" to "Top Downloads (All-Time)" with a description note explaining the fallback, instead of pretending to be 30-day data while silently showing none.
+
+### Changed
+
+- **Daily aggregate retention bumped 8 days → 32 days** in `ISOFT_FMF_Cron::purge_daily_old()`. Previous retention was set to support the 7-day HOT window; the dashboard's "Top Downloads (Last 30 Days)" panel and the 30-day chart were silently capped at 8 days of data because their SQL window outran the table's available history. The 32-day retention covers the actual 30-day reads plus a 2-day buffer for missed-cron / HOT fallback scenarios.
+
 ## [0.10.19] — 2026-06-20
 
 ### Added

@@ -13,6 +13,7 @@ $total_size        = $stats['total_size_bytes'];
 $total_log_entries = $stats['total_log_entries'];
 $top_alltime       = $stats['top_alltime'];
 $top_30d           = $stats['top_30d'];
+$top_30d_window    = $stats['top_30d_window'] ?? '30d';
 
 // Index daily counts by date string for easy lookup
 $daily_map = array();
@@ -136,11 +137,24 @@ function isoft_fmf_format_bytes( int $bytes ): string {
 			<?php endif; ?>
 		</div>
 
-		<!-- Top downloads last 30 days -->
+		<!-- Top downloads last 30 days (or all-time fallback on quiet sites) -->
 		<div class="isoft-fmf-stat-section">
-			<h2><?php esc_html_e( 'Top Downloads (Last 30 Days)', 'isoft-fm-foundation' ); ?></h2>
+			<h2>
+				<?php
+				if ( 'alltime' === $top_30d_window ) {
+					esc_html_e( 'Top Downloads (All-Time)', 'isoft-fm-foundation' );
+				} else {
+					esc_html_e( 'Top Downloads (Last 30 Days)', 'isoft-fm-foundation' );
+				}
+				?>
+			</h2>
+			<?php if ( 'alltime' === $top_30d_window && $top_30d ) : ?>
+				<p class="description">
+					<?php esc_html_e( 'No downloads recorded in the last 30 days — showing all-time leaders instead.', 'isoft-fm-foundation' ); ?>
+				</p>
+			<?php endif; ?>
 			<?php if ( ! $top_30d ) : ?>
-				<p class="description"><?php esc_html_e( 'No log entries in the last 30 days.', 'isoft-fm-foundation' ); ?></p>
+				<p class="description"><?php esc_html_e( 'No downloads recorded yet.', 'isoft-fm-foundation' ); ?></p>
 			<?php else : ?>
 				<table class="wp-list-table widefat fixed striped">
 					<thead>
