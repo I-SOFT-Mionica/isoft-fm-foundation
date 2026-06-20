@@ -28,7 +28,12 @@ if ( get_post_meta( $post->ID, '_isoft_fmf_external_only', true ) ) {
 }
 
 $require_agree = (bool) get_post_meta( $post->ID, '_isoft_fmf_require_agree', true );
-$access_role   = get_post_meta( $post->ID, '_isoft_fmf_access_role', true ) ?: 'public';
+// Resolved role (after walking inherit-from-category cascade), not the literal
+// meta — the lock-icon check below has to reflect what the visitor actually
+// faces. Reading the literal showed a lock on files that resolved to public
+// (file set to 'inherit', category had no default, fell through to site-wide
+// public) — see fix/access-role-display, 0.10.21.
+$access_role = $access->effective_role_for( $post->ID );
 // HOT = set by nightly cron at 01:00 (top 10 downloads last 7 days), stored in post meta.
 $is_hot     = (bool) get_post_meta( $post->ID, '_isoft_fmf_is_hot', true );
 $license_id = (int) get_post_meta( $post->ID, '_isoft_fmf_license_id', true );

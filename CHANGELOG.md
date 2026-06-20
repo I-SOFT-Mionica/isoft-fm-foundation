@@ -2,6 +2,12 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.10.21] — 2026-06-20
+
+### Fixed
+
+- **Lock icon on download cards no longer lies about the resolved access state.** `public/views/download-card.php` was reading the literal `_isoft_fmf_access_role` postmeta (which can be `'inherit'` / `''`) and rendering the dashicons-lock chip whenever the value was not the literal string `'public'`. A download set to "Inherit from category" whose categories had no `_isoft_fmf_cat_access_role` set (the "— No category default —" option) cascaded all the way to the site-wide `isoft_fmf_default_access_role` (which is `'public'` out of the box) — meaning the file was actually publicly downloadable but the card showed a lock implying authentication was required. Fix: read the resolved role from `ISOFT_FMF_Access_Control::effective_role_for( $download_id )` (the cached `_isoft_fmf_effective_access_role` postmeta the access-control class already maintains via `on_download_saved` / `on_terms_set` / `on_category_edited` hooks, with on-demand backfill for pre-0.10.0 data). The lock check at lines 166 and 275 now operates on the cascade-resolved value and disappears on Public-resolved files. The minimum-access label next to the lock (the user's second proposal from the same screenshot) is deferred to the E branch since it belongs with the broader category-default-license / acceptance-UX rework already queued there.
+
 ## [0.10.20] — 2026-06-20
 
 ### Added

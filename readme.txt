@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.0
 Requires PHP: 8.4
-Stable tag: 0.10.20
+Stable tag: 0.10.21
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -283,6 +283,9 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 
 == Changelog ==
 
+= 0.10.21 =
+* **Fixed: download cards no longer show a lock icon on publicly accessible files.** Files set to "Inherit from category" whose categories had no access role configured were cascading correctly to the site-wide default (Public) — but the card was reading the literal "inherit" value when deciding whether to show the lock, so visitors saw a lock chip on files they could actually download without logging in. The card now reads the cascade-resolved role and only shows the lock when the visitor really does need to authenticate.
+
 = 0.10.20 =
 * **HOT badge and Top Downloads panel now work on new and quiet sites.** The HOT recalculation was looking at the last 7 days only — fine for busy sites but it left brand-new installs and low-traffic sites with an empty Top Downloads panel forever, because there simply wasn't enough recent data. The cron now tries 7 days first, widens to 30 if that's empty, and last-resort falls back to all-time download counts. The Top Downloads dashboard panel labels itself honestly so you can see when it's showing all-time vs recent data.
 * **Fixed: the Top Downloads (Last 30 Days) panel was silently showing 8 days at most**, because the daily aggregate table was being purged too aggressively. The retention is now 32 days, so the panel and the 30-day chart actually show 30 days of data.
@@ -344,6 +347,9 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 * **Inline metadata editing** directly from the file list.
 
 == Upgrade Notice ==
+
+= 0.10.21 =
+Fix for a misleading lock icon shown on publicly accessible files that inherited their access role from a category with no default set. Otherwise routine.
 
 = 0.10.20 =
 HOT downloads and the Top Downloads dashboard panel now work on new and low-traffic sites (silent fallback to all-time when there's no recent data). The 30-day chart and panel now actually cover 30 days of data instead of 8.
