@@ -63,12 +63,14 @@
 				echo '<strong>' . esc_html__( 'Heads up:', 'isoft-fm-foundation' ) . '</strong> ';
 				printf(
 					/* translators: %d: total downloads served under the current license */
-					esc_html( _n(
-						'This file has been downloaded %d time under the current license. Changing the license affects new downloads only — recipients who already downloaded keep the original license terms perpetually (CC and most permissive licenses are irrevocable for distributed copies).',
-						'This file has been downloaded %d times under the current license. Changing the license affects new downloads only — recipients who already downloaded keep the original license terms perpetually (CC and most permissive licenses are irrevocable for distributed copies).',
-						(int) $download_count,
-						'isoft-fm-foundation'
-					) ),
+					esc_html(
+						_n(
+							'This file has been downloaded %d time under the current license. Changing the license affects new downloads only — recipients who already downloaded keep the original license terms perpetually (CC and most permissive licenses are irrevocable for distributed copies).',
+							'This file has been downloaded %d times under the current license. Changing the license affects new downloads only — recipients who already downloaded keep the original license terms perpetually (CC and most permissive licenses are irrevocable for distributed copies).',
+							(int) $download_count,
+							'isoft-fm-foundation'
+						)
+					),
 					(int) $download_count
 				);
 				echo '</p>';

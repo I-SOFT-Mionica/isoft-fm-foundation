@@ -602,7 +602,7 @@ function isoft_fmf_get_stats_overview(): array {
 	// honestly ("Top Downloads (all-time)" instead of pretending it's 30d).
 	$top_30d_window = '30d';
 	if ( empty( $top_30d ) && ! empty( $top_alltime ) ) {
-		$top_30d       = array_map(
+		$top_30d        = array_map(
 			static function ( $row ) {
 				return (object) array(
 					'download_id' => (int) $row->ID,
