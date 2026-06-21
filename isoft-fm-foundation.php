@@ -140,6 +140,7 @@ add_action(
 
 		// REST API (needed outside admin too)
 		( new ISOFT_FMF_Rest_Api() )->register_hooks();
+		( new ISOFT_FMF_Rest_Licenses() )->register_hooks();
 
 		// Gutenberg blocks
 		( new ISOFT_FMF_Blocks() )->register_hooks();
