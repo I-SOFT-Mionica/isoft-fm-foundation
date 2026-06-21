@@ -2,6 +2,26 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.11.0] — 2026-06-21
+
+### Added
+
+- **Category-level default license with file inheritance.** Categories now carry a `_isoft_fmf_cat_license_id` term meta (registered in `ISOFT_FMF_Taxonomy::register`); a new "Default License" dropdown on the category Add/Edit screens picks from the same `wp_isoft_fmf_licenses` table the per-download dropdown uses. The per-download license picker on the Version & License meta box gains an "— Inherit from category —" option (sentinel value `-1`, validated against `ISOFT_FMF_License_Resolver::INHERIT` in the admin save handler — `absint()` would silently coerce -1 to 0 and lose the inherit signal). When inherit is selected the resolver walks the download's assigned categories in assignment order and uses the first non-zero category license. First-found (not most-restrictive) because licenses aren't a gradient — CC BY isn't "more restrictive" than CC0.
+- **`ISOFT_FMF_License_Resolver`** — new class mirroring `ISOFT_FMF_Access_Control`'s shape. Caches the resolved license id in `_isoft_fmf_effective_license_id` post meta; busted on `save_post_isoft_fmf_file`, `set_object_terms`, and category-edit (via static `on_category_edited()` called from `class-taxonomy.php`'s save handler). Backfills on-demand for pre-0.11.0 data via `effective_license_for()`. `effective_license_row_for()` returns the hydrated license row for render paths that need title/URL.
+- **Two new seeded licenses.** Public Domain — Serbian Law (Art. 6 ЗАСП) with bilingual Serbian + English text covering municipal acts that are PD by operation of law (not by author release like CC0). Creative Commons BY-SA 4.0 with the standard summary + URL. Both ride alongside the existing Public Domain (CC0-style), All Rights Reserved, CC BY 4.0, and Official Use Only — six total seeded.
+- **"Restore seeded licenses" admin button** on Downloads → Licenses. Add-only by slug — never overwrites existing rows. Doubles as the delivery channel for future plugin releases that ship new seeded entries. Refuses to overwrite existing slugs because that would retroactively change the license a previous download was served under, which is exactly the legal-trail-corruption scenario the next item exists to prevent.
+- **`license_id_at_download` column** on `wp_isoft_fmf_download_log`. The logger resolves the effective license at the moment of serving and persists it on the log row. Future license changes don't strip the legal trail. dbDelta ALTERs the existing table to add the column on next activation; `idx_license_at_download` index added for the lookup. Load-bearing for the receipted-download work coming in the Notary addon (see [[notary-addon]]).
+- **License chip on download cards.** When a download has an effective license (own or inherited), a new chip appears in the meta row showing the license title. When the license has a URL, the title becomes a clickable `rel="noopener nofollow license"` link to the source. When no URL is set the title renders as plain text. Rendered via `isoft_fmf_render_card_lock_and_license()` so the lock and license chips share their wrapping logic.
+- **Min-access role label next to the lock chip.** The bare dashicon now sits next to "Subscriber+" / "Editor+" / etc., resolved via `isoft_fmf_access_role_label()` helper that mirrors the labels in `ISOFT_FMF_Taxonomy::render_access_role_select()`. Visitors who see the lock now know which role they'd need without hovering.
+- **License-change warning** on the Version & License meta box. When a download has prior log entries (`_isoft_fmf_download_count > 0`), changing the License dropdown surfaces a red inline warning. Inline JS toggles visibility against `data-original-license-id` so the warning only appears when the value actually changes.
+- **"Currently resolves to X" hint** under the License dropdown when a download is set to "Inherit from category" or "None". Renders the resolved license title so admins can sanity-check inheritance without clicking through to a category edit.
+- **`do_action( 'isoft_fmf_download_logged', $log_id, $download_id, $file_id, $user_id, $license_id_at_download )`** — new hook fired from `ISOFT_FMF_Download_Logger::log()` after a successful insert. Notary will consume this to write its receipt rows; Foundation core does nothing with it.
+- **`do_action( 'isoft_fmf_card_meta_extras', $post )`** — new hook fired from `public/views/download-card.php` after the lock + license chips on both render paths. Notary will use it to inject a "Include receipt" checkbox without touching the card template.
+
+### Changed
+
+- **Seeded license install moved to `ISOFT_FMF_License_Manager::install_missing_seeds()`** — single source of truth. The activator now delegates to this helper instead of carrying its own inline list. Slug-based dedup means re-activation is safe.
+
 ## [0.10.21] — 2026-06-20
 
 ### Fixed

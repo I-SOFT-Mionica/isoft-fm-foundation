@@ -212,7 +212,9 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 		$agree_text     = (string) get_post_meta( $post->ID, '_isoft_fmf_agree_text', true );
 		$featured       = (bool) get_post_meta( $post->ID, '_isoft_fmf_featured', true );
 		$external_only  = (bool) get_post_meta( $post->ID, '_isoft_fmf_external_only', true );
-		$licenses       = ( new ISOFT_FMF_License_Manager() )->get_all();
+		$licenses             = ( new ISOFT_FMF_License_Manager() )->get_all();
+		$effective_license_id = ( new ISOFT_FMF_License_Resolver() )->effective_license_for( $post->ID );
+		$download_count       = (int) get_post_meta( $post->ID, '_isoft_fmf_download_count', true );
 		require ISOFT_FMF_PLUGIN_DIR . 'admin/views/meta-box-version-info.php';
 	}
 
@@ -257,7 +259,13 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 
 		update_post_meta( $post_id, '_isoft_fmf_version', sanitize_text_field( wp_unslash( $_POST['_isoft_fmf_version'] ?? '' ) ) );
 		update_post_meta( $post_id, '_isoft_fmf_changelog', wp_kses_post( wp_unslash( $_POST['_isoft_fmf_changelog'] ?? '' ) ) );
-		update_post_meta( $post_id, '_isoft_fmf_license_id', absint( $_POST['_isoft_fmf_license_id'] ?? 0 ) );
+		// license_id accepts -1 as the INHERIT sentinel (resolved via
+		// ISOFT_FMF_License_Resolver against category-level _isoft_fmf_cat_license_id),
+		// so absint() would silently coerce -1 to 0 (= no license) and lose the
+		// inherit signal. Validate explicitly.
+		$raw_license_id    = (int) wp_unslash( $_POST['_isoft_fmf_license_id'] ?? 0 );
+		$sanitised_license = ISOFT_FMF_License_Resolver::INHERIT === $raw_license_id ? ISOFT_FMF_License_Resolver::INHERIT : max( 0, $raw_license_id );
+		update_post_meta( $post_id, '_isoft_fmf_license_id', $sanitised_license );
 		update_post_meta( $post_id, '_isoft_fmf_author_name', sanitize_text_field( wp_unslash( $_POST['_isoft_fmf_author_name'] ?? '' ) ) );
 		update_post_meta( $post_id, '_isoft_fmf_author_url', esc_url_raw( wp_unslash( $_POST['_isoft_fmf_author_url'] ?? '' ) ) );
 		update_post_meta( $post_id, '_isoft_fmf_date_published', sanitize_text_field( wp_unslash( $_POST['_isoft_fmf_date_published'] ?? '' ) ) );

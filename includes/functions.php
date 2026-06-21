@@ -97,6 +97,65 @@ function isoft_fmf_get_settings(): array {
 }
 
 /**
+ * Render the lock + license chips that appear at the end of a download
+ * card's meta row. Lock chip carries the human-readable role label
+ * ("Subscriber+", etc.); license chip carries the resolved license title
+ * (linking to its URL if one is set). Either or both can be empty —
+ * each is rendered only when its underlying data is present, so a
+ * public-no-license card produces nothing.
+ *
+ * Echoes HTML. Safe-by-construction (esc_html / esc_url / esc_attr).
+ */
+function isoft_fmf_render_card_lock_and_license( string $access_role, ?object $effective_license ): void {
+	$role_label = isoft_fmf_access_role_label( $access_role );
+
+	if ( 'public' !== $access_role ) :
+		?>
+		<span class="isoft-fmf-meta isoft-fmf-meta--lock" title="<?php echo esc_attr( $role_label ); ?>">
+			<span class="dashicons dashicons-lock" aria-hidden="true"></span>
+			<?php if ( $role_label ) : ?>
+				<span class="isoft-fmf-meta__label"><?php echo esc_html( $role_label ); ?></span>
+			<?php endif; ?>
+		</span>
+		<?php
+	endif;
+
+	if ( $effective_license ) :
+		?>
+		<span class="isoft-fmf-meta isoft-fmf-meta--license" title="<?php echo esc_attr( $effective_license->title ); ?>">
+			<span class="dashicons dashicons-media-document" aria-hidden="true"></span>
+			<?php if ( ! empty( $effective_license->url ) ) : ?>
+				<a href="<?php echo esc_url( $effective_license->url ); ?>" target="_blank" rel="noopener nofollow license"><?php echo esc_html( $effective_license->title ); ?></a>
+			<?php else : ?>
+				<?php echo esc_html( $effective_license->title ); ?>
+			<?php endif; ?>
+		</span>
+		<?php
+	endif;
+}
+
+/**
+ * Human-readable label for an access role key. Used on the front-end card
+ * next to the lock chip so visitors know what minimum role is required
+ * ("Subscriber+" rather than a bare lock icon). Mirrors the labels in
+ * ISOFT_FMF_Taxonomy::render_access_role_select() — single source of truth
+ * would be nicer but the taxonomy method is private and only renders, so
+ * duplicating four short strings here is the lighter touch.
+ *
+ * Returns an empty string for unknown / public so callers can null-check.
+ */
+function isoft_fmf_access_role_label( string $role ): string {
+	$labels = array(
+		'subscriber'    => __( 'Subscriber+', 'isoft-fm-foundation' ),
+		'contributor'   => __( 'Contributor+', 'isoft-fm-foundation' ),
+		'author'        => __( 'Author+', 'isoft-fm-foundation' ),
+		'editor'        => __( 'Editor+', 'isoft-fm-foundation' ),
+		'administrator' => __( 'Administrator only', 'isoft-fm-foundation' ),
+	);
+	return $labels[ $role ] ?? '';
+}
+
+/**
  * Queue an admin dashboard notice for the current user.
  *
  * @param string $message  Plain text message.

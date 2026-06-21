@@ -246,22 +246,28 @@ HTACCESS;
 		) $charset_collate;"
 		);
 
+		// license_id_at_download added 0.11.0 — records which license governed
+		// this specific download at the moment it was served, so future license
+		// changes don't strip the legal trail. dbDelta ALTERs existing tables
+		// to add the column on next activation (version-bump-triggered).
 		dbDelta(
 			"CREATE TABLE {$wpdb->prefix}isoft_fmf_download_log (
-			id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-			download_id     BIGINT UNSIGNED NOT NULL,
-			file_id         BIGINT UNSIGNED NOT NULL,
-			user_id         BIGINT UNSIGNED DEFAULT NULL,
-			user_login      VARCHAR(60) DEFAULT NULL,
-			ip_address      VARCHAR(45) DEFAULT NULL,
-			user_agent      VARCHAR(500) DEFAULT NULL,
-			referer         VARCHAR(2048) DEFAULT NULL,
-			downloaded_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			log_date        DATE NOT NULL DEFAULT '0000-00-00',
+			id                      BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			download_id             BIGINT UNSIGNED NOT NULL,
+			file_id                 BIGINT UNSIGNED NOT NULL,
+			user_id                 BIGINT UNSIGNED DEFAULT NULL,
+			user_login              VARCHAR(60) DEFAULT NULL,
+			ip_address              VARCHAR(45) DEFAULT NULL,
+			user_agent              VARCHAR(500) DEFAULT NULL,
+			referer                 VARCHAR(2048) DEFAULT NULL,
+			license_id_at_download  BIGINT UNSIGNED DEFAULT NULL,
+			downloaded_at           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			log_date                DATE NOT NULL DEFAULT '0000-00-00',
 			PRIMARY KEY (id),
 			INDEX idx_download_id (download_id),
 			INDEX idx_file_id (file_id),
 			INDEX idx_user_id (user_id),
+			INDEX idx_license_at_download (license_id_at_download),
 			INDEX idx_downloaded_at (downloaded_at),
 			INDEX idx_log_date (log_date)
 		) $charset_collate;"
@@ -357,55 +363,12 @@ HTACCESS;
 	}
 
 	private static function seed_licenses(): void {
-		global $wpdb;
-
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Activator: one-shot seed on fresh install.
-		if ( (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}isoft_fmf_licenses" ) > 0 ) {
-			return;
-		}
-
-		$licenses = array(
-			array(
-				'title'       => 'Public Domain / Јавно власништво',
-				'slug'        => 'public-domain',
-				'description' => 'No rights reserved. Free for any use.',
-				'full_text'   => 'This work has been released into the public domain. Anyone is free to copy, modify, publish, use, compile, sell, or distribute this work, in any medium or format, for any purpose, commercial or non-commercial, without asking permission.',
-				'url'         => 'https://creativecommons.org/publicdomain/zero/1.0/',
-				'is_default'  => 0,
-				'sort_order'  => 1,
-			),
-			array(
-				'title'       => 'All Rights Reserved / Сва права задржана',
-				'slug'        => 'all-rights-reserved',
-				'description' => 'All rights reserved by the author.',
-				'full_text'   => 'All rights reserved. No part of this work may be reproduced, distributed, or transmitted in any form or by any means without the prior written permission of the copyright holder.',
-				'url'         => '',
-				'is_default'  => 0,
-				'sort_order'  => 2,
-			),
-			array(
-				'title'       => 'Creative Commons BY 4.0',
-				'slug'        => 'cc-by-4',
-				'description' => 'Free to use with attribution.',
-				'full_text'   => 'This work is licensed under the Creative Commons Attribution 4.0 International License. You are free to share and adapt the material for any purpose, even commercially, as long as you give appropriate credit, provide a link to the license, and indicate if changes were made.',
-				'url'         => 'https://creativecommons.org/licenses/by/4.0/',
-				'is_default'  => 0,
-				'sort_order'  => 3,
-			),
-			array(
-				'title'       => 'Official Use Only / Службена употреба',
-				'slug'        => 'official-use-only',
-				'description' => 'Restricted to official government use only.',
-				'full_text'   => 'This document is intended for official use only. Unauthorized distribution, reproduction, or disclosure of this document is prohibited.',
-				'url'         => '',
-				'is_default'  => 0,
-				'sort_order'  => 4,
-			),
-		);
-
-		foreach ( $licenses as $license ) {
-			$wpdb->insert( "{$wpdb->prefix}isoft_fmf_licenses", $license, array( '%s', '%s', '%s', '%s', '%s', '%d', '%d' ) );
-		}
-		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		// Delegate to the License Manager's canonical helper — same code path
+		// that powers the admin "Restore seeded licenses" button. Idempotent
+		// by slug: a fresh install populates from scratch; a re-activation
+		// after manual deletion repopulates only what's missing. Add-only,
+		// never overwrites existing rows — that's load-bearing for legal
+		// defensibility (see [[notary-addon]] for the proof chain).
+		( new ISOFT_FMF_License_Manager() )->install_missing_seeds();
 	}
 }
