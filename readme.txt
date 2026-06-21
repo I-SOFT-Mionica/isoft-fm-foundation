@@ -36,7 +36,7 @@ The filesystem **is** the source of truth. Moving a download to a different cate
 
 * **I-Soft File Manager: Sentinel** — server-side automation. Monitors category folders for new files, creates draft download entries, and supports rclone mirroring, SFTP bulk upload, and scheduled folder scans.
 * **I-Soft File Manager: Orbit** — Google Shared Drive sync. Departments drop files into shared folders; Orbit imports them as drafts for review.
-* **I-Soft File Manager: Nomad** — one-shot importer from jDownloads. Rebuilds your categories, downloads, files, and counters in Foundation, preserving slug paths so existing URLs keep working.
+* **I-Soft File Manager: Arbiter** — one-shot importer from jDownloads. Rebuilds your categories, downloads, files, and counters in Foundation, preserving slug paths so existing URLs keep working.
 
 == Installation ==
 
@@ -67,7 +67,7 @@ Foundation stores files outside the Media Library in a predictable per-category 
 
 = Can I migrate from jDownloads? =
 
-Yes — but via a separate companion plugin, **I-Soft File Manager: Nomad** (coming soon). Foundation's data model is intentionally close to jDownloads to make a one-shot import practical; Nomad reads the legacy tables directly and rebuilds the category tree, downloads, files, and counters into Foundation, preserving slug paths so existing URLs keep working.
+Yes — but via a separate companion plugin, **I-Soft File Manager: Arbiter** (coming soon). Foundation's data model is intentionally close to jDownloads to make a one-shot import practical; Arbiter reads the legacy tables directly and rebuilds the category tree, downloads, files, and counters into Foundation, preserving slug paths so existing URLs keep working.
 
 = How do I restrict a user to only some categories? =
 
