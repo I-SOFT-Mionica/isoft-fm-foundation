@@ -184,7 +184,13 @@ class ISOFT_FMF_Rest_Licenses {
 			return $this->not_found( $id );
 		}
 		$this->service->delete( $id );
-		return new WP_REST_Response( array( 'deleted' => true, 'id' => $id ), 200 );
+		return new WP_REST_Response(
+			array(
+				'deleted' => true,
+				'id'      => $id,
+			),
+			200
+		);
 	}
 
 	public function restore_seeds(): WP_REST_Response {

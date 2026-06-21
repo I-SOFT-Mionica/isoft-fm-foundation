@@ -97,15 +97,16 @@ class ISOFT_FMF_License_Manager {
 	private function handle_save(): void {
 		// Nonce verified by caller (handle_form_actions).
 		// phpcs:disable WordPress.Security.NonceVerification.Missing
-		$id   = absint( $_POST['license_id'] ?? 0 );
-		$data = array(
-			'title'       => $_POST['title'] ?? '',
-			'slug'        => $_POST['slug'] ?? ( $_POST['title'] ?? '' ),
-			'description' => $_POST['description'] ?? '',
-			'full_text'   => $_POST['full_text'] ?? '',
-			'url'         => $_POST['url'] ?? '',
+		$id    = absint( $_POST['license_id'] ?? 0 );
+		$title = isset( $_POST['title'] ) ? sanitize_text_field( wp_unslash( $_POST['title'] ) ) : '';
+		$data  = array(
+			'title'       => $title,
+			'slug'        => isset( $_POST['slug'] ) ? sanitize_title( wp_unslash( $_POST['slug'] ) ) : $title,
+			'description' => isset( $_POST['description'] ) ? sanitize_text_field( wp_unslash( $_POST['description'] ) ) : '',
+			'full_text'   => isset( $_POST['full_text'] ) ? wp_kses_post( wp_unslash( $_POST['full_text'] ) ) : '',
+			'url'         => isset( $_POST['url'] ) ? esc_url_raw( wp_unslash( $_POST['url'] ) ) : '',
 			'is_default'  => ! empty( $_POST['is_default'] ),
-			'sort_order'  => $_POST['sort_order'] ?? 0,
+			'sort_order'  => isset( $_POST['sort_order'] ) ? absint( $_POST['sort_order'] ) : 0,
 		);
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
 
