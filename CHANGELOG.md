@@ -22,6 +22,10 @@ All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads
 
 - **Seeded license install moved to `ISOFT_FMF_License_Manager::install_missing_seeds()`** — single source of truth. The activator now delegates to this helper instead of carrying its own inline list. Slug-based dedup means re-activation is safe.
 
+### Known issues
+
+- **Multi-category-per-download UI bug.** WordPress's default category metabox accepts multiple selections per download, but Foundation enforces a single category at the filesystem layer (see `class-category-folders.php:392` — only `$tt_ids[0]` drives file placement). If an admin checks two categories, only the first is honored for file routing and license-inheritance resolution; the second becomes a dead `wp_term_relationships` row that inflates list filters and can mislead the resolver walk-up. Surfaced during PR #35 review of the license-inheritance code. Mitigation in 0.11.1: replace the post-edit metabox with a `wp_dropdown_categories()`-driven single-select via `meta_box_cb` (~30 lines PHP, sidebar placement in classic editor) plus a ~15-line `wp.data` JS for the Gutenberg sidebar Categories panel that enforces single-select by trimming the latest selection to one (radio-like behavior in the native panel), plus a `save_post_isoft_fmf_file` backstop that catches the REST-API-direct case. Also a one-shot migration that detects any existing multi-assignments on this install, keeps the primary (matching the filesystem-layer behavior), and detaches the others. Issue and mitigation discussed in the PR #35 conversation thread.
+
 ## [0.10.21] — 2026-06-20
 
 ### Fixed
