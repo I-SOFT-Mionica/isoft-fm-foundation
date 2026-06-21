@@ -28,15 +28,22 @@ class ISOFT_FMF_Download_Logger {
 		$now   = current_time( 'mysql' );
 		$today = current_time( 'Y-m-d' );
 
+		// Stamp the resolved license id at the moment of download. This is the
+		// load-bearing legal trail — a license change later doesn't strip
+		// what governed THIS specific download. Resolver returns 0 when there
+		// is no effective license (download has none and category has none).
+		$license_id_at_download = ( new ISOFT_FMF_License_Resolver() )->effective_license_for( $download_id );
+
 		$data   = array(
-			'download_id'   => $download_id,
-			'file_id'       => $file_id,
-			'user_id'       => $user->ID ?: null,
-			'user_login'    => $user->ID ? $user->user_login : null,
-			'downloaded_at' => $now,
-			'log_date'      => $today,
+			'download_id'            => $download_id,
+			'file_id'                => $file_id,
+			'user_id'                => $user->ID ?: null,
+			'user_login'             => $user->ID ? $user->user_login : null,
+			'license_id_at_download' => $license_id_at_download > 0 ? $license_id_at_download : null,
+			'downloaded_at'          => $now,
+			'log_date'               => $today,
 		);
-		$format = array( '%d', '%d', '%d', '%s', '%s', '%s' );
+		$format = array( '%d', '%d', '%d', '%s', '%d', '%s', '%s' );
 
 		// PII fields — only when detailed logging is explicitly enabled
 		if ( $settings['enable_detailed_logging'] ) {
@@ -75,6 +82,19 @@ class ISOFT_FMF_Download_Logger {
 		// view reflects this click. Without this the dashboard reads up to
 		// 5 minutes stale even though log + daily tables were just written.
 		delete_transient( 'isoft_fmf_stats_overview' );
+
+		/**
+		 * Extension hook: fires after a download has been logged. Notary
+		 * uses this to write the matching download-receipt row (see
+		 * [[notary-addon]] memory). Foundation core does nothing with this.
+		 *
+		 * @param int      $log_id                 Inserted log row id.
+		 * @param int      $download_id            Download post id.
+		 * @param int      $file_id                File id within the download.
+		 * @param int      $user_id                Acting user id (0 for guest).
+		 * @param int|null $license_id_at_download License id resolved at log time, null if no effective license.
+		 */
+		do_action( 'isoft_fmf_download_logged', $log_id, $download_id, $file_id, (int) $user->ID, $license_id_at_download > 0 ? $license_id_at_download : null );
 
 		return $log_id;
 	}

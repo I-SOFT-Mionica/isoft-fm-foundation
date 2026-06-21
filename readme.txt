@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.0
 Requires PHP: 8.4
-Stable tag: 0.10.21
+Stable tag: 0.11.0
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -36,7 +36,7 @@ The filesystem **is** the source of truth. Moving a download to a different cate
 
 * **I-Soft File Manager: Sentinel** — server-side automation. Monitors category folders for new files, creates draft download entries, and supports rclone mirroring, SFTP bulk upload, and scheduled folder scans.
 * **I-Soft File Manager: Orbit** — Google Shared Drive sync. Departments drop files into shared folders; Orbit imports them as drafts for review.
-* **I-Soft File Manager: Nomad** — one-shot importer from jDownloads. Rebuilds your categories, downloads, files, and counters in Foundation, preserving slug paths so existing URLs keep working.
+* **I-Soft File Manager: Arbiter** — one-shot importer from jDownloads. Rebuilds your categories, downloads, files, and counters in Foundation, preserving slug paths so existing URLs keep working.
 
 == Installation ==
 
@@ -65,9 +65,13 @@ The Media Library flattens everything into `wp-content/uploads/YYYY/MM/`, which 
 
 Foundation stores files outside the Media Library in a predictable per-category folder tree (`wp-content/uploads/isoft-fmf-files/`). The filesystem is the source of truth. Moving a download to a different category auto-moves its files on disk. This lets external automation tools (Rclone, SFTP, scheduled scans) sync files in and out without having to understand WordPress internals.
 
+= Can I assign a download to multiple categories? =
+
+No — each download lives in exactly one category. Categories are physical folders on your server, and a file can only sit in one folder at a time (just like on your computer). If you need a document to appear under several groupings, use tags instead — those are intentionally many-to-many and don't affect storage. **Heads up on 0.11.0:** WordPress's standard category picker still shows checkboxes that let you pick multiple, but only the first one is actually honored. A patch coming right after this release replaces that picker with a proper single-select dropdown so the UI matches the underlying rule.
+
 = Can I migrate from jDownloads? =
 
-Yes — but via a separate companion plugin, **I-Soft File Manager: Nomad** (coming soon). Foundation's data model is intentionally close to jDownloads to make a one-shot import practical; Nomad reads the legacy tables directly and rebuilds the category tree, downloads, files, and counters into Foundation, preserving slug paths so existing URLs keep working.
+Yes — but via a separate companion plugin, **I-Soft File Manager: Arbiter** (coming soon). Foundation's data model is intentionally close to jDownloads to make a one-shot import practical; Arbiter reads the legacy tables directly and rebuilds the category tree, downloads, files, and counters into Foundation, preserving slug paths so existing URLs keep working.
 
 = How do I restrict a user to only some categories? =
 
@@ -283,6 +287,16 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 
 == Changelog ==
 
+= 0.11.0 =
+* **New: category-level default license with file inheritance.** Each category now has a "Default License" dropdown on its Add/Edit screen. Downloads in a category that have their License field set to "— Inherit from category —" pick up the category's default automatically. Per-file overrides still win. Set Public Domain on your "Budget" and "Assembly decisions" categories, set CC BY-SA 4.0 on your "PR archive" — every file in each category inherits the right license without per-file fiddling.
+* **New: two more seeded licenses out of the box.** Public Domain — Serbian Law (Art. 6 ЗАСП) for official municipal acts that are public domain by operation of law (different mechanism than CC0's author-release PD). Creative Commons BY-SA 4.0 with the standard summary and URL. Both ship alongside the existing four defaults.
+* **New: "Restore seeded licenses" button** on Downloads → Licenses. Adds any default licenses missing from your install. Add-only — existing licenses with the same slug are never overwritten. Use this after a plugin update that ships new default licenses to pull them in with one click.
+* **New: download log now records which license governed each download.** A new column on the download log preserves the legal trail. Even if you change a file's license later, you can still answer "what license was on this file when User X downloaded it on date Y?" — important for Creative Commons compliance (CC licenses are irrevocable for already-distributed copies).
+* **New: license chip on download cards.** When a download has a license set (or inherits one from its category), the title now appears as a chip in the meta row. If the license has a URL, the chip links out to the canonical source (creativecommons.org, etc.).
+* **Improved: lock icon on download cards now shows the required role** ("Subscriber+", "Editor+", etc.) next to the icon, so visitors know what login level they'd need.
+* **Improved: license change warning.** When you change a file's license in the editor, a warning appears if anyone has already downloaded that file. Reminds you that Creative Commons and most permissive licenses are irrevocable for already-distributed copies — the change only affects new downloads.
+* **Heads up — known issue with a quick fix on the way.** WordPress's standard category picker on the post edit screen still lets you check multiple categories, but Foundation stores every file in exactly one folder on disk (categories are physical folders, not labels) — only the first checked category actually drives where the file lives. For now, please assign each download to a single category. The next patch swaps the picker for a proper single-select dropdown so this can't happen by accident.
+
 = 0.10.21 =
 * **Fixed: download cards no longer show a lock icon on publicly accessible files.** Files set to "Inherit from category" whose categories had no access role configured were cascading correctly to the site-wide default (Public) — but the card was reading the literal "inherit" value when deciding whether to show the lock, so visitors saw a lock chip on files they could actually download without logging in. The card now reads the cascade-resolved role and only shows the lock when the visitor really does need to authenticate.
 
@@ -347,6 +361,9 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 * **Inline metadata editing** directly from the file list.
 
 == Upgrade Notice ==
+
+= 0.11.0 =
+License inheritance from categories. Two new seeded licenses (Serbian PD, CC BY-SA 4.0). License chip on cards. Download log records its license. Click Restore seeded licenses on Downloads → Licenses. Known: assign one category per download — picker fix in next patch.
 
 = 0.10.21 =
 Fix for a misleading lock icon shown on publicly accessible files that inherited their access role from a category with no default set. Otherwise routine.

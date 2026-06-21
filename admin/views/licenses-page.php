@@ -18,6 +18,31 @@ if ( ! current_user_can( 'isoft_fmf_manage_settings' ) ) {
 		<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'License deleted.', 'isoft-fm-foundation' ); ?></p></div>
 	<?php endif; ?>
 
+	<?php
+	if ( isset( $_GET['restored'] ) ) :
+		$restored_count = absint( $_GET['restored'] );
+		?>
+		<div class="notice notice-success is-dismissible">
+			<p>
+			<?php
+			if ( $restored_count > 0 ) {
+				printf(
+					esc_html(
+						/* translators: %d: number of seeded licenses installed */
+						_n( '%d seeded license added.', '%d seeded licenses added.', $restored_count, 'isoft-fm-foundation' )
+					),
+					(int) $restored_count
+				);
+			} else {
+				esc_html_e( 'No new seeded licenses to add — all defaults already present.', 'isoft-fm-foundation' );
+			}
+			?>
+			</p>
+		</div>
+		<?php
+	endif;
+	?>
+
 	<?php $action = sanitize_key( $_GET['action'] ?? 'list' ); ?>
 	<?php $edit_id = absint( $_GET['edit_id'] ?? 0 ); ?>
 	<?php // phpcs:enable WordPress.Security.NonceVerification.Recommended ?>
@@ -69,6 +94,15 @@ if ( ! current_user_can( 'isoft_fmf_manage_settings' ) ) {
 
 	<?php else : ?>
 		<?php $licenses = ( new ISOFT_FMF_License_Manager() )->get_all(); ?>
+
+	<form method="post" style="margin: 12px 0;" onsubmit="return confirm('<?php esc_attr_e( 'Add any missing seeded licenses (Public Domain variants, Creative Commons, etc.)? Existing licenses with the same slug will not be modified.', 'isoft-fm-foundation' ); ?>');">
+		<?php wp_nonce_field( 'isoft_fmf_license_action' ); ?>
+		<input type="hidden" name="isoft_fmf_license_action" value="restore_seeds" />
+		<button type="submit" class="button"><?php esc_html_e( 'Restore seeded licenses', 'isoft-fm-foundation' ); ?></button>
+		<span class="description" style="margin-left:8px;">
+			<?php esc_html_e( 'Adds any default licenses missing from this install. Add-only — never modifies existing rows. Use after a plugin update that ships new defaults.', 'isoft-fm-foundation' ); ?>
+		</span>
+	</form>
 	<table class="widefat striped">
 		<thead>
 			<tr>

@@ -34,14 +34,62 @@
 	<tr>
 		<th><label for="isoft-fmf-license"><?php esc_html_e( 'License', 'isoft-fm-foundation' ); ?></label></th>
 		<td>
-			<select name="_isoft_fmf_license_id" id="isoft-fmf-license">
-				<option value="0"><?php esc_html_e( '— None —', 'isoft-fm-foundation' ); ?></option>
+			<select name="_isoft_fmf_license_id" id="isoft-fmf-license" data-original-license-id="<?php echo esc_attr( $license_id ); ?>" data-download-count="<?php echo esc_attr( (int) $download_count ); ?>">
+				<option value="0" <?php selected( $license_id, 0 ); ?>><?php esc_html_e( '— None —', 'isoft-fm-foundation' ); ?></option>
+				<option value="-1" <?php selected( $license_id, -1 ); ?>><?php esc_html_e( '— Inherit from category —', 'isoft-fm-foundation' ); ?></option>
 				<?php foreach ( $licenses as $lic ) : ?>
 					<option value="<?php echo esc_attr( $lic->id ); ?>" <?php selected( $license_id, $lic->id ); ?>>
 						<?php echo esc_html( $lic->title ); ?>
 					</option>
 				<?php endforeach; ?>
 			</select>
+			<?php
+			if ( $effective_license_id > 0 && $license_id <= 0 ) {
+				$effective_license = ( new ISOFT_FMF_License_Manager() )->get( $effective_license_id );
+				if ( $effective_license ) {
+					echo '<p class="description">';
+					printf(
+						/* translators: %s: license title currently inherited from category */
+						esc_html__( 'Currently resolves to %s (inherited from category).', 'isoft-fm-foundation' ),
+						'<strong>' . esc_html( $effective_license->title ) . '</strong>'
+					);
+					echo '</p>';
+				}
+			}
+			?>
+			<?php
+			if ( $download_count > 0 ) {
+				echo '<p class="description isoft-fmf-license-change-warning" style="display:none; color:#b32d2e;">';
+				echo '<strong>' . esc_html__( 'Heads up:', 'isoft-fm-foundation' ) . '</strong> ';
+				printf(
+					esc_html(
+						/* translators: %d: total downloads served under the current license */
+						_n(
+							'This file has been downloaded %d time under the current license. Changing the license affects new downloads only — recipients who already downloaded keep the original license terms perpetually (CC and most permissive licenses are irrevocable for distributed copies).',
+							'This file has been downloaded %d times under the current license. Changing the license affects new downloads only — recipients who already downloaded keep the original license terms perpetually (CC and most permissive licenses are irrevocable for distributed copies).',
+							(int) $download_count,
+							'isoft-fm-foundation'
+						)
+					),
+					(int) $download_count
+				);
+				echo '</p>';
+				?>
+				<script>
+				(function(){
+					var sel = document.getElementById('isoft-fmf-license');
+					if (!sel) return;
+					var warning = sel.parentNode.querySelector('.isoft-fmf-license-change-warning');
+					if (!warning) return;
+					var originalId = sel.getAttribute('data-original-license-id');
+					sel.addEventListener('change', function () {
+						warning.style.display = (sel.value !== originalId) ? '' : 'none';
+					});
+				})();
+				</script>
+				<?php
+			}
+			?>
 		</td>
 	</tr>
 	<!-- TODO v1.0: Rework agreement UX — conditional display, better relationship with license -->

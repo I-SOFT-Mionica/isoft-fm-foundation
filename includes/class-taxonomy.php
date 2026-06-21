@@ -109,6 +109,16 @@ class ISOFT_FMF_Taxonomy {
 				'sanitize_callback' => 'absint',
 			)
 		);
+		register_term_meta(
+			'isoft_fmf_category',
+			'_isoft_fmf_cat_license_id',
+			array(
+				'type'              => 'integer',
+				'single'            => true,
+				'sanitize_callback' => 'absint',
+				'show_in_rest'      => true,
+			)
+		);
 	}
 
 	public function add_term_fields(): void {
@@ -124,6 +134,11 @@ class ISOFT_FMF_Taxonomy {
 			<p class="description"><?php esc_html_e( 'Default access role for downloads in this category. A download keeps the category role only when its own role is set to "Inherit from category".', 'isoft-fm-foundation' ); ?></p>
 		</div>
 		<div class="form-field">
+			<label for="isoft-fmf-cat-license"><?php esc_html_e( 'Default License', 'isoft-fm-foundation' ); ?></label>
+			<?php $this->render_license_select( 0, 'isoft_fmf_cat_license_id', 'isoft-fmf-cat-license' ); ?>
+			<p class="description"><?php esc_html_e( 'Default license for downloads in this category. A download takes this license only when its own license is set to "Inherit from category".', 'isoft-fm-foundation' ); ?></p>
+		</div>
+		<div class="form-field">
 			<label for="isoft-fmf-cat-sort-order"><?php esc_html_e( 'Sort Order', 'isoft-fm-foundation' ); ?></label>
 			<input type="number" name="isoft_fmf_cat_sort_order" id="isoft-fmf-cat-sort-order" value="0" min="0" />
 		</div>
@@ -133,6 +148,7 @@ class ISOFT_FMF_Taxonomy {
 	public function edit_term_fields( WP_Term $term ): void {
 		$icon       = get_term_meta( $term->term_id, '_isoft_fmf_cat_icon', true );
 		$role       = (string) get_term_meta( $term->term_id, '_isoft_fmf_cat_access_role', true );
+		$license_id = (int) get_term_meta( $term->term_id, '_isoft_fmf_cat_license_id', true );
 		$sort_order = (int) get_term_meta( $term->term_id, '_isoft_fmf_cat_sort_order', true );
 		?>
 		<tr class="form-field">
@@ -147,6 +163,13 @@ class ISOFT_FMF_Taxonomy {
 			<td>
 				<?php $this->render_access_role_select( $role, 'isoft_fmf_cat_access_role', 'isoft-fmf-cat-access-role' ); ?>
 				<p class="description"><?php esc_html_e( 'Default access role for downloads in this category. A download keeps the category role only when its own role is set to "Inherit from category".', 'isoft-fm-foundation' ); ?></p>
+			</td>
+		</tr>
+		<tr class="form-field">
+			<th><label for="isoft-fmf-cat-license"><?php esc_html_e( 'Default License', 'isoft-fm-foundation' ); ?></label></th>
+			<td>
+				<?php $this->render_license_select( $license_id, 'isoft_fmf_cat_license_id', 'isoft-fmf-cat-license' ); ?>
+				<p class="description"><?php esc_html_e( 'Default license for downloads in this category. A download takes this license only when its own license is set to "Inherit from category".', 'isoft-fm-foundation' ); ?></p>
 			</td>
 		</tr>
 		<tr class="form-field">
@@ -179,6 +202,14 @@ class ISOFT_FMF_Taxonomy {
 		if ( isset( $_POST['isoft_fmf_cat_sort_order'] ) ) {
 			update_term_meta( $term_id, '_isoft_fmf_cat_sort_order', absint( wp_unslash( $_POST['isoft_fmf_cat_sort_order'] ) ) );
 		}
+		if ( isset( $_POST['isoft_fmf_cat_license_id'] ) ) {
+			$license_id = absint( wp_unslash( $_POST['isoft_fmf_cat_license_id'] ) );
+			update_term_meta( $term_id, '_isoft_fmf_cat_license_id', $license_id );
+			// Resolver cache lives on the download posts, not the term — bust
+			// any download in this category since its effective license may
+			// have just changed.
+			ISOFT_FMF_License_Resolver::on_category_edited( $term_id );
+		}
 	}
 
 	/**
@@ -210,6 +241,31 @@ class ISOFT_FMF_Taxonomy {
 				esc_attr( $value ),
 				selected( $selected, $value, false ),
 				esc_html( $label )
+			);
+		}
+		echo '</select>';
+	}
+
+	/**
+	 * Render a license dropdown for the category Edit screen. Value `0`
+	 * means "no category default" — files inheriting from this category
+	 * fall through to no license (or to a future site-wide default if
+	 * one is added later).
+	 */
+	private function render_license_select( int $selected, string $name, string $id ): void {
+		$licenses = ( new ISOFT_FMF_License_Manager() )->get_all();
+		echo '<select name="' . esc_attr( $name ) . '" id="' . esc_attr( $id ) . '">';
+		printf(
+			'<option value="0"%s>%s</option>',
+			selected( $selected, 0, false ),
+			esc_html__( '— No category default —', 'isoft-fm-foundation' )
+		);
+		foreach ( $licenses as $license ) {
+			printf(
+				'<option value="%d"%s>%s</option>',
+				(int) $license->id,
+				selected( $selected, (int) $license->id, false ),
+				esc_html( $license->title )
 			);
 		}
 		echo '</select>';

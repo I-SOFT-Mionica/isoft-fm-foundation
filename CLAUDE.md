@@ -93,6 +93,6 @@ When state changes (a release lands, a major decision is made, a deploy pattern 
 
 - **Sentinel** — server-side automation for category-folder syncing (rclone, SFTP, cron scans)
 - **Orbit** — Google Shared Drive sync for editorial workflows
-- **Nomad** — one-shot jDownloads importer
+- **Arbiter** — one-shot jDownloads importer
 
 None of these live in this repo. Each becomes its own WP.org submission when ready. Foundation declares them on the Extensions tab as "Coming soon."

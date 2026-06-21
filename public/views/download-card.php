@@ -33,7 +33,9 @@ $require_agree = (bool) get_post_meta( $post->ID, '_isoft_fmf_require_agree', tr
 // faces. Reading the literal showed a lock on files that resolved to public
 // (file set to 'inherit', category had no default, fell through to site-wide
 // public) — see fix/access-role-display, 0.10.21.
-$access_role = $access->effective_role_for( $post->ID );
+$access_role       = $access->effective_role_for( $post->ID );
+$role_label        = isoft_fmf_access_role_label( $access_role );
+$effective_license = ( new ISOFT_FMF_License_Resolver() )->effective_license_row_for( $post->ID );
 // HOT = set by nightly cron at 01:00 (top 10 downloads last 7 days), stored in post meta.
 $is_hot     = (bool) get_post_meta( $post->ID, '_isoft_fmf_is_hot', true );
 $license_id = (int) get_post_meta( $post->ID, '_isoft_fmf_license_id', true );
@@ -168,11 +170,8 @@ $use_summary  = $is_multi && ! $expand_files;
 				</span>
 				<?php endif; ?>
 
-				<?php if ( 'public' !== $access_role ) : ?>
-				<span class="isoft-fmf-meta isoft-fmf-meta--lock">
-					<span class="dashicons dashicons-lock" aria-hidden="true"></span>
-				</span>
-				<?php endif; ?>
+				<?php isoft_fmf_render_card_lock_and_license( $access_role, $effective_license ); ?>
+				<?php do_action( 'isoft_fmf_card_meta_extras', $post ); ?>
 			</div>
 		</div>
 
@@ -277,11 +276,8 @@ $use_summary  = $is_multi && ! $expand_files;
 				</span>
 				<?php endif; ?>
 
-				<?php if ( 'public' !== $access_role ) : ?>
-				<span class="isoft-fmf-meta isoft-fmf-meta--lock">
-					<span class="dashicons dashicons-lock" aria-hidden="true"></span>
-				</span>
-				<?php endif; ?>
+				<?php isoft_fmf_render_card_lock_and_license( $access_role, $effective_license ); ?>
+				<?php do_action( 'isoft_fmf_card_meta_extras', $post ); ?>
 			</div>
 		</div>
 
