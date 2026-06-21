@@ -107,6 +107,7 @@ class ISOFT_FMF_Taxonomy {
 				'type'              => 'integer',
 				'single'            => true,
 				'sanitize_callback' => 'absint',
+				'show_in_rest'      => true,
 			)
 		);
 		register_term_meta(
