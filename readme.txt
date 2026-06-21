@@ -358,7 +358,7 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 == Upgrade Notice ==
 
 = 0.11.0 =
-Category-level default license with file inheritance; new Serbian Art. 6 Public Domain and CC BY-SA 4.0 seeded licenses; license chip on download cards; license recorded on every download log entry for legal traceability. Existing licenses untouched — use the new "Restore seeded licenses" button on Downloads → Licenses to add the new defaults.
+Category-level default license with file inheritance. Two new seeded licenses (Serbian Art. 6 PD, CC BY-SA 4.0). License chip on cards. Download log now records its license for legal traceability. Existing licenses untouched — click Restore seeded licenses on Downloads → Licenses to add them.
 
 = 0.10.21 =
 Fix for a misleading lock icon shown on publicly accessible files that inherited their access role from a category with no default set. Otherwise routine.
