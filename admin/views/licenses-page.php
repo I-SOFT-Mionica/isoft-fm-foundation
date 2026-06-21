@@ -18,12 +18,14 @@ if ( ! current_user_can( 'isoft_fmf_manage_settings' ) ) {
 		<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'License deleted.', 'isoft-fm-foundation' ); ?></p></div>
 	<?php endif; ?>
 
-	<?php if ( isset( $_GET['restored'] ) ) :
+	<?php
+	if ( isset( $_GET['restored'] ) ) :
 		$restored_count = absint( $_GET['restored'] );
 		?>
 		<div class="notice notice-success is-dismissible">
 			<p>
-			<?php if ( $restored_count > 0 ) :
+			<?php
+			if ( $restored_count > 0 ) {
 				printf(
 					esc_html(
 						/* translators: %d: number of seeded licenses installed */
@@ -31,12 +33,15 @@ if ( ! current_user_can( 'isoft_fmf_manage_settings' ) ) {
 					),
 					(int) $restored_count
 				);
-			else :
+			} else {
 				esc_html_e( 'No new seeded licenses to add — all defaults already present.', 'isoft-fm-foundation' );
-			endif; ?>
+			}
+			?>
 			</p>
 		</div>
-	<?php endif; ?>
+		<?php
+	endif;
+	?>
 
 	<?php $action = sanitize_key( $_GET['action'] ?? 'list' ); ?>
 	<?php $edit_id = absint( $_GET['edit_id'] ?? 0 ); ?>

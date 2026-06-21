@@ -202,16 +202,16 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 	}
 
 	public function render_version_info( WP_Post $post ): void {
-		$version        = (string) get_post_meta( $post->ID, '_isoft_fmf_version', true );
-		$changelog      = (string) get_post_meta( $post->ID, '_isoft_fmf_changelog', true );
-		$license_id     = (int) get_post_meta( $post->ID, '_isoft_fmf_license_id', true );
-		$author_name    = (string) get_post_meta( $post->ID, '_isoft_fmf_author_name', true );
-		$author_url     = (string) get_post_meta( $post->ID, '_isoft_fmf_author_url', true );
-		$date_published = (string) get_post_meta( $post->ID, '_isoft_fmf_date_published', true );
-		$require_agree  = (bool) get_post_meta( $post->ID, '_isoft_fmf_require_agree', true );
-		$agree_text     = (string) get_post_meta( $post->ID, '_isoft_fmf_agree_text', true );
-		$featured       = (bool) get_post_meta( $post->ID, '_isoft_fmf_featured', true );
-		$external_only  = (bool) get_post_meta( $post->ID, '_isoft_fmf_external_only', true );
+		$version              = (string) get_post_meta( $post->ID, '_isoft_fmf_version', true );
+		$changelog            = (string) get_post_meta( $post->ID, '_isoft_fmf_changelog', true );
+		$license_id           = (int) get_post_meta( $post->ID, '_isoft_fmf_license_id', true );
+		$author_name          = (string) get_post_meta( $post->ID, '_isoft_fmf_author_name', true );
+		$author_url           = (string) get_post_meta( $post->ID, '_isoft_fmf_author_url', true );
+		$date_published       = (string) get_post_meta( $post->ID, '_isoft_fmf_date_published', true );
+		$require_agree        = (bool) get_post_meta( $post->ID, '_isoft_fmf_require_agree', true );
+		$agree_text           = (string) get_post_meta( $post->ID, '_isoft_fmf_agree_text', true );
+		$featured             = (bool) get_post_meta( $post->ID, '_isoft_fmf_featured', true );
+		$external_only        = (bool) get_post_meta( $post->ID, '_isoft_fmf_external_only', true );
 		$licenses             = ( new ISOFT_FMF_License_Manager() )->get_all();
 		$effective_license_id = ( new ISOFT_FMF_License_Resolver() )->effective_license_for( $post->ID );
 		$download_count       = (int) get_post_meta( $post->ID, '_isoft_fmf_download_count', true );
@@ -262,7 +262,8 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 		// license_id accepts -1 as the INHERIT sentinel (resolved via
 		// ISOFT_FMF_License_Resolver against category-level _isoft_fmf_cat_license_id),
 		// so absint() would silently coerce -1 to 0 (= no license) and lose the
-		// inherit signal. Validate explicitly.
+		// inherit signal. Validate explicitly. Nonce verified above.
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- (int) cast is sufficient sanitization for a numeric license id; sanitize_text_field() before cast would round-trip an int through a string for no benefit.
 		$raw_license_id    = (int) wp_unslash( $_POST['_isoft_fmf_license_id'] ?? 0 );
 		$sanitised_license = ISOFT_FMF_License_Resolver::INHERIT === $raw_license_id ? ISOFT_FMF_License_Resolver::INHERIT : max( 0, $raw_license_id );
 		update_post_meta( $post_id, '_isoft_fmf_license_id', $sanitised_license );

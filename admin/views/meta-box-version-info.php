@@ -43,36 +43,36 @@
 					</option>
 				<?php endforeach; ?>
 			</select>
-			<?php if ( $effective_license_id > 0 && $license_id <= 0 ) :
+			<?php
+			if ( $effective_license_id > 0 && $license_id <= 0 ) {
 				$effective_license = ( new ISOFT_FMF_License_Manager() )->get( $effective_license_id );
-				if ( $effective_license ) : ?>
-					<p class="description">
-						<?php
-						printf(
-							/* translators: %s: license title currently inherited from category */
-							esc_html__( 'Currently resolves to %s (inherited from category).', 'isoft-fm-foundation' ),
-							'<strong>' . esc_html( $effective_license->title ) . '</strong>'
-						);
-						?>
-					</p>
-				<?php endif;
-			endif; ?>
-			<?php if ( $download_count > 0 ) : ?>
-				<p class="description isoft-fmf-license-change-warning" style="display:none; color:#b32d2e;">
-					<strong><?php esc_html_e( 'Heads up:', 'isoft-fm-foundation' ); ?></strong>
-					<?php
+				if ( $effective_license ) {
+					echo '<p class="description">';
 					printf(
-						/* translators: %d: total downloads served under the current license */
-						esc_html( _n(
-							'This file has been downloaded %d time under the current license. Changing the license affects new downloads only — recipients who already downloaded keep the original license terms perpetually (CC and most permissive licenses are irrevocable for distributed copies).',
-							'This file has been downloaded %d times under the current license. Changing the license affects new downloads only — recipients who already downloaded keep the original license terms perpetually (CC and most permissive licenses are irrevocable for distributed copies).',
-							(int) $download_count,
-							'isoft-fm-foundation'
-						) ),
-						(int) $download_count
+						/* translators: %s: license title currently inherited from category */
+						esc_html__( 'Currently resolves to %s (inherited from category).', 'isoft-fm-foundation' ),
+						'<strong>' . esc_html( $effective_license->title ) . '</strong>'
 					);
-					?>
-				</p>
+					echo '</p>';
+				}
+			}
+			?>
+			<?php
+			if ( $download_count > 0 ) {
+				echo '<p class="description isoft-fmf-license-change-warning" style="display:none; color:#b32d2e;">';
+				echo '<strong>' . esc_html__( 'Heads up:', 'isoft-fm-foundation' ) . '</strong> ';
+				printf(
+					/* translators: %d: total downloads served under the current license */
+					esc_html( _n(
+						'This file has been downloaded %d time under the current license. Changing the license affects new downloads only — recipients who already downloaded keep the original license terms perpetually (CC and most permissive licenses are irrevocable for distributed copies).',
+						'This file has been downloaded %d times under the current license. Changing the license affects new downloads only — recipients who already downloaded keep the original license terms perpetually (CC and most permissive licenses are irrevocable for distributed copies).',
+						(int) $download_count,
+						'isoft-fm-foundation'
+					) ),
+					(int) $download_count
+				);
+				echo '</p>';
+				?>
 				<script>
 				(function(){
 					var sel = document.getElementById('isoft-fmf-license');
@@ -85,7 +85,9 @@
 					});
 				})();
 				</script>
-			<?php endif; ?>
+				<?php
+			}
+			?>
 		</td>
 	</tr>
 	<!-- TODO v1.0: Rework agreement UX — conditional display, better relationship with license -->
