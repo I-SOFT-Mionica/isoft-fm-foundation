@@ -115,6 +115,8 @@ class RestSettingsTest extends WP_UnitTestCase {
 		wp_set_current_user( $id );
 
 		$response = $this->server->dispatch( new WP_REST_Request( 'GET', self::NS . '/settings' ) );
-		$this->assertSame( 401, $response->get_status() );
+		// 403 (forbidden) — user is logged in but lacks the capability.
+		// 401 would mean nobody is logged in at all.
+		$this->assertSame( 403, $response->get_status() );
 	}
 }

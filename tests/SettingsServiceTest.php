@@ -97,7 +97,15 @@ class SettingsServiceTest extends WP_UnitTestCase {
 	}
 
 	public function test_set_runs_sanitizer_for_time(): void {
+		// 99:99 matches the HH:MM regex (1-2 digits, then 2 digits), so it
+		// clamps to 23:59 rather than falling back to 02:30. The fallback
+		// only fires when the regex itself doesn't match.
 		$this->service->set( 'isoft_fmf_integrity_check_time', '99:99' );
+		$this->assertSame( '23:59', $this->service->get( 'isoft_fmf_integrity_check_time' ) );
+	}
+
+	public function test_set_falls_back_when_time_regex_fails(): void {
+		$this->service->set( 'isoft_fmf_integrity_check_time', 'not a time' );
 		$this->assertSame( '02:30', $this->service->get( 'isoft_fmf_integrity_check_time' ) );
 	}
 
