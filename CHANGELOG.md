@@ -2,6 +2,22 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.12.2] — unreleased
+
+Phase 3 of the React-admin rewrite. The Licenses admin page becomes the first fully-React standalone screen, proving the mount-and-fallback pattern that the larger 0.12.3 (Settings + Stats + Log + Broken Links) will reuse.
+
+This release does NOT ship to WordPress.org SVN. 0.12.x stays GitHub-only until the full rewrite graduates to 1.0.0.
+
+### Added
+
+- **React Licenses page** — Downloads → Licenses is now rendered as a React app. List uses a hand-rolled `.wp-list-table` for native admin styling; create/edit happens in a `@wordpress/components` `Modal` with `TextControl` / `TextareaControl` / `ToggleControl`; delete and restore-seeds confirms run through `ConfirmDialog`. All CRUD hits the `/isoft-fm-foundation/v1/licenses` REST endpoints landed in 0.12.0; success states surface as dismissible `<Notice>` banners and the list refetches after each mutation. `<DataViews>` deliberately skipped — license tables are typically <20 rows and don't need pagination/filtering scaffolding; DataViews lands in 0.12.3 for the pages that do.
+- **`ISOFT_FMF_Licenses_Page`** — new class that enqueues `blocks/build/licenses-page.js` on the Licenses admin screen only (hook suffix `isoft_fmf_file_page_isoft-fmf-licenses`). Pulls in `wp-components` styles so the Modal / ConfirmDialog render with the proper backdrop and layout.
+- **Licenses page webpack entry** (`blocks/licenses-page/index.js`, built via `npm run build` to `blocks/build/licenses-page.js`) registered alongside the existing block bundles.
+
+### Changed
+
+- **`admin/views/licenses-page.php`** branches on `wp_script_is( ISOFT_FMF_Licenses_Page::SCRIPT_HANDLE, 'enqueued' )`: when the React bundle is loaded, the page renders as a single `<div id="isoft-fmf-licenses-root">` mount node and React owns the surface; when the bundle is missing (build artefact absent, malformed deploy, or future revert), the original PHP form renders unchanged and `ISOFT_FMF_License_Manager::handle_form_actions` processes submissions through the existing admin-post pipeline. The fallback path is the safety net for the entire 0.12.x range — flipping the React mount off is a one-line revert.
+
 ## [0.12.1] — 2026-06-22
 
 Phase 2 of the React-admin rewrite. The block editor takes over on download edit screens, and the long-standing multi-category-per-download UI bug from 0.11.0 is finally resolved.
