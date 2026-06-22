@@ -90,8 +90,11 @@ const LogApp = ( { exportBaseUrl, purgeUrl, retentionDays, loggingEnabled, canEx
 		if ( view.search ) {
 			params.set( 'search', view.search );
 		}
+		// Filter field id is download_title (single combined column + filter
+		// per the comment above); the value the user picks IS the post ID
+		// because that's what we set elements.value to.
 		const downloadFilter = ( view.filters || [] ).find(
-			( f ) => f.field === 'download_id'
+			( f ) => f.field === 'download_title'
 		);
 		if ( downloadFilter && downloadFilter.value ) {
 			params.set( 'download_id', String( downloadFilter.value ) );
@@ -134,9 +137,27 @@ const LogApp = ( { exportBaseUrl, purgeUrl, retentionDays, loggingEnabled, canEx
 				render:   ( { item } ) => formatDate( item.downloaded_at ),
 			},
 			{
+				// Single field carries both the visible column (rendered as
+				// linked title) and the filter dropdown (elements = list of
+				// downloads, value = post ID). DataViews uses getValue for
+				// filter matching; render for display. Avoids the duplicate
+				// "Download" entries that appeared when we had separate
+				// download_title (column) and download_id (filter) fields —
+				// the Properties panel lists every field once.
 				id:       'download_title',
 				label:    __( 'Download', 'isoft-fm-foundation' ),
 				enableSorting: false,
+				getValue: ( { item } ) => parseInt( item.download_id, 10 ) || 0,
+				elements: [
+					{ label: __( '— All downloads —', 'isoft-fm-foundation' ), value: 0 },
+					...downloads.map( ( d ) => ( {
+						label: d.title,
+						value: parseInt( d.id, 10 ),
+					} ) ),
+				],
+				filterBy: {
+					operators: [ 'is' ],
+				},
 				render:   ( { item } ) => {
 					const title = item.download_title || __( '(deleted)', 'isoft-fm-foundation' );
 					if ( item.download_id && item.download_title ) {
@@ -171,23 +192,6 @@ const LogApp = ( { exportBaseUrl, purgeUrl, retentionDays, loggingEnabled, canEx
 				render: ( { item } ) => (
 					<code style={ { fontSize: '11px' } }>{ item.user_ip || '—' }</code>
 				),
-			},
-			{
-				id:       'download_id',
-				label:    __( 'Download', 'isoft-fm-foundation' ),
-				type:     'integer',
-				elements: [
-					{ label: __( '— All downloads —', 'isoft-fm-foundation' ), value: 0 },
-					...downloads.map( ( d ) => ( {
-						label: d.title,
-						value: parseInt( d.id, 10 ),
-					} ) ),
-				],
-				filterBy: {
-					operators: [ 'is' ],
-				},
-				// Hidden field — used only for filtering, not rendered as a
-				// column. The download_title column above is the visible one.
 			},
 		],
 		[ downloads ]
