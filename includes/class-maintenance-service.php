@@ -109,7 +109,12 @@ class ISOFT_FMF_Maintenance_Service {
 	 */
 	public function export_csv(): string {
 		$rows = $this->fetch_log_rows();
-		$out  = fopen( 'php://temp', 'w+' );
+		// php://temp is an in-memory PHP stream (with overflow to /tmp only
+		// above ~2 MB), not actual filesystem I/O — WP_Filesystem is the
+		// wrong abstraction. fputcsv handles RFC 4180 quoting / escaping
+		// correctly, which hand-rolled string concat would re-invent
+		// poorly (embedded commas, quotes, newlines in user_agent, etc.).
+		$out = fopen( 'php://temp', 'w+' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen,WordPress.WP.AlternativeFunctions.file_system_read_fopen -- php://temp is a memory stream, not filesystem I/O.
 		fputcsv(
 			$out,
 			array( 'download_id', 'file_id', 'license_id_at_download', 'downloaded_at', 'ip_address', 'user_id', 'user_login', 'user_agent' )
@@ -131,7 +136,7 @@ class ISOFT_FMF_Maintenance_Service {
 		}
 		rewind( $out );
 		$body = (string) stream_get_contents( $out );
-		fclose( $out );
+		fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Closes the php://temp memory stream opened above.
 		return $body;
 	}
 
