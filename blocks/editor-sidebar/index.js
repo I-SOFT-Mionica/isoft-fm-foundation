@@ -29,7 +29,13 @@
  */
 
 import { registerPlugin } from '@wordpress/plugins';
-import { PluginDocumentSettingPanel } from '@wordpress/edit-post';
+// PluginDocumentSettingPanel was moved from @wordpress/edit-post to
+// @wordpress/editor in WP 6.5 (Gutenberg 17.8). The old import still
+// exists as a re-export through 6.8 but is deprecated; in newer
+// Gutenberg builds it returns null and renders nothing — which is
+// exactly the "panel doesn't appear" bug we just hit. Import from the
+// new canonical location.
+import { PluginDocumentSettingPanel } from '@wordpress/editor';
 import { SelectControl, Spinner } from '@wordpress/components';
 import { useSelect, useDispatch, dispatch, subscribe, select } from '@wordpress/data';
 import { store as coreStore } from '@wordpress/core-data';
