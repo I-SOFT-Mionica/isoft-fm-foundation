@@ -34,15 +34,13 @@ class ISOFT_FMF_Demo_Content {
 		if ( ! current_user_can( 'isoft_fmf_manage_settings' ) ) {
 			wp_die( esc_html__( 'You do not have permission to install demo content.', 'isoft-fm-foundation' ), 403 );
 		}
-		if ( self::has_content() ) {
-			isoft_fmf_notify_admin( __( 'Demo content cannot be installed — downloads already exist.', 'isoft-fm-foundation' ), 'error' );
+
+		$result = ( new ISOFT_FMF_Maintenance_Service() )->install_demo();
+		if ( empty( $result['installed'] ) ) {
+			isoft_fmf_notify_admin( $result['reason'] ?? __( 'Demo install failed.', 'isoft-fm-foundation' ), 'error' );
 			wp_safe_redirect( $this->settings_url() );
 			exit;
 		}
-
-		$categories   = $this->create_categories();
-		$download_ids = $this->create_downloads( $categories );
-		$this->create_demo_page( $download_ids );
 
 		isoft_fmf_notify_admin( __( 'Demo content installed successfully.', 'isoft-fm-foundation' ), 'success' );
 		wp_safe_redirect( $this->settings_url( 'isoft_fmf_demo=installed' ) );
@@ -55,8 +53,7 @@ class ISOFT_FMF_Demo_Content {
 			wp_die( esc_html__( 'You do not have permission to remove demo content.', 'isoft-fm-foundation' ), 403 );
 		}
 
-		$this->remove_demo_posts();
-		$this->remove_demo_terms();
+		( new ISOFT_FMF_Maintenance_Service() )->remove_demo();
 
 		isoft_fmf_notify_admin( __( 'Demo content removed.', 'isoft-fm-foundation' ), 'success' );
 		wp_safe_redirect( $this->settings_url( 'isoft_fmf_demo=removed' ) );
@@ -73,6 +70,15 @@ class ISOFT_FMF_Demo_Content {
 		$categories   = $this->create_categories();
 		$download_ids = $this->create_downloads( $categories );
 		$this->create_demo_page( $download_ids );
+	}
+
+	/**
+	 * Programmatic uninstall — skips nonce and redirect. Mirrors install_cli().
+	 * Called by ISOFT_FMF_Maintenance_Service and the AJAX handler.
+	 */
+	public function remove_silent(): void {
+		$this->remove_demo_posts();
+		$this->remove_demo_terms();
 	}
 
 	// ─────────────────────────────────────────────────────────────────────────

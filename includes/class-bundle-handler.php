@@ -542,23 +542,7 @@ class ISOFT_FMF_Bundle_Handler {
 		}
 		check_admin_referer( 'isoft_fmf_clear_bundle_cache' );
 
-		$dir     = isoft_fmf_files_dir() . '/.bundle-cache';
-		$deleted = 0;
-		if ( is_dir( $dir ) ) {
-			$entries = @scandir( $dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-			if ( $entries ) {
-				foreach ( $entries as $entry ) {
-					if ( '.' === $entry || '..' === $entry ) {
-						continue;
-					}
-					$path = $dir . '/' . $entry;
-					wp_delete_file( $path );
-					if ( ! file_exists( $path ) ) {
-						++$deleted;
-					}
-				}
-			}
-		}
+		$result = ( new ISOFT_FMF_Maintenance_Service() )->clear_bundle_cache();
 
 		wp_safe_redirect(
 			add_query_arg(
@@ -566,7 +550,7 @@ class ISOFT_FMF_Bundle_Handler {
 					'post_type'               => 'isoft_fmf_file',
 					'page'                    => 'isoft-fmf-settings',
 					'tab'                     => 'display',
-					'isoft_fmf_cache_cleared' => $deleted,
+					'isoft_fmf_cache_cleared' => (int) $result['deleted'],
 				),
 				admin_url( 'edit.php' )
 			)
