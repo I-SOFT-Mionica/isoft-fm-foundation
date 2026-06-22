@@ -61,7 +61,12 @@ const hideStandardCategoryPanel = () => {
 // This is what catches the standard panel's initial render; without
 // this, the user sees the multi-checkbox panel briefly before the React
 // useEffect inside the component would have had a chance to hide it.
+// Temporary diagnostic so we can see the slot wiring is actually firing.
+// Strip before 0.12.1 ships final.
+console.log( '[isoft-fmf-sidebar] script loaded; PluginDocumentSettingPanel =', typeof PluginDocumentSettingPanel );
+
 domReady( () => {
+	console.log( '[isoft-fmf-sidebar] domReady fired' );
 	hideStandardCategoryPanel();
 
 	// Belt-and-braces: some Gutenberg flows lazily register the
@@ -197,9 +202,11 @@ const ScopedSidebar = () => {
 		( s ) => s( 'core/editor' ).getCurrentPostType(),
 		[]
 	);
+	console.log( '[isoft-fmf-sidebar] ScopedSidebar render, currentPostType =', currentPostType );
 	if ( currentPostType !== POST_TYPE ) {
 		return null;
 	}
+	console.log( '[isoft-fmf-sidebar] mounting CategoryPanel' );
 	return <CategoryPanel />;
 };
 
