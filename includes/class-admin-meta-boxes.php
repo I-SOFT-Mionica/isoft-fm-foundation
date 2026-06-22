@@ -280,11 +280,12 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 		if ( ! $file_id ) {
 			wp_send_json_error( array( 'message' => __( 'Invalid data.', 'isoft-fm-foundation' ) ) );
 		}
-		$file = ( new ISOFT_FMF_File_Manager() )->get_file( $file_id );
+		$service = new ISOFT_FMF_Files_Service();
+		$file    = $service->get( $file_id );
 		if ( ! $file || ! current_user_can( 'edit_post', (int) $file->download_id ) ) {
 			wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'isoft-fm-foundation' ) ), 403 );
 		}
-		if ( ! ( new ISOFT_FMF_File_Manager() )->delete_file( $file_id ) ) {
+		if ( ! $service->delete( $file_id ) ) {
 			wp_send_json_error( array( 'message' => __( 'Could not delete file.', 'isoft-fm-foundation' ) . self::db_error_suffix() ) );
 		}
 		wp_send_json_success();
@@ -295,15 +296,11 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 		if ( ! current_user_can( 'edit_posts' ) ) {
 			wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'isoft-fm-foundation' ) ), 403 );
 		}
-		$order = isset( $_POST['order'] ) ? wp_unslash( $_POST['order'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Sanitized per-element below.
+		$order = isset( $_POST['order'] ) ? wp_unslash( $_POST['order'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Sanitized inside the service.
 		if ( ! is_array( $order ) ) {
 			wp_send_json_error();
 		}
-		$sanitized = array();
-		foreach ( $order as $fid => $pos ) {
-			$sanitized[ absint( $fid ) ] = absint( $pos );
-		}
-		( new ISOFT_FMF_File_Manager() )->update_sort_order( $sanitized );
+		( new ISOFT_FMF_Files_Service() )->reorder( $order );
 		wp_send_json_success();
 	}
 
@@ -317,18 +314,17 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 		if ( ! current_user_can( 'edit_post', $download_id ) ) {
 			wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'isoft-fm-foundation' ) ), 403 );
 		}
-		$file_id = ( new ISOFT_FMF_File_Manager() )->add_external_link(
+		$title  = sanitize_text_field( wp_unslash( $_POST['title'] ?? $url ) );
+		$result = ( new ISOFT_FMF_Files_Service() )->add_external(
 			$download_id,
 			$url,
-			array(
-				'title'     => sanitize_text_field( wp_unslash( $_POST['title'] ?? $url ) ),
-				'is_mirror' => (int) ! empty( $_POST['is_mirror'] ),
-			)
+			$title,
+			! empty( $_POST['is_mirror'] )
 		);
-		if ( ! $file_id ) {
-			wp_send_json_error( array( 'message' => __( 'Could not add link.', 'isoft-fm-foundation' ) . self::db_error_suffix() ) );
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( array( 'message' => $result->get_error_message() . self::db_error_suffix() ) );
 		}
-		wp_send_json_success( array( 'file_id' => $file_id ) );
+		wp_send_json_success( array( 'file_id' => $result ) );
 	}
 
 	/**
@@ -342,8 +338,8 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 			wp_send_json_error( array( 'message' => __( 'Invalid file id.', 'isoft-fm-foundation' ) ) );
 		}
 
-		$manager = new ISOFT_FMF_File_Manager();
-		$file    = $manager->get_file( $file_id );
+		$service = new ISOFT_FMF_Files_Service();
+		$file    = $service->get( $file_id );
 		if ( ! $file || ! current_user_can( 'edit_post', (int) $file->download_id ) ) {
 			wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'isoft-fm-foundation' ) ), 403 );
 		}
@@ -351,11 +347,11 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 		$title       = sanitize_text_field( wp_unslash( $_POST['title'] ?? '' ) );
 		$description = sanitize_textarea_field( wp_unslash( $_POST['description'] ?? '' ) );
 
-		if ( ! $manager->update_meta( $file_id, $title, $description ) ) {
+		if ( ! $service->update_meta( $file_id, $title, $description ) ) {
 			wp_send_json_error( array( 'message' => __( 'Could not save changes.', 'isoft-fm-foundation' ) . self::db_error_suffix() ) );
 		}
 
-		wp_send_json_success( array( 'file' => $manager->get_file( $file_id ) ) );
+		wp_send_json_success( array( 'file' => $service->get( $file_id ) ) );
 	}
 
 	/**
@@ -373,92 +369,19 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 		if ( empty( $_FILES['file'] ) ) {
 			wp_send_json_error( array( 'message' => __( 'No file received by the server. The request may have been blocked by a security plugin or rejected at the web-server level.', 'isoft-fm-foundation' ) ) );
 		}
-		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- Reading the PHP-set integer error code; no admin input.
-		$upload_error_code = isset( $_FILES['file']['error'] ) ? (int) $_FILES['file']['error'] : UPLOAD_ERR_NO_FILE;
-		if ( UPLOAD_ERR_OK !== $upload_error_code ) {
-			wp_send_json_error( array( 'message' => self::upload_error_message( $upload_error_code ) ) );
+
+		$service = new ISOFT_FMF_Files_Service();
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- Raw $_FILES entry forwarded to the service; wp_handle_upload validates inside.
+		$result = $service->upload( $download_id, $_FILES['file'] );
+		if ( is_wp_error( $result ) ) {
+			$msg = $result->get_error_message();
+			if ( in_array( $result->get_error_code(), array( 'isoft_fmf_save_record' ), true ) ) {
+				$msg .= self::db_error_suffix();
+			}
+			wp_send_json_error( array( 'message' => $msg ) );
 		}
 
-		$category_id = self::get_download_category( $download_id );
-		if ( ! $category_id ) {
-			wp_send_json_error( array( 'message' => __( 'Assign a category to this download and save before uploading files.', 'isoft-fm-foundation' ) ) );
-		}
-
-		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- wp_handle_upload() validates the raw $_FILES entry below; individual fields used here are sanitized before use.
-		$upload        = $_FILES['file'];
-		$original_name = sanitize_file_name( wp_unslash( $upload['name'] ) );
-		$upload_size   = isset( $upload['size'] ) ? (int) $upload['size'] : 0;
-		$sanitized     = isoft_fmf_sanitize_filename( $original_name );
-
-		if ( $sanitized['error'] ) {
-			wp_send_json_error( array( 'message' => $sanitized['error'] ) );
-		}
-
-		$slug = $sanitized['slug'];
-		if ( isoft_fmf_filename_collision( $slug, $category_id ) ) {
-			wp_send_json_error(
-				array(
-					'message' => sprintf(
-					/* translators: %s: filename */
-						__( 'A file named "%s" already exists in this category. Rename the file and try again.', 'isoft-fm-foundation' ),
-						$slug
-					),
-				)
-			);
-		}
-
-		ISOFT_FMF_Category_Folders::ensure( $category_id );
-		$target_abs = isoft_fmf_category_fs_path( $category_id ) . '/' . $slug;
-
-		require_once ABSPATH . 'wp-admin/includes/file.php';
-		$handled = wp_handle_upload(
-			$_FILES['file'], // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- wp_handle_upload validates.
-			array(
-				'test_form' => false,
-				'action'    => 'isoft_fmf_upload_file',
-			)
-		);
-		if ( isset( $handled['error'] ) ) {
-			wp_send_json_error( array( 'message' => $handled['error'] ) );
-		}
-
-		global $wp_filesystem;
-		if ( ! $wp_filesystem ) {
-			WP_Filesystem();
-		}
-		if ( ! $wp_filesystem->move( $handled['file'], $target_abs, true ) ) {
-			wp_send_json_error( array( 'message' => __( 'Failed to write the uploaded file to the category folder. Check write permissions on wp-content/uploads/isoft-fmf-files/.', 'isoft-fm-foundation' ) ) );
-		}
-
-		// Mime resolution: prefer server-side magic-byte detection, fall back
-		// to WP's extension map. Never trust $_FILES['type'] (browser-supplied,
-		// trivially spoofable).
-		$detected_mime = function_exists( 'mime_content_type' ) ? mime_content_type( $target_abs ) : false;
-		if ( ! $detected_mime ) {
-			$ftype         = wp_check_filetype( $slug );
-			$detected_mime = $ftype['type'] ?: 'application/octet-stream';
-		}
-
-		$rel_path = isoft_fmf_category_folder_path( $category_id ) . '/' . $slug;
-		$manager  = new ISOFT_FMF_File_Manager();
-		$file_id  = $manager->add_local_file(
-			$download_id,
-			array(
-				'title'     => isoft_fmf_autofill_title( $sanitized['original_title'] ),
-				'file_name' => $slug,
-				'file_path' => $rel_path,
-				'file_size' => $upload_size,
-				'file_mime' => $detected_mime,
-				'file_hash' => hash_file( 'sha256', $target_abs ),
-			)
-		);
-
-		if ( ! $file_id ) {
-			wp_delete_file( $target_abs );
-			wp_send_json_error( array( 'message' => __( 'Could not save file record.', 'isoft-fm-foundation' ) . self::db_error_suffix() ) );
-		}
-
-		wp_send_json_success( array( 'file' => $manager->get_file( $file_id ) ) );
+		wp_send_json_success( array( 'file' => $service->get( $result ) ) );
 	}
 
 	/**
@@ -473,57 +396,7 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 			wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'isoft-fm-foundation' ) ), 403 );
 		}
 
-		$category_id = self::get_download_category( $download_id );
-		if ( ! $category_id ) {
-			wp_send_json_success(
-				array(
-					'files'    => array(),
-					'category' => null,
-				)
-			);
-		}
-
-		$folder = isoft_fmf_category_fs_path( $category_id );
-		if ( ! is_dir( $folder ) ) {
-			wp_send_json_success(
-				array(
-					'files'    => array(),
-					'category' => isoft_fmf_category_folder_path( $category_id ),
-				)
-			);
-		}
-
-		global $wpdb;
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin meta box: listing files under the download's category folder; single-request freshness required.
-		$tracked = $wpdb->get_col(
-			$wpdb->prepare(
-				"SELECT file_path FROM {$wpdb->prefix}isoft_fmf_files WHERE download_id = %d",
-				$download_id
-			)
-		);
-
-		$rel_base = isoft_fmf_category_folder_path( $category_id );
-		$items    = array();
-		foreach ( (array) glob( "{$folder}/*" ) as $path ) {
-			if ( ! is_file( $path ) ) {
-				continue;
-			}
-			$name    = basename( $path );
-			$rel     = "{$rel_base}/{$name}";
-			$items[] = array(
-				'name'    => $name,
-				'rel'     => $rel,
-				'size'    => filesize( $path ),
-				'tracked' => in_array( $rel, $tracked, true ),
-			);
-		}
-
-		wp_send_json_success(
-			array(
-				'files'    => $items,
-				'category' => $rel_base,
-			)
-		);
+		wp_send_json_success( ( new ISOFT_FMF_Files_Service() )->browse_category( $download_id ) );
 	}
 
 	/**
@@ -539,31 +412,16 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 			wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'isoft-fm-foundation' ) ), 403 );
 		}
 
-		// Path traversal guard — resolved path must stay under isoft_fmf_files_dir().
-		$base = realpath( isoft_fmf_files_dir() );
-		$abs  = realpath( "{$base}/{$rel_path}" );
-		if ( ! $abs || ! $base || ! str_starts_with( $abs, $base ) || ! is_file( $abs ) ) {
-			wp_send_json_error( array( 'message' => __( 'File not found.', 'isoft-fm-foundation' ) ) );
+		$service = new ISOFT_FMF_Files_Service();
+		$result  = $service->import_from_disk( $download_id, $rel_path );
+		if ( is_wp_error( $result ) ) {
+			$msg = $result->get_error_message();
+			if ( 'isoft_fmf_save_record' === $result->get_error_code() ) {
+				$msg .= self::db_error_suffix();
+			}
+			wp_send_json_error( array( 'message' => $msg ) );
 		}
 
-		$name    = basename( $abs );
-		$manager = new ISOFT_FMF_File_Manager();
-		$file_id = $manager->add_local_file(
-			$download_id,
-			array(
-				'title'     => isoft_fmf_autofill_title( pathinfo( $name, PATHINFO_FILENAME ) ),
-				'file_name' => $name,
-				'file_path' => $rel_path,
-				'file_size' => filesize( $abs ),
-				'file_mime' => function_exists( 'mime_content_type' ) ? ( mime_content_type( $abs ) ?: 'application/octet-stream' ) : 'application/octet-stream',
-				'file_hash' => hash_file( 'sha256', $abs ),
-			)
-		);
-
-		if ( ! $file_id ) {
-			wp_send_json_error( array( 'message' => __( 'Could not save file record.', 'isoft-fm-foundation' ) . self::db_error_suffix() ) );
-		}
-
-		wp_send_json_success( array( 'file' => $manager->get_file( $file_id ) ) );
+		wp_send_json_success( array( 'file' => $service->get( $result ) ) );
 	}
 }
