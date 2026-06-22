@@ -19,6 +19,11 @@
  */
 defined( 'ABSPATH' ) || exit;
 
+// Every public handle_* method calls $this->guard() as its first statement,
+// which runs check_ajax_referer( 'isoft_fmf_broken_links', 'nonce' ) — so
+// every $_POST/$_FILES read below is nonce-verified at the top of the
+// method. The sniff can't follow the indirection.
+// phpcs:disable WordPress.Security.NonceVerification.Missing
 class ISOFT_FMF_Broken_Links_Ajax {
 
 	public function register_hooks(): void {
