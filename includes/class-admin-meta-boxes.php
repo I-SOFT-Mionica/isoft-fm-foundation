@@ -7,7 +7,10 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 		add_action( 'add_meta_boxes', array( $this, 'register' ) );
 		add_action( 'save_post_isoft_fmf_file', array( $this, 'save' ), 10, 2 );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue' ) );
-		add_action( 'post_submitbox_misc_actions', array( $this, 'render_access_role_in_publish_box' ) );
+		// post_submitbox_misc_actions only fires in classic editor's publish
+		// meta box. As of 0.12.1 the CPT runs on the block editor; access
+		// role lives in the Status & visibility panel via the editor-sidebar
+		// AccessRoleStatusInfo component. Hook + render method retired.
 		add_filter( 'wp_insert_post_data', array( $this, 'strip_post_password' ), 10, 2 );
 		add_action( 'wp_ajax_isoft_fmf_delete_file', array( $this, 'ajax_delete_file' ) );
 		add_action( 'wp_ajax_isoft_fmf_save_file_order', array( $this, 'ajax_save_order' ) );
@@ -139,44 +142,11 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 		require ISOFT_FMF_PLUGIN_DIR . 'admin/views/meta-box-files.php';
 	}
 
-	/**
-	 * Render the Access Role dropdown inside the Publish meta box.
-	 */
-	public function render_access_role_in_publish_box( WP_Post $post ): void {
-		if ( 'isoft_fmf_file' !== $post->post_type ) {
-			return;
-		}
-		// Empty meta on a brand-new download defaults to 'inherit', which
-		// falls through to the assigned category's role (or, failing that,
-		// the global default). Existing downloads keep whatever literal role
-		// they were saved with.
-		$access_role = get_post_meta( $post->ID, '_isoft_fmf_access_role', true );
-		if ( '' === $access_role ) {
-			$access_role = 'inherit';
-		}
-		$roles = array(
-			'inherit'       => __( '— Inherit from category —', 'isoft-fm-foundation' ),
-			'public'        => __( 'Public (everyone)', 'isoft-fm-foundation' ),
-			'subscriber'    => __( 'Subscriber+', 'isoft-fm-foundation' ),
-			'contributor'   => __( 'Contributor+', 'isoft-fm-foundation' ),
-			'author'        => __( 'Author+', 'isoft-fm-foundation' ),
-			'editor'        => __( 'Editor+', 'isoft-fm-foundation' ),
-			'administrator' => __( 'Administrator only', 'isoft-fm-foundation' ),
-		);
-		?>
-		<div class="misc-pub-section misc-pub-isoft-fmf-access">
-			<span class="dashicons dashicons-lock" style="color:#82878c;margin-right:2px;"></span>
-			<label for="isoft-fmf-access-role"><strong><?php esc_html_e( 'Access:', 'isoft-fm-foundation' ); ?></strong></label>
-			<select name="_isoft_fmf_access_role" id="isoft-fmf-access-role" style="margin-left:4px;">
-				<?php foreach ( $roles as $value => $label ) : ?>
-					<option value="<?php echo esc_attr( $value ); ?>" <?php selected( $access_role, $value ); ?>>
-						<?php echo esc_html( $label ); ?>
-					</option>
-				<?php endforeach; ?>
-			</select>
-		</div>
-		<?php
-	}
+	// render_access_role_in_publish_box() retired in 0.12.1 — the
+	// post_submitbox_misc_actions hook doesn't fire in the block editor.
+	// Access role is now edited via the editor-sidebar
+	// AccessRoleStatusInfo component (PluginPostStatusInfo slot inside
+	// the Status & visibility panel) which writes the meta via REST.
 
 	/**
 	 * Strip post_password for isoft_fmf_file posts — our RBAC replaces WP password protection.
@@ -232,10 +202,19 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 		// in ISOFT_FMF_Access_Control); the rest are the literal role keys.
 		$valid_roles = array( 'inherit', 'public', 'subscriber', 'contributor', 'author', 'editor', 'administrator' );
 
-		// Access role — rendered in the Publish box via post_submitbox_misc_actions.
-		$default_role = get_option( 'isoft_fmf_default_access_role', 'public' );
-		$role         = sanitize_text_field( wp_unslash( $_POST['_isoft_fmf_access_role'] ?? $default_role ) );
-		update_post_meta( $post_id, '_isoft_fmf_access_role', in_array( $role, $valid_roles, true ) ? $role : $default_role );
+		// Access role — in block-editor mode it's written via REST through
+		// the AccessRoleStatusInfo SelectControl (PluginPostStatusInfo
+		// slot), which updates the meta entity directly. Only fall through
+		// to this $_POST path on classic-editor saves where the legacy
+		// publish-box dropdown was the data source. Without this isset()
+		// guard, every block-editor save would overwrite the REST-written
+		// value back to the global default because $_POST doesn't carry
+		// the key.
+		if ( isset( $_POST['_isoft_fmf_access_role'] ) ) {
+			$default_role = get_option( 'isoft_fmf_default_access_role', 'public' );
+			$role         = sanitize_text_field( wp_unslash( $_POST['_isoft_fmf_access_role'] ) );
+			update_post_meta( $post_id, '_isoft_fmf_access_role', in_array( $role, $valid_roles, true ) ? $role : $default_role );
+		}
 
 		// Agreement — rendered in Version & License box.
 		update_post_meta( $post_id, '_isoft_fmf_require_agree', ! empty( $_POST['_isoft_fmf_require_agree'] ) ? 1 : 0 );

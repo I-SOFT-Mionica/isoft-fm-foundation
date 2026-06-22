@@ -4,38 +4,39 @@
  * 0.12.1 scope (this entry):
  *   - Hide the standard taxonomy-panel-isoft_fmf_category (the multi-
  *     checkbox panel that drove the 0.11.0 known-issue bug).
- *   - Register a single-select Category panel in its place. The filesystem
- *     layer (class-category-folders.php) only honors the first assignment,
- *     so the UI now enforces what the data layer was already doing.
+ *   - Register a single-select Category panel in its place.
+ *   - Register an Access role <SelectControl> inside the Status &
+ *     visibility panel via PluginPostStatusInfo. Replaces the classic-
+ *     editor post_submitbox_misc_actions hook that doesn't fire in the
+ *     block editor.
  *
- * Later sub-PRs in 0.12.1 will add Files / Version-License / Stats panels
- * and move access-role into PluginPostStatusInfo. Until then, the existing
- * PHP meta boxes still render below the editor canvas as collapsible
- * "Additional fields" panels — no functionality is lost during the phase.
+ * Later sub-PRs in 0.12.1 will add Files / Version-License / Stats
+ * panels. Until then, the existing PHP meta boxes still render below
+ * the editor canvas as collapsible "Additional fields" panels.
  *
  * Panel hiding strategy (defense in depth):
  *   1. PHP: register_taxonomy meta_box_cb=false suppresses the classic-
- *      editor meta box outright.
- *   2. JS: domReady fires removeEditorPanel BEFORE the React tree mounts —
- *      earliest possible call.
+ *      editor meta box outright; show_in_quick_edit=false suppresses
+ *      the WP_Posts_List_Table inline-edit checkbox panel.
+ *   2. JS: domReady fires removeEditorPanel BEFORE the React tree
+ *      mounts — earliest possible call.
  *   3. JS: subscribe to core/editor watches for re-registration (some
  *      Gutenberg paths re-add the panel on post-type changes) and re-
  *      fires removeEditorPanel idempotently.
  *   4. JS: useEffect inside CategoryPanel as a third trigger on mount.
- *   The earlier useEffect-only approach raced the panel's initial render
- *   on first page load — user saw the multi-checkbox panel briefly and
- *   then permanently. The domReady call lands before the panel ever
- *   renders, which is what made the difference.
+ *   The earlier useEffect-only approach raced the panel's initial
+ *   render. The domReady call lands before the panel ever renders,
+ *   which is what made the difference.
  */
 
 import { registerPlugin } from '@wordpress/plugins';
-// PluginDocumentSettingPanel was moved from @wordpress/edit-post to
-// @wordpress/editor in WP 6.5 (Gutenberg 17.8). The old import still
-// exists as a re-export through 6.8 but is deprecated; in newer
-// Gutenberg builds it returns null and renders nothing — which is
-// exactly the "panel doesn't appear" bug we just hit. Import from the
-// new canonical location.
-import { PluginDocumentSettingPanel } from '@wordpress/editor';
+// PluginDocumentSettingPanel + PluginPostStatusInfo moved from
+// @wordpress/edit-post to @wordpress/editor in WP 6.5 (Gutenberg
+// 17.8). Old import paths still re-export through 6.8 but are
+// deprecated; in newer Gutenberg builds they return null and render
+// nothing. Import from the new canonical location for our 6.7+
+// minimum.
+import { PluginDocumentSettingPanel, PluginPostStatusInfo } from '@wordpress/editor';
 import { SelectControl, Spinner } from '@wordpress/components';
 import { useSelect, useDispatch, dispatch, subscribe, select } from '@wordpress/data';
 import { store as coreStore } from '@wordpress/core-data';
@@ -44,9 +45,10 @@ import { useEffect } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import domReady from '@wordpress/dom-ready';
 
-const POST_TYPE  = 'isoft_fmf_file';
-const TAXONOMY   = 'isoft_fmf_category';
-const PANEL_NAME = `taxonomy-panel-${ TAXONOMY }`;
+const POST_TYPE       = 'isoft_fmf_file';
+const TAXONOMY        = 'isoft_fmf_category';
+const PANEL_NAME      = `taxonomy-panel-${ TAXONOMY }`;
+const ACCESS_META_KEY = '_isoft_fmf_access_role';
 
 // Idempotent — removeEditorPanel just flips a preference flag. Safe to
 // re-call across mount cycles, post-type changes, and editor reloads.
@@ -59,14 +61,10 @@ const hideStandardCategoryPanel = () => {
 
 // Earliest hook into the editor lifecycle — fires before React mount.
 // This is what catches the standard panel's initial render; without
-// this, the user sees the multi-checkbox panel briefly before the React
-// useEffect inside the component would have had a chance to hide it.
-// Temporary diagnostic so we can see the slot wiring is actually firing.
-// Strip before 0.12.1 ships final.
-console.log( '[isoft-fmf-sidebar] script loaded; PluginDocumentSettingPanel =', typeof PluginDocumentSettingPanel );
-
+// this, the user sees the multi-checkbox panel briefly before the
+// React useEffect inside the component would have had a chance to
+// hide it.
 domReady( () => {
-	console.log( '[isoft-fmf-sidebar] domReady fired' );
 	hideStandardCategoryPanel();
 
 	// Belt-and-braces: some Gutenberg flows lazily register the
@@ -195,19 +193,61 @@ const CategoryPanel = () => {
 	);
 };
 
-// Scope the registration to the post type so the panel doesn't leak onto
-// regular posts / pages / other CPTs that happen to use the block editor.
+const AccessRoleStatusInfo = () => {
+	// Reads/writes via editPost on the meta object — the meta key is
+	// already exposed to REST via ISOFT_FMF_Meta_Fields::register()
+	// (show_in_rest: true) so the entity layer hydrates and persists
+	// it. No separate REST call needed.
+	const accessRole = useSelect(
+		( s ) => s( 'core/editor' ).getEditedPostAttribute( 'meta' )?.[ ACCESS_META_KEY ] || 'inherit',
+		[]
+	);
+	const { editPost } = useDispatch( 'core/editor' );
+
+	const setAccessRole = ( value ) => {
+		editPost( { meta: { [ ACCESS_META_KEY ]: value } } );
+	};
+
+	const options = [
+		{ label: __( '— Inherit from category —', 'isoft-fm-foundation' ), value: 'inherit' },
+		{ label: __( 'Public (everyone)', 'isoft-fm-foundation' ),         value: 'public' },
+		{ label: __( 'Subscriber+', 'isoft-fm-foundation' ),               value: 'subscriber' },
+		{ label: __( 'Contributor+', 'isoft-fm-foundation' ),              value: 'contributor' },
+		{ label: __( 'Author+', 'isoft-fm-foundation' ),                   value: 'author' },
+		{ label: __( 'Editor+', 'isoft-fm-foundation' ),                   value: 'editor' },
+		{ label: __( 'Administrator only', 'isoft-fm-foundation' ),        value: 'administrator' },
+	];
+
+	return (
+		<PluginPostStatusInfo className="isoft-fmf-access-status">
+			<SelectControl
+				label={ __( 'Access', 'isoft-fm-foundation' ) }
+				value={ accessRole }
+				options={ options }
+				onChange={ setAccessRole }
+				__nextHasNoMarginBottom
+			/>
+		</PluginPostStatusInfo>
+	);
+};
+
+// Scope the registration to the post type so neither panel leaks onto
+// regular posts / pages / other CPTs that happen to use the block
+// editor.
 const ScopedSidebar = () => {
 	const currentPostType = useSelect(
 		( s ) => s( 'core/editor' ).getCurrentPostType(),
 		[]
 	);
-	console.log( '[isoft-fmf-sidebar] ScopedSidebar render, currentPostType =', currentPostType );
 	if ( currentPostType !== POST_TYPE ) {
 		return null;
 	}
-	console.log( '[isoft-fmf-sidebar] mounting CategoryPanel' );
-	return <CategoryPanel />;
+	return (
+		<>
+			<CategoryPanel />
+			<AccessRoleStatusInfo />
+		</>
+	);
 };
 
 registerPlugin( 'isoft-fmf-sidebar', {
