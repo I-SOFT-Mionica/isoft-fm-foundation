@@ -105,7 +105,15 @@ class ISOFT_FMF_Post_Type {
 				'hierarchical'       => false,
 				'menu_position'      => 26,
 				'menu_icon'          => 'dashicons-download',
-				'supports'           => array( 'title', 'thumbnail', 'excerpt', 'revisions', 'author' ),
+				// 'editor' added in 0.12.1 so use_block_editor_for_post_type()
+				// doesn't short-circuit to false. Without 'editor' support,
+				// the block editor never loads regardless of what our filter
+				// below returns — the supports check runs first in WP core.
+				// The previous Description meta box (textarea name="content")
+				// is retired in this phase; post_content is now edited via
+				// the block canvas. Legacy classic-editor content renders as
+				// a single "Classic" block on first open.
+				'supports'           => array( 'title', 'editor', 'thumbnail', 'excerpt', 'revisions', 'author' ),
 				'show_in_rest'       => true,
 				'rest_base'          => 'isoft-fmf-downloads',
 			)

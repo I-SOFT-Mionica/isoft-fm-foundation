@@ -118,8 +118,11 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 	public function register(): void {
 		// Files first — that is the primary purpose of this CPT.
 		add_meta_box( 'isoft-fmf-files', __( 'Files', 'isoft-fm-foundation' ), array( $this, 'render_files' ), 'isoft_fmf_file', 'normal', 'high' );
-		// Description replaces the removed post editor.
-		add_meta_box( 'isoft-fmf-description', __( 'Description', 'isoft-fm-foundation' ), array( $this, 'render_description' ), 'isoft_fmf_file', 'normal', 'high' );
+		// Description meta box retired in 0.12.1 — the block editor canvas
+		// (now enabled via 'editor' in supports) IS the description editor.
+		// The legacy render_description() method is gone too; its only
+		// purpose was to render a textarea over post_content as a substitute
+		// for the WP editor, which is no longer needed.
 		add_meta_box( 'isoft-fmf-version-info', __( 'Version & License', 'isoft-fm-foundation' ), array( $this, 'render_version_info' ), 'isoft_fmf_file', 'normal', 'default' );
 		add_meta_box( 'isoft-fmf-stats', __( 'Statistics', 'isoft-fm-foundation' ), array( $this, 'render_stats' ), 'isoft_fmf_file', 'side', 'default' );
 	}
@@ -134,21 +137,6 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 		$category      = $category_id ? get_term( $category_id, 'isoft_fmf_category' ) : null;
 		$category_path = $category_id ? isoft_fmf_category_folder_path( $category_id ) : '';
 		require ISOFT_FMF_PLUGIN_DIR . 'admin/views/meta-box-files.php';
-	}
-
-	public function render_description( WP_Post $post ): void {
-		$description = $post->post_content;
-		?>
-		<label for="isoft-fmf-description" class="screen-reader-text"><?php esc_html_e( 'Description', 'isoft-fm-foundation' ); ?></label>
-		<textarea
-			id="isoft-fmf-description"
-			name="content"
-			rows="4"
-			class="widefat"
-			style="resize:vertical"
-		><?php echo esc_textarea( $description ); ?></textarea>
-		<p class="description"><?php esc_html_e( 'Optional. Shown on the download page below the title.', 'isoft-fm-foundation' ); ?></p>
-		<?php
 	}
 
 	/**
