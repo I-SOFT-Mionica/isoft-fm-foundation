@@ -583,11 +583,18 @@ function isoft_fmf_get_stats_overview(): array {
 	// than scanning the full log, and the only table the HOT cron uses
 	// for the same reason. The per-click isoft_fmf_download_log table
 	// remains the source for the Log viewer (audit trail per event).
+	// INNER JOIN (not LEFT JOIN) so orphan daily rows whose post has been
+	// deleted are excluded — without this, the dashboard surfaced them as
+	// "(deleted)" lines with their original counts intact. Future-proofing:
+	// the before_delete_post cleanup in class-post-type.php sweeps daily
+	// entries as posts are deleted going forward, but the INNER JOIN keeps
+	// the display honest even if a row escapes that cleanup path (direct
+	// SQL deletion, restored-from-backup state, etc.).
 	$top_30d = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT d.download_id, p.post_title, SUM(d.count) AS count
 			   FROM {$wpdb->prefix}isoft_fmf_download_daily d
-			   LEFT JOIN {$wpdb->posts} p ON p.ID = d.download_id
+			   INNER JOIN {$wpdb->posts} p ON p.ID = d.download_id
 			  WHERE d.log_date >= DATE_SUB(CURDATE(), INTERVAL %d DAY)
 			  GROUP BY d.download_id, p.post_title
 			  ORDER BY count DESC

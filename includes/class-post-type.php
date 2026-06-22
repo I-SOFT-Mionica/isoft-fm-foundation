@@ -8,6 +8,35 @@ class ISOFT_FMF_Post_Type {
 		add_action( 'init', array( $this, 'maybe_flush_rewrite_rules' ), 999 );
 		add_filter( 'the_content', array( $this, 'append_download_content' ) );
 		add_filter( 'wp_insert_post_data', array( $this, 'latinize_slug' ), 10, 2 );
+		add_action( 'before_delete_post', array( $this, 'cleanup_stats_on_delete' ), 10, 2 );
+	}
+
+	/**
+	 * Sweep daily-aggregate + per-click log rows tied to a download whose
+	 * post is being permanently deleted. Prevents the dashboard from
+	 * surfacing orphaned counts as "(deleted)" rows after individual
+	 * post deletions through the WP admin (or wp_delete_post calls from
+	 * other code paths). Skipped for non-download post types so deletes
+	 * on unrelated posts don't touch our tables.
+	 *
+	 * The download_count column on isoft_fmf_files is collateral here too:
+	 * the file rows themselves are owned by the post's lifecycle but live
+	 * in our table, so a future post delete that bypasses our file
+	 * cleanup would leak file rows too. They're not addressed here — the
+	 * existing file delete path through class-file-manager handles that
+	 * on the meta-box flow; before_delete_post for the file rows is a
+	 * separate concern that belongs to that class if needed.
+	 */
+	public function cleanup_stats_on_delete( int $post_id, WP_Post $post ): void {
+		if ( 'isoft_fmf_file' !== $post->post_type ) {
+			return;
+		}
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- One-shot post-deletion cleanup; bypassing the manager keeps the hook side-effect cheap.
+		$wpdb->delete( $wpdb->prefix . 'isoft_fmf_download_daily', array( 'download_id' => $post_id ), array( '%d' ) );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Same; the per-click audit log entries are also discarded since the post they audited is being permanently removed.
+		$wpdb->delete( $wpdb->prefix . 'isoft_fmf_download_log', array( 'download_id' => $post_id ), array( '%d' ) );
+		delete_transient( 'isoft_fmf_stats_overview' );
 	}
 
 	/**
