@@ -126,7 +126,15 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 		// The legacy render_description() method is gone too; its only
 		// purpose was to render a textarea over post_content as a substitute
 		// for the WP editor, which is no longer needed.
-		add_meta_box( 'isoft-fmf-version-info', __( 'Version & License', 'isoft-fm-foundation' ), array( $this, 'render_version_info' ), 'isoft_fmf_file', 'normal', 'default' );
+		// Version & License — block-editor sidebar (VersionLicensePanel)
+		// owns this surface in 0.12.1. Keep the legacy meta box registered
+		// only as a fallback for the rare case where a third-party plugin
+		// forces classic editor back on for our CPT; otherwise the
+		// sidebar would be the only UI and a classic-editor user would
+		// have no way to set version / license / author fields.
+		if ( ! use_block_editor_for_post_type( 'isoft_fmf_file' ) ) {
+			add_meta_box( 'isoft-fmf-version-info', __( 'Version & License', 'isoft-fm-foundation' ), array( $this, 'render_version_info' ), 'isoft_fmf_file', 'normal', 'default' );
+		}
 		add_meta_box( 'isoft-fmf-stats', __( 'Statistics', 'isoft-fm-foundation' ), array( $this, 'render_stats' ), 'isoft_fmf_file', 'side', 'default' );
 	}
 
@@ -216,27 +224,51 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 			update_post_meta( $post_id, '_isoft_fmf_access_role', in_array( $role, $valid_roles, true ) ? $role : $default_role );
 		}
 
-		// Agreement — rendered in Version & License box.
-		update_post_meta( $post_id, '_isoft_fmf_require_agree', ! empty( $_POST['_isoft_fmf_require_agree'] ) ? 1 : 0 );
-		update_post_meta( $post_id, '_isoft_fmf_agree_text', wp_kses_post( wp_unslash( $_POST['_isoft_fmf_agree_text'] ?? '' ) ) );
+		// All of the Version & License fields below moved to the block-editor
+		// sidebar (VersionLicensePanel) in 0.12.1. The block editor writes
+		// them via REST through the meta entity, NOT via $_POST. Without the
+		// isset() guards each line would default to '' / 0 / false and
+		// silently clobber every REST-written value on every save_post.
+		// Classic-editor saves (third-party plugin forcing classic editor
+		// back on, or the legacy meta box still being rendered) still go
+		// through $_POST and the isset() short-circuits become true. Same
+		// pattern as the access role write above.
+		if ( isset( $_POST['_isoft_fmf_require_agree'] ) || isset( $_POST['_isoft_fmf_agree_text'] ) ) {
+			update_post_meta( $post_id, '_isoft_fmf_require_agree', ! empty( $_POST['_isoft_fmf_require_agree'] ) ? 1 : 0 );
+			update_post_meta( $post_id, '_isoft_fmf_agree_text', wp_kses_post( wp_unslash( $_POST['_isoft_fmf_agree_text'] ?? '' ) ) );
+		}
 
-		// Listing flags — both rendered in the Version & License box.
-		update_post_meta( $post_id, '_isoft_fmf_featured', ! empty( $_POST['_isoft_fmf_featured'] ) ? 1 : 0 );
-		update_post_meta( $post_id, '_isoft_fmf_external_only', ! empty( $_POST['_isoft_fmf_external_only'] ) ? 1 : 0 );
+		if ( isset( $_POST['_isoft_fmf_featured'] ) || isset( $_POST['_isoft_fmf_external_only'] ) ) {
+			update_post_meta( $post_id, '_isoft_fmf_featured', ! empty( $_POST['_isoft_fmf_featured'] ) ? 1 : 0 );
+			update_post_meta( $post_id, '_isoft_fmf_external_only', ! empty( $_POST['_isoft_fmf_external_only'] ) ? 1 : 0 );
+		}
 
-		update_post_meta( $post_id, '_isoft_fmf_version', sanitize_text_field( wp_unslash( $_POST['_isoft_fmf_version'] ?? '' ) ) );
-		update_post_meta( $post_id, '_isoft_fmf_changelog', wp_kses_post( wp_unslash( $_POST['_isoft_fmf_changelog'] ?? '' ) ) );
+		if ( isset( $_POST['_isoft_fmf_version'] ) ) {
+			update_post_meta( $post_id, '_isoft_fmf_version', sanitize_text_field( wp_unslash( $_POST['_isoft_fmf_version'] ) ) );
+		}
+		if ( isset( $_POST['_isoft_fmf_changelog'] ) ) {
+			update_post_meta( $post_id, '_isoft_fmf_changelog', wp_kses_post( wp_unslash( $_POST['_isoft_fmf_changelog'] ) ) );
+		}
 		// license_id accepts -1 as the INHERIT sentinel (resolved via
-		// ISOFT_FMF_License_Resolver against category-level _isoft_fmf_cat_license_id),
-		// so absint() would silently coerce -1 to 0 (= no license) and lose the
-		// inherit signal. Validate explicitly. Nonce verified above.
-		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- (int) cast is sufficient sanitization for a numeric license id; sanitize_text_field() before cast would round-trip an int through a string for no benefit.
-		$raw_license_id    = (int) wp_unslash( $_POST['_isoft_fmf_license_id'] ?? 0 );
-		$sanitised_license = ISOFT_FMF_License_Resolver::INHERIT === $raw_license_id ? ISOFT_FMF_License_Resolver::INHERIT : max( 0, $raw_license_id );
-		update_post_meta( $post_id, '_isoft_fmf_license_id', $sanitised_license );
-		update_post_meta( $post_id, '_isoft_fmf_author_name', sanitize_text_field( wp_unslash( $_POST['_isoft_fmf_author_name'] ?? '' ) ) );
-		update_post_meta( $post_id, '_isoft_fmf_author_url', esc_url_raw( wp_unslash( $_POST['_isoft_fmf_author_url'] ?? '' ) ) );
-		update_post_meta( $post_id, '_isoft_fmf_date_published', sanitize_text_field( wp_unslash( $_POST['_isoft_fmf_date_published'] ?? '' ) ) );
+		// ISOFT_FMF_License_Resolver against category-level
+		// _isoft_fmf_cat_license_id), so absint() would silently coerce -1
+		// to 0 (= no license) and lose the inherit signal. Validate
+		// explicitly. Nonce verified above.
+		if ( isset( $_POST['_isoft_fmf_license_id'] ) ) {
+			// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- (int) cast is sufficient sanitization for a numeric license id; sanitize_text_field() before cast would round-trip an int through a string for no benefit.
+			$raw_license_id    = (int) wp_unslash( $_POST['_isoft_fmf_license_id'] );
+			$sanitised_license = ISOFT_FMF_License_Resolver::INHERIT === $raw_license_id ? ISOFT_FMF_License_Resolver::INHERIT : max( 0, $raw_license_id );
+			update_post_meta( $post_id, '_isoft_fmf_license_id', $sanitised_license );
+		}
+		if ( isset( $_POST['_isoft_fmf_author_name'] ) ) {
+			update_post_meta( $post_id, '_isoft_fmf_author_name', sanitize_text_field( wp_unslash( $_POST['_isoft_fmf_author_name'] ) ) );
+		}
+		if ( isset( $_POST['_isoft_fmf_author_url'] ) ) {
+			update_post_meta( $post_id, '_isoft_fmf_author_url', esc_url_raw( wp_unslash( $_POST['_isoft_fmf_author_url'] ) ) );
+		}
+		if ( isset( $_POST['_isoft_fmf_date_published'] ) ) {
+			update_post_meta( $post_id, '_isoft_fmf_date_published', sanitize_text_field( wp_unslash( $_POST['_isoft_fmf_date_published'] ) ) );
+		}
 	}
 
 	// --- AJAX handlers ---
