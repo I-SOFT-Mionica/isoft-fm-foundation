@@ -9,10 +9,15 @@
  *     visibility panel via PluginPostStatusInfo. Replaces the classic-
  *     editor post_submitbox_misc_actions hook that doesn't fire in the
  *     block editor.
+ *   - Register a compact Files summary panel that reports count, type
+ *     breakdown, and total size. "Manage files" button scrolls to the
+ *     existing Files meta box below the canvas — the meta box stays as
+ *     the rich UI through 0.12.5 demolition; the sidebar is the
+ *     at-a-glance widget.
  *
- * Later sub-PRs in 0.12.1 will add Files / Version-License / Stats
- * panels. Until then, the existing PHP meta boxes still render below
- * the editor canvas as collapsible "Additional fields" panels.
+ * Later sub-PRs in 0.12.1 will add Version-License / Stats panels.
+ * Until then, those meta boxes still render below the editor canvas as
+ * collapsible "Additional fields" panels.
  *
  * Panel hiding strategy (defense in depth):
  *   1. PHP: register_taxonomy meta_box_cb=false suppresses the classic-
@@ -37,12 +42,13 @@ import { registerPlugin } from '@wordpress/plugins';
 // nothing. Import from the new canonical location for our 6.7+
 // minimum.
 import { PluginDocumentSettingPanel, PluginPostStatusInfo } from '@wordpress/editor';
-import { SelectControl, Spinner } from '@wordpress/components';
+import { Button, SelectControl, Spinner } from '@wordpress/components';
 import { useSelect, useDispatch, dispatch, subscribe, select } from '@wordpress/data';
 import { store as coreStore } from '@wordpress/core-data';
 import { store as editPostStore } from '@wordpress/edit-post';
-import { useEffect } from '@wordpress/element';
-import { __ } from '@wordpress/i18n';
+import { useEffect, useState, useCallback } from '@wordpress/element';
+import { __, _n, sprintf } from '@wordpress/i18n';
+import apiFetch from '@wordpress/api-fetch';
 import domReady from '@wordpress/dom-ready';
 
 const POST_TYPE       = 'isoft_fmf_file';
@@ -231,6 +237,170 @@ const AccessRoleStatusInfo = () => {
 	);
 };
 
+// ---------------------------------------------------------------------
+// Files summary panel
+// ---------------------------------------------------------------------
+
+/** Human-readable size from a byte count. Mirrors PHP size_format(). */
+const formatBytes = ( bytes ) => {
+	if ( ! bytes || bytes < 0 ) {
+		return '—';
+	}
+	const units = [ 'B', 'KB', 'MB', 'GB', 'TB' ];
+	let n = bytes;
+	let i = 0;
+	while ( n >= 1024 && i < units.length - 1 ) {
+		n /= 1024;
+		i += 1;
+	}
+	return `${ n.toFixed( n < 10 && i > 0 ? 1 : 0 ) } ${ units[ i ] }`;
+};
+
+/** DOM id of the existing Files meta box rendered by class-admin-meta-boxes. */
+const FILES_METABOX_ID = 'isoft-fmf-files';
+
+const FilesPanel = () => {
+	const postId = useSelect(
+		( s ) => s( 'core/editor' ).getCurrentPostId(),
+		[]
+	);
+
+	const [ files, setFiles ]     = useState( null );
+	const [ loading, setLoading ] = useState( false );
+	const [ error, setError ]     = useState( null );
+
+	const fetchFiles = useCallback( () => {
+		if ( ! postId ) {
+			return;
+		}
+		setLoading( true );
+		setError( null );
+		apiFetch( {
+			path: `/isoft-fm-foundation/v1/downloads/${ postId }/files`,
+		} )
+			.then( ( rows ) => {
+				setFiles( Array.isArray( rows ) ? rows : [] );
+			} )
+			.catch( ( err ) => {
+				setError( err?.message || __( 'Could not load files.', 'isoft-fm-foundation' ) );
+			} )
+			.finally( () => setLoading( false ) );
+	}, [ postId ] );
+
+	useEffect( () => {
+		fetchFiles();
+	}, [ fetchFiles ] );
+
+	const scrollToMetaBox = () => {
+		const target = document.getElementById( FILES_METABOX_ID );
+		if ( target ) {
+			target.scrollIntoView( { behavior: 'smooth', block: 'start' } );
+			// Briefly highlight so the user's eye lands on the right
+			// section after the scroll completes. Removes itself.
+			target.style.transition = 'box-shadow 1.2s ease-out';
+			target.style.boxShadow  = '0 0 0 3px #2271b1';
+			setTimeout( () => {
+				target.style.boxShadow = '';
+			}, 1200 );
+		}
+	};
+
+	const renderBody = () => {
+		if ( null === files && loading ) {
+			return <Spinner />;
+		}
+		if ( error ) {
+			return (
+				<p style={ { color: '#b32d2e', margin: 0 } }>
+					{ error }
+				</p>
+			);
+		}
+		const list      = files || [];
+		const total     = list.length;
+		const localList = list.filter( ( f ) => 'local' === f.file_type );
+		const localCnt  = localList.length;
+		const extCnt    = total - localCnt;
+		const sizeSum   = localList.reduce(
+			( sum, f ) => sum + ( parseInt( f.file_size, 10 ) || 0 ),
+			0
+		);
+
+		if ( 0 === total ) {
+			return (
+				<p style={ { margin: 0, color: '#646970' } }>
+					{ __( 'No files attached yet.', 'isoft-fm-foundation' ) }
+				</p>
+			);
+		}
+
+		return (
+			<div>
+				<p style={ { margin: '0 0 4px', fontWeight: 600 } }>
+					{ sprintf(
+						/* translators: %s: total file count */
+						_n( '%s file attached', '%s files attached', total, 'isoft-fm-foundation' ),
+						total
+					) }
+				</p>
+				<p style={ { margin: '0 0 4px', color: '#646970', fontSize: '12px' } }>
+					{ localCnt > 0 &&
+						sprintf(
+							/* translators: %d: local file count */
+							_n( '%d local', '%d local', localCnt, 'isoft-fm-foundation' ),
+							localCnt
+						) }
+					{ localCnt > 0 && extCnt > 0 && ' · ' }
+					{ extCnt > 0 &&
+						sprintf(
+							/* translators: %d: external link count */
+							_n( '%d external', '%d external', extCnt, 'isoft-fm-foundation' ),
+							extCnt
+						) }
+				</p>
+				{ localCnt > 0 && (
+					<p style={ { margin: '0 0 4px', color: '#646970', fontSize: '12px' } }>
+						{ sprintf(
+							/* translators: %s: total size, human-readable (e.g. "2.4 MB") */
+							__( 'Total size: %s', 'isoft-fm-foundation' ),
+							formatBytes( sizeSum )
+						) }
+					</p>
+				) }
+			</div>
+		);
+	};
+
+	return (
+		<PluginDocumentSettingPanel
+			name="isoft-fmf-files-summary"
+			title={ __( 'Files', 'isoft-fm-foundation' ) }
+			className="isoft-fmf-files-summary-panel"
+		>
+			{ renderBody() }
+			<div style={ { display: 'flex', gap: '8px', marginTop: '12px' } }>
+				<Button
+					variant="secondary"
+					onClick={ scrollToMetaBox }
+					__next40pxDefaultSize
+				>
+					{ __( 'Manage files', 'isoft-fm-foundation' ) }
+				</Button>
+				<Button
+					variant="tertiary"
+					onClick={ fetchFiles }
+					disabled={ loading }
+					__next40pxDefaultSize
+				>
+					{ loading
+						? __( 'Refreshing…', 'isoft-fm-foundation' )
+						: __( 'Refresh', 'isoft-fm-foundation' ) }
+				</Button>
+			</div>
+		</PluginDocumentSettingPanel>
+	);
+};
+
 // Scope the registration to the post type so neither panel leaks onto
 // regular posts / pages / other CPTs that happen to use the block
 // editor.
@@ -245,6 +415,7 @@ const ScopedSidebar = () => {
 	return (
 		<>
 			<CategoryPanel />
+			<FilesPanel />
 			<AccessRoleStatusInfo />
 		</>
 	);
