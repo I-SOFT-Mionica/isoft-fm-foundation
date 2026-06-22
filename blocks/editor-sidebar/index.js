@@ -341,6 +341,8 @@ const FilesPanel = () => {
 			);
 		}
 
+		const brokenCnt = list.filter( ( f ) => f.is_missing ).length;
+
 		return (
 			<div>
 				<p style={ { margin: '0 0 4px', fontWeight: 600 } }>
@@ -371,6 +373,20 @@ const FilesPanel = () => {
 							/* translators: %s: total size, human-readable (e.g. "2.4 MB") */
 							__( 'Total size: %s', 'isoft-fm-foundation' ),
 							formatBytes( sizeSum )
+						) }
+					</p>
+				) }
+				{ brokenCnt > 0 && (
+					<p style={ { margin: '4px 0 0', color: '#b32d2e', fontSize: '12px', fontWeight: 600 } }>
+						{ sprintf(
+							/* translators: %d: count of files flagged as missing on disk */
+							_n(
+								'%d file flagged as missing on disk',
+								'%d files flagged as missing on disk',
+								brokenCnt,
+								'isoft-fm-foundation'
+							),
+							brokenCnt
 						) }
 					</p>
 				) }
@@ -605,6 +621,121 @@ const VersionLicensePanel = () => {
 	);
 };
 
+// ---------------------------------------------------------------------
+// Statistics panel
+// ---------------------------------------------------------------------
+
+const StatsPanel = () => {
+	const postId = useSelect(
+		( s ) => s( 'core/editor' ).getCurrentPostId(),
+		[]
+	);
+
+	// Total downloads lives on post meta (already exposed to REST).
+	const totalDownloads = useSelect(
+		( s ) => {
+			const meta = s( 'core/editor' ).getEditedPostAttribute( 'meta' );
+			return parseInt( meta?._isoft_fmf_download_count || 0, 10 );
+		},
+		[]
+	);
+
+	// Per-file breakdown — fetch /files (same endpoint FilesPanel uses).
+	// Independent fetch keeps each panel self-contained; the REST call is
+	// cheap and the user opens panels rarely.
+	const [ files, setFiles ]     = useState( null );
+	const [ loading, setLoading ] = useState( false );
+
+	const fetchFiles = useCallback( () => {
+		if ( ! postId ) {
+			return;
+		}
+		setLoading( true );
+		apiFetch( {
+			path: `/isoft-fm-foundation/v1/downloads/${ postId }/files`,
+		} )
+			.then( ( rows ) => setFiles( Array.isArray( rows ) ? rows : [] ) )
+			.catch( () => setFiles( [] ) )
+			.finally( () => setLoading( false ) );
+	}, [ postId ] );
+
+	useEffect( () => {
+		fetchFiles();
+	}, [ fetchFiles ] );
+
+	const logUrl = postId
+		? `${ window.location.origin }/wp-admin/edit.php?post_type=isoft_fmf_file&page=isoft-fmf-log&download_id=${ postId }`
+		: '';
+
+	return (
+		<PluginDocumentSettingPanel
+			name="isoft-fmf-stats"
+			title={ __( 'Statistics', 'isoft-fm-foundation' ) }
+			className="isoft-fmf-stats-panel"
+			initialOpen={ false }
+		>
+			<div>
+				<p style={ { margin: '0 0 4px', fontSize: '12px', color: '#646970' } }>
+					{ __( 'Total downloads', 'isoft-fm-foundation' ) }
+				</p>
+				<p style={ { margin: '0 0 12px', fontSize: '22px', fontWeight: 600 } }>
+					{ totalDownloads.toLocaleString() }
+				</p>
+			</div>
+
+			{ null !== files && files.length > 0 && (
+				<div style={ { marginTop: '8px' } }>
+					<p style={ { margin: '0 0 4px', fontSize: '12px', color: '#646970', fontWeight: 600 } }>
+						{ __( 'Per file', 'isoft-fm-foundation' ) }
+					</p>
+					<ul style={ { margin: 0, padding: 0, listStyle: 'none', fontSize: '12px' } }>
+						{ files.map( ( f ) => (
+							<li
+								key={ f.id }
+								style={ {
+									display:      'flex',
+									justifyContent: 'space-between',
+									gap:           '8px',
+									padding:       '4px 0',
+									borderBottom:  '1px solid #f0f0f1',
+								} }
+							>
+								<span
+									style={ {
+										overflow:     'hidden',
+										textOverflow: 'ellipsis',
+										whiteSpace:   'nowrap',
+									} }
+									title={ f.title }
+								>
+									{ f.title }
+								</span>
+								<span style={ { fontVariantNumeric: 'tabular-nums', color: '#1d2327' } }>
+									{ ( f.download_count || 0 ).toLocaleString() }
+								</span>
+							</li>
+						) ) }
+					</ul>
+				</div>
+			) }
+
+			{ null === files && loading && (
+				<div style={ { marginTop: '8px' } }>
+					<Spinner />
+				</div>
+			) }
+
+			{ totalDownloads > 0 && logUrl && (
+				<p style={ { margin: '12px 0 0' } }>
+					<a href={ logUrl }>
+						{ __( 'View full download log →', 'isoft-fm-foundation' ) }
+					</a>
+				</p>
+			) }
+		</PluginDocumentSettingPanel>
+	);
+};
+
 // Scope the registration to the post type so neither panel leaks onto
 // regular posts / pages / other CPTs that happen to use the block
 // editor.
@@ -621,6 +752,7 @@ const ScopedSidebar = () => {
 			<CategoryPanel />
 			<VersionLicensePanel />
 			<FilesPanel />
+			<StatsPanel />
 			<AccessRoleStatusInfo />
 		</>
 	);

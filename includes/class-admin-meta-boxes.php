@@ -135,7 +135,13 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 		if ( ! use_block_editor_for_post_type( 'isoft_fmf_file' ) ) {
 			add_meta_box( 'isoft-fmf-version-info', __( 'Version & License', 'isoft-fm-foundation' ), array( $this, 'render_version_info' ), 'isoft_fmf_file', 'normal', 'default' );
 		}
-		add_meta_box( 'isoft-fmf-stats', __( 'Statistics', 'isoft-fm-foundation' ), array( $this, 'render_stats' ), 'isoft_fmf_file', 'side', 'default' );
+		// Statistics — block-editor sidebar (StatsPanel) owns this surface
+		// in 0.12.1. Keep the legacy side meta box registered as a fallback
+		// for the rare case where a third-party plugin forces classic
+		// editor back on for our CPT.
+		if ( ! use_block_editor_for_post_type( 'isoft_fmf_file' ) ) {
+			add_meta_box( 'isoft-fmf-stats', __( 'Statistics', 'isoft-fm-foundation' ), array( $this, 'render_stats' ), 'isoft_fmf_file', 'side', 'default' );
+		}
 	}
 
 	// --- Render callbacks ---
