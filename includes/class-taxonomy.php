@@ -29,12 +29,26 @@ class ISOFT_FMF_Taxonomy {
 					'new_item_name'     => __( 'New Category Name', 'isoft-fm-foundation' ),
 					'menu_name'         => __( 'Categories', 'isoft-fm-foundation' ),
 				),
-				'hierarchical'      => true,
-				'public'            => true,
-				'show_ui'           => true,
-				'show_admin_column' => true,
-				'show_in_rest'      => true,
-				'rewrite'           => array( 'slug' => get_option( 'isoft_fmf_category_slug', 'download-category' ) ),
+				'hierarchical'        => true,
+				'public'              => true,
+				'show_ui'             => true,
+				'show_admin_column'   => true,
+				'show_in_rest'        => true,
+				// Suppress the classic-editor multi-checkbox meta box AND
+				// the Quick Edit checkbox panel. The block editor reads
+				// taxonomy registration separately and still shows its own
+				// panel, which our editor-sidebar JS hides via
+				// removeEditorPanel(). meta_box_cb=false closes the
+				// classic-editor path; show_in_quick_edit=false closes the
+				// list-table Quick Edit path (WP_Posts_List_Table renders
+				// hierarchical checkboxes outside of editor JS, so the
+				// sidebar plugin can't touch it). Both default-true paths
+				// were leaking the multi-select UI even after the block-
+				// editor flip — single-category invariant now holds on
+				// every UI surface.
+				'meta_box_cb'         => false,
+				'show_in_quick_edit'  => false,
+				'rewrite'             => array( 'slug' => get_option( 'isoft_fmf_category_slug', 'download-category' ) ),
 				'capabilities'      => array(
 					'manage_terms' => 'isoft_fmf_manage_categories',
 					'edit_terms'   => 'isoft_fmf_manage_categories',

@@ -2,6 +2,30 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.12.1] — 2026-06-22
+
+Phase 2 of the React-admin rewrite. The block editor takes over on download edit screens, and the long-standing multi-category-per-download UI bug from 0.11.0 is finally resolved.
+
+This release does NOT ship to WordPress.org SVN. 0.12.x stays GitHub-only until the full rewrite graduates to 1.0.0.
+
+### Added
+
+- **Block editor enabled for `isoft_fmf_file`.** The `use_block_editor_for_post_type` filter now returns true for our CPT. Legacy classic-editor `post_content` for existing downloads renders fine as a single "Classic" block — no auto-conversion required, opt-in per post.
+- **`ISOFT_FMF_Editor_Sidebar`** — new class that enqueues `blocks/build/editor-sidebar.js` on the block-editor screen for downloads. Screen-scoped both at PHP enqueue time (post_type check) and inside the JS via a `ScopedSidebar` wrapper that bails on other post types.
+- **Editor-sidebar JS entry** (`blocks/editor-sidebar/index.js`, built via `npm run build` to `blocks/build/editor-sidebar.js`) registers a `PluginDocumentSettingPanel` for category selection and hides the standard multi-checkbox panel (`removeEditorPanel('taxonomy-panel-isoft_fmf_category')`). Future 0.12.1 sub-PRs add panels for Files / Version-License / Stats and move access-role into `PluginPostStatusInfo`.
+- **Single-select Category panel.** Replaces WP's standard taxonomy checkbox panel for `isoft_fmf_category`. Hierarchical terms render with indent levels matching parent depth. `'core/editor'.editPost({ isoft_fmf_category: [id] })` writes the single-element array — the filesystem layer (`class-category-folders.php`) was already only honoring the first assignment, so the UI now matches the data invariant.
+- **Data migration: multi-category trim.** First activation under 0.12.1 walks every `isoft_fmf_file` post with >1 `isoft_fmf_category` assignment, keeps the oldest (lowest term_taxonomy_id), and removes the rest via `wp_set_object_terms`. Touched post IDs + removed-assignment count land in the `isoft_fmf_migration_0_12_1` transient (1 month TTL) for the Maintenance tab to surface. Idempotent — second run is a no-op because the SELECT only finds posts with >1 assignment.
+- **`Migration_0_12_1_Test`** — PHPUnit coverage for the data migration: single-category posts untouched, multi-category posts trimmed, second run produces identical state and skips the transient write, transient lists touched IDs and removed count.
+
+### Changed
+
+- **Webpack config** gains an `editor-sidebar` entry alongside the three existing blocks. Build pipeline unchanged otherwise — same `@wordpress/scripts` chain.
+- **`isoft-fm-foundation.php` bootstrap** wires `ISOFT_FMF_Editor_Sidebar` alongside the existing Blocks registration.
+
+### Resolved
+
+- **The 0.11.0 multi-category-per-download UI bug.** WP's standard category metabox no longer renders for downloads; the single-select sidebar panel takes over, matching the filesystem-as-source-of-truth invariant the data layer was already enforcing. Existing multi-assigned rows are reconciled by the activation migration above.
+
 ## [0.12.0] — 2026-06-22
 
 Phase 1 of the React-admin rewrite. No user-visible behaviour change. All work is the REST + service foundation that the 0.12.1+ phases will mount React UIs on top of — every admin operation now has a canonical service class and a `isoft-fm-foundation/v1` REST route, with the legacy AJAX / admin-post handlers thinned to nonce + permission + service-call.

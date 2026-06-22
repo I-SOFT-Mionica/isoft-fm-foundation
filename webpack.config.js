@@ -7,6 +7,7 @@ module.exports = {
 		'download-list':   './blocks/download-list/index.js',
 		'download-button': './blocks/download-button/index.js',
 		'category-grid':   './blocks/category-grid/index.js',
+		'editor-sidebar':  './blocks/editor-sidebar/index.js',
 	},
 	output: {
 		...defaultConfig.output,
