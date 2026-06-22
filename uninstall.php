@@ -19,6 +19,7 @@ global $wpdb;
 // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange -- Uninstall runs once; table drop cannot go through higher-level APIs.
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}isoft_fmf_files" );
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}isoft_fmf_download_log" );
+$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}isoft_fmf_download_daily" );
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}isoft_fmf_licenses" );
 
 // Delete all isoft_fmf_file posts and their meta

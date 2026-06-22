@@ -2,7 +2,32 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
-## [0.12.2] — unreleased
+## [0.12.3] — unreleased
+
+Phase 4 of the React-admin rewrite. Sub-PR 1 of 4: the Statistics dashboard becomes a React app. Subsequent sub-PRs cover Log, Broken Links, and Settings.
+
+This release does NOT ship to WordPress.org SVN. 0.12.x stays GitHub-only until the full rewrite graduates to 1.0.0.
+
+### Added
+
+- **React Statistics dashboard** — Downloads → Statistics is now rendered as a React app. Reuses the existing `.isoft-fmf-stat-cards` / `.isoft-fmf-bar-chart` CSS so the visual treatment is identical to the PHP version; gains a "Refresh" button that re-hits the cached endpoint without a full page reload. Logging-disabled warning and the all-time-fallback note on the 30-day panel are both preserved.
+- **`ISOFT_FMF_Stats_Page`** — new class that enqueues `blocks/build/stats-page.js` on the Statistics admin screen only (hook suffix `isoft_fmf_file_page_isoft-fmf-stats`).
+- **Stats page webpack entry** (`blocks/stats-page/index.js`, built via `npm run build` to `blocks/build/stats-page.js`) registered alongside the existing block bundles.
+
+### Changed
+
+- **`GET /isoft-fm-foundation/v1/stats/overview` response extended** to include the full dashboard payload: `top_alltime` (10 rows), full `top_30d` (10 rows), `top_30d_window` ('30d' or 'alltime'), `daily_30d` (date => count map for the chart), and `logging_enabled` (boolean). Existing `top_downloads_30d` field (5 rows) preserved for any third-party consumer of the pre-0.12.3 shape — purely additive change. Underlying `isoft_fmf_get_stats_overview()` helper unchanged, so the 5-minute transient cache covers both the React payload and any remaining PHP call sites with no extra query cost.
+- **`admin/views/stats-dashboard.php`** branches on `wp_script_is( ISOFT_FMF_Stats_Page::SCRIPT_HANDLE, 'enqueued' )`: when the React bundle is loaded, the page renders as a single `<div id="isoft-fmf-stats-root">` mount node; when the bundle is missing, the original PHP markup renders unchanged.
+
+### Fixed
+
+- **Uninstall handler now drops `wp_isoft_fmf_download_daily`.** The aggregate table that feeds the "Top Downloads (Last 30 Days)" panel was missing from `uninstall.php`'s DROP TABLE list since the table was introduced; it survived deletion of the plugin even with "Delete all plugin data" enabled. Subsequent reinstalls would see stale rows from the prior install paired with fresh rows at identical counts (the daily-cron pipeline re-aggregated for the new post IDs), surfacing as `(deleted)` entries on the dashboard. Existing installs that already have orphan rows will not be cleaned retroactively — the next clean uninstall + reinstall is the lifecycle that fixes it.
+- **Deleted-post rows in the React Stats Top-30d panel no longer render as clickable links.** They show as `(deleted)` in italic, matching the PHP version's behaviour. The daily-aggregate query retains the original `download_id` FK even after the post is gone, so the React row's `download_id` is a positive number — the link guard now checks `post_title` presence (null when the join failed) instead of the FK presence.
+- **Dashboard "Top Downloads (Last 30 Days)" no longer surfaces orphan rows at all.** `isoft_fmf_get_stats_overview()`'s top-30d query switches from `LEFT JOIN` to `INNER JOIN` against the posts table, so daily-aggregate rows whose parent post has been deleted are excluded from the result. Defensive: the new `before_delete_post` cleanup below sweeps orphans as posts are deleted going forward, but the INNER JOIN keeps the display honest even when a row escapes that cleanup path.
+- **Permanent post deletion now sweeps the stats trail for that download.** New `ISOFT_FMF_Post_Type::cleanup_stats_on_delete()` hook on `before_delete_post` removes the post's rows from `wp_isoft_fmf_download_daily` and `wp_isoft_fmf_download_log`, and busts the 5-minute stats transient. Scoped to `isoft_fmf_file` so unrelated post deletions don't touch our tables. Closes the root cause of the orphan-rows-on-dashboard issue.
+- **PDF thumbnail Imagick warning is silent when the feature is disabled in settings.** `ISOFT_FMF_Pdf_Thumbnail::maybe_show_notice()` previously rendered the "Imagick extension is not available" notice on every admin page whenever Imagick was missing, regardless of whether the admin had opted into PDF thumbnail generation. Now it bails when `enable_pdf_thumbnails` is off. Admins who don't want PDF thumbnails no longer get nagged about a missing extension they don't need.
+
+## [0.12.2] — 2026-06-22
 
 Phase 3 of the React-admin rewrite. The Licenses admin page becomes the first fully-React standalone screen, proving the mount-and-fallback pattern that the larger 0.12.3 (Settings + Stats + Log + Broken Links) will reuse.
 
