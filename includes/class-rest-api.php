@@ -331,6 +331,19 @@ class ISOFT_FMF_Rest_Api {
 	public function get_stats_overview( WP_REST_Request $request ): WP_REST_Response {
 		$stats = isoft_fmf_get_stats_overview();
 
+		// Daily 30d series is returned by the helper as wpdb rows (day,count);
+		// flatten to a YYYY-MM-DD => int map for the React chart, which is
+		// the shape the PHP view (admin/views/stats-dashboard.php) also
+		// reduced to before rendering its bars.
+		$daily_map = array();
+		foreach ( $stats['daily_30d'] as $row ) {
+			$daily_map[ $row->day ] = (int) $row->count;
+		}
+
+		// `top_downloads_30d` (limited to 5) is the pre-0.12.3 shape kept
+		// for any external consumer; `top_30d` is the full 10-row list the
+		// dashboard renders. Both populated from the same data so there's
+		// no extra query cost.
 		return new WP_REST_Response(
 			array(
 				'total_downloads'   => $stats['total_downloads'],
@@ -338,6 +351,11 @@ class ISOFT_FMF_Rest_Api {
 				'total_log_entries' => $stats['total_log_entries'],
 				'total_size_bytes'  => $stats['total_size_bytes'],
 				'top_downloads_30d' => array_slice( $stats['top_30d'], 0, 5 ),
+				'top_alltime'       => $stats['top_alltime'],
+				'top_30d'           => $stats['top_30d'],
+				'top_30d_window'    => $stats['top_30d_window'] ?? '30d',
+				'daily_30d'         => $daily_map,
+				'logging_enabled'   => (bool) get_option( 'isoft_fmf_enable_logging', true ),
 			),
 			200
 		);

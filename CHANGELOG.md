@@ -2,7 +2,24 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
-## [0.12.2] — unreleased
+## [0.12.3] — unreleased
+
+Phase 4 of the React-admin rewrite. Sub-PR 1 of 4: the Statistics dashboard becomes a React app. Subsequent sub-PRs cover Log, Broken Links, and Settings.
+
+This release does NOT ship to WordPress.org SVN. 0.12.x stays GitHub-only until the full rewrite graduates to 1.0.0.
+
+### Added
+
+- **React Statistics dashboard** — Downloads → Statistics is now rendered as a React app. Reuses the existing `.isoft-fmf-stat-cards` / `.isoft-fmf-bar-chart` CSS so the visual treatment is identical to the PHP version; gains a "Refresh" button that re-hits the cached endpoint without a full page reload. Logging-disabled warning and the all-time-fallback note on the 30-day panel are both preserved.
+- **`ISOFT_FMF_Stats_Page`** — new class that enqueues `blocks/build/stats-page.js` on the Statistics admin screen only (hook suffix `isoft_fmf_file_page_isoft-fmf-stats`).
+- **Stats page webpack entry** (`blocks/stats-page/index.js`, built via `npm run build` to `blocks/build/stats-page.js`) registered alongside the existing block bundles.
+
+### Changed
+
+- **`GET /isoft-fm-foundation/v1/stats/overview` response extended** to include the full dashboard payload: `top_alltime` (10 rows), full `top_30d` (10 rows), `top_30d_window` ('30d' or 'alltime'), `daily_30d` (date => count map for the chart), and `logging_enabled` (boolean). Existing `top_downloads_30d` field (5 rows) preserved for any third-party consumer of the pre-0.12.3 shape — purely additive change. Underlying `isoft_fmf_get_stats_overview()` helper unchanged, so the 5-minute transient cache covers both the React payload and any remaining PHP call sites with no extra query cost.
+- **`admin/views/stats-dashboard.php`** branches on `wp_script_is( ISOFT_FMF_Stats_Page::SCRIPT_HANDLE, 'enqueued' )`: when the React bundle is loaded, the page renders as a single `<div id="isoft-fmf-stats-root">` mount node; when the bundle is missing, the original PHP markup renders unchanged.
+
+## [0.12.2] — 2026-06-22
 
 Phase 3 of the React-admin rewrite. The Licenses admin page becomes the first fully-React standalone screen, proving the mount-and-fallback pattern that the larger 0.12.3 (Settings + Stats + Log + Broken Links) will reuse.
 

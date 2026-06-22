@@ -1,10 +1,35 @@
 <?php
 /**
- * Statistics dashboard — Phase 4.
+ * Statistics dashboard.
+ *
+ * 0.12.3+: when the React stats bundle is enqueued, the page is rendered
+ * by blocks/stats-page/index.js mounting into <div id="isoft-fmf-stats-root">.
+ * Falls through to the original PHP markup below when the bundle is
+ * unavailable (asset missing during local dev, malformed deploy, or
+ * future revert).
  */
+
 defined( 'ABSPATH' ) || exit;
 
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Locals passed in by the including class; not actual globals.
+
+if ( wp_script_is( ISOFT_FMF_Stats_Page::SCRIPT_HANDLE, 'enqueued' ) ) {
+	?>
+	<div class="wrap">
+		<div id="isoft-fmf-stats-root"></div>
+		<noscript>
+			<div class="notice notice-warning">
+				<p><?php esc_html_e( 'The Statistics page requires JavaScript. Please enable JavaScript in your browser, or revert to the previous plugin version.', 'isoft-fm-foundation' ); ?></p>
+			</div>
+		</noscript>
+	</div>
+	<?php
+	return;
+}
+
+// ---------------------------------------------------------------------
+// PHP fallback path. Original pre-0.12.3 dashboard markup.
+// ---------------------------------------------------------------------
 
 $stats             = isoft_fmf_get_stats_overview();
 $total_downloads   = $stats['total_downloads'];
@@ -31,17 +56,19 @@ for ( $i = 29; $i >= 0; $i-- ) {
 }
 
 // ── Helper ────────────────────────────────────────────────────────────────────
-function isoft_fmf_format_bytes( int $bytes ): string {
-	if ( $bytes >= 1073741824 ) {
-		return number_format( $bytes / 1073741824, 2 ) . ' GB';
+if ( ! function_exists( 'isoft_fmf_format_bytes' ) ) {
+	function isoft_fmf_format_bytes( int $bytes ): string {
+		if ( $bytes >= 1073741824 ) {
+			return number_format( $bytes / 1073741824, 2 ) . ' GB';
+		}
+		if ( $bytes >= 1048576 ) {
+			return number_format( $bytes / 1048576, 2 ) . ' MB';
+		}
+		if ( $bytes >= 1024 ) {
+			return number_format( $bytes / 1024, 1 ) . ' KB';
+		}
+		return $bytes . ' B';
 	}
-	if ( $bytes >= 1048576 ) {
-		return number_format( $bytes / 1048576, 2 ) . ' MB';
-	}
-	if ( $bytes >= 1024 ) {
-		return number_format( $bytes / 1024, 1 ) . ' KB';
-	}
-	return $bytes . ' B';
 }
 ?>
 <div class="wrap isoft-fmf-stats">
