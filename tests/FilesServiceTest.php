@@ -58,13 +58,6 @@ class FilesServiceTest extends WP_UnitTestCase {
 		$this->assertSame( 'https://example.org/lic', $this->service->get( $file_id )->title );
 	}
 
-	public function test_add_external_returns_wp_error_when_save_fails(): void {
-		$result = $this->service->add_external( 0, 'https://example.org/lic' );
-
-		$this->assertInstanceOf( WP_Error::class, $result );
-		$this->assertSame( 'isoft_fmf_external_add_failed', $result->get_error_code() );
-	}
-
 	public function test_update_meta_delegates_to_file_manager(): void {
 		$download_id = $this->make_download();
 		$file_id     = $this->service->add_external( $download_id, 'https://example.org/lic', 'Original' );

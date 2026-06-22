@@ -370,9 +370,9 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 			wp_send_json_error( array( 'message' => __( 'No file received by the server. The request may have been blocked by a security plugin or rejected at the web-server level.', 'isoft-fm-foundation' ) ) );
 		}
 
-		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- Forwarded to the service; wp_handle_upload validates inside.
 		$service = new ISOFT_FMF_Files_Service();
-		$result  = $service->upload( $download_id, $_FILES['file'] );
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- Raw $_FILES entry forwarded to the service; wp_handle_upload validates inside.
+		$result = $service->upload( $download_id, $_FILES['file'] );
 		if ( is_wp_error( $result ) ) {
 			$msg = $result->get_error_message();
 			if ( in_array( $result->get_error_code(), array( 'isoft_fmf_save_record' ), true ) ) {
