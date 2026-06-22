@@ -2,6 +2,41 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.12.0] — 2026-06-22
+
+Phase 1 of the React-admin rewrite. No user-visible behaviour change. All work is the REST + service foundation that the 0.12.1+ phases will mount React UIs on top of — every admin operation now has a canonical service class and a `isoft-fm-foundation/v1` REST route, with the legacy AJAX / admin-post handlers thinned to nonce + permission + service-call.
+
+This release does NOT ship to WordPress.org SVN. The 0.12.x line is GitHub-only until the full rewrite graduates to 1.0.0; the WP.org `Stable tag` stays at 0.11.0 throughout. See the [dev/0.12.x branch](https://github.com/I-SOFT-Mionica/isoft-fm-foundation/tree/dev/0.12.x) for the phase plan.
+
+### Added
+
+- **`ISOFT_FMF_License_Service`** — pure data layer for the licenses table. CRUD, single-default invariant, seed install idempotency, `wp_kses_post` / `esc_url_raw` sanitization. `ISOFT_FMF_License_Manager` retained as a thin delegator so existing callers (resolver, shortcodes, templates, activator, taxonomy form, meta box) keep working unchanged. Demolition of the delegator deferred to 0.12.5.
+- **`ISOFT_FMF_Rest_Licenses`** — `GET`/`POST` `/licenses`, `GET`/`PUT`/`DELETE` `/licenses/{id}`, `POST` `/licenses/restore-seeds`. Read perm `edit_posts` (the editor-sidebar picker in 0.12.1 needs this for contributors), write perm `isoft_fmf_manage_settings` — parity with the legacy admin-post handler.
+- **`ISOFT_FMF_Settings_Service`** — owns the canonical (group → key → sanitizer) schema. `ISOFT_FMF_Settings::register_settings()` now loops the service's schema instead of inlining the 33-option map. The two custom sanitizers (`sanitize_time`, `sanitize_link_target`) move to the service with thin delegators preserved on the legacy class.
+- **`ISOFT_FMF_Rest_Settings`** — `GET`/`POST` `/settings` (partial update, unknown-keys 400 en-masse), `GET` `/settings/schema` (for React tab rendering), `POST` `/settings/flush-rewrite` (replaces the Advanced-tab button). Read and write both gated on `isoft_fmf_manage_settings`.
+- **`ISOFT_FMF_Files_Service`** — composes the existing `ISOFT_FMF_File_Manager` data layer with the orchestration flows previously inline in the 7 AJAX handlers: upload pipeline (filename sanitization, collision check, `wp_handle_upload`, magic-byte mime, hash), browse-category cross-reference, import-from-disk with path-traversal guard.
+- **`ISOFT_FMF_Rest_Files`** — `POST` `/downloads/{id}/files` (multipart upload), `POST` `/files/external`, `POST` `/files/import`, `POST` `/files/order`, `GET` `/files/browse-category`, `PUT` and `DELETE` on individual `/files/{file_id}`. Every route checks `edit_post` on the parent download_id.
+- **`ISOFT_FMF_Broken_Links_Service`** — extracts the 6 recovery flows (probe, move_back, reassign, split, reupload, detach) plus a `list_broken()` reader. Each op returns array on success or `WP_Error` with HTTP-status hint. The static helpers (`find_term_by_folder_path`, `relativize`, `download_category_id`, `refresh_inode`, `mark_healthy`, `wp_fs`) move to the service so they're reachable from REST + tests. `class-broken-links-ajax.php` collapses 559 → ~90 lines.
+- **`ISOFT_FMF_Rest_Broken_Links`** — `GET` `/broken-links` (paginated, `X-WP-Total` header), `GET` `/{file_id}/probe`, `POST` `/{file_id}/recover` (JSON body, enum-validated action), `POST` `/{file_id}/reupload` (multipart).
+- **`ISOFT_FMF_Maintenance_Service`** — facades demo install/remove, bundle cache clear, integrity scan trigger, log purge, and CSV/JSON exports. Export string generation lives here; the AJAX/REST adapter sets headers and emits.
+- **`ISOFT_FMF_Rest_Maintenance`** — `POST` `/maintenance/demo-content` (`{action: install|remove}`), `DELETE` `/maintenance/bundle-cache`, `POST` `/maintenance/integrity`, `DELETE` `/maintenance/log-purge`, `GET` `/maintenance/export` (`?format=csv|json` — streams). Settings ops gated on `isoft_fmf_manage_settings`; export on `isoft_fmf_export_logs`.
+- **`tests/RestPermissionsTest`** — capability parity matrix that asserts every 0.12.0 REST route × every WP role returns the right status (200/400 allowed, 401/403 denied). Catches drift from the AJAX-era cap checks even when a single controller's `permission_callback` is edited in isolation.
+- **Per-service unit + REST integration test suites** (`LicenseServiceTest`, `RestLicensesTest`, `SettingsServiceTest`, `RestSettingsTest`, `FilesServiceTest`, `RestFilesTest`, `BrokenLinksServiceTest`, `RestBrokenLinksTest`, `MaintenanceServiceTest`, `RestMaintenanceTest`). Tests target the canonical service home, not the delegators — they survive the 0.12.5 demolition unchanged.
+- **`LicenseServiceCacheTest`** replaces the pre-0.12.0 `LicenseManagerCacheTest`. New coverage adds the post-create / post-update / post-delete bust assertions that the old test couldn't exercise (Manager's CRUD was tied to `$_POST` and unreachable from unit tests).
+- **CI workflows now fire on `dev/0.12.x` PRs** in addition to `main` (`phpcs.yml`, `phpunit.yml`, `plugin-check.yml`). Without this every phase PR would skip CI.
+
+### Changed
+
+- **`_isoft_fmf_cat_sort_order` term meta now `show_in_rest: true`** — the only one of four category term meta keys still hidden from REST. The 0.12.1 editor-sidebar category panel needs it for ordering.
+- **All 14 legacy AJAX handlers** (`class-admin-meta-boxes.php` × 7, `class-broken-links-ajax.php` × 6, `class-tinymce.php` × 1) shrink to thin nonce-permission-service wrappers. Wire format unchanged — `admin/js/admin-script.js` and `admin/js/broken-links.js` keep working until the React phases retire them in 0.12.1 and 0.12.3 respectively.
+- **`Demo_Content::remove_silent()`** added as a public twin of `install_cli()` so the service can run removal without going through the redirect-wrapped admin-post handler.
+
+### Deferred
+
+- **0.12.3:** Broken Links recovery dialog post-action UX. Currently the modal hangs with all action buttons still clickable after a successful action. The React rewrite of the Broken Links page will replace the dialog with a confirmation/undo state or close cleanly.
+- **0.12.5:** "Add Link" button triggers a `beforeunload` navigation warning. Fix lives in `admin/js/admin-script.js`, which gets deleted in 0.12.5 entirely.
+- **0.12.5:** Optional "Also delete file from server" checkbox when deleting a tracked file row. Currently the row is removed but the disk file stays.
+
 ## [0.11.0] — 2026-06-21
 
 ### Added
