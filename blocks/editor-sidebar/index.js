@@ -42,7 +42,14 @@ import { registerPlugin } from '@wordpress/plugins';
 // nothing. Import from the new canonical location for our 6.7+
 // minimum.
 import { PluginDocumentSettingPanel, PluginPostStatusInfo } from '@wordpress/editor';
-import { Button, SelectControl, Spinner } from '@wordpress/components';
+import {
+	Button,
+	CheckboxControl,
+	SelectControl,
+	Spinner,
+	TextControl,
+	TextareaControl,
+} from '@wordpress/components';
 import { useSelect, useDispatch, dispatch, subscribe, select } from '@wordpress/data';
 import { store as coreStore } from '@wordpress/core-data';
 import { store as editPostStore } from '@wordpress/edit-post';
@@ -401,6 +408,203 @@ const FilesPanel = () => {
 	);
 };
 
+// ---------------------------------------------------------------------
+// Version & License panel
+// ---------------------------------------------------------------------
+
+const LICENSE_INHERIT = -1;
+const LICENSE_NONE    = 0;
+
+/**
+ * Reads a meta key from the edited post and returns a [value, setter]
+ * pair. Setter writes through editPost on the meta object so other
+ * code (autosave, save) sees the change immediately.
+ */
+const usePostMeta = ( metaKey, fallback = '' ) => {
+	const value = useSelect(
+		( s ) => {
+			const meta = s( 'core/editor' ).getEditedPostAttribute( 'meta' );
+			return meta && metaKey in meta ? meta[ metaKey ] : fallback;
+		},
+		[ metaKey ]
+	);
+	const { editPost } = useDispatch( 'core/editor' );
+	const setValue     = useCallback(
+		( next ) => editPost( { meta: { [ metaKey ]: next } } ),
+		[ editPost, metaKey ]
+	);
+	return [ value, setValue ];
+};
+
+const VersionLicensePanel = () => {
+	const [ version,        setVersion        ] = usePostMeta( '_isoft_fmf_version' );
+	const [ changelog,      setChangelog      ] = usePostMeta( '_isoft_fmf_changelog' );
+	const [ licenseId,      setLicenseId      ] = usePostMeta( '_isoft_fmf_license_id', LICENSE_NONE );
+	const [ requireAgree,   setRequireAgree   ] = usePostMeta( '_isoft_fmf_require_agree', false );
+	const [ agreeText,      setAgreeText      ] = usePostMeta( '_isoft_fmf_agree_text' );
+	const [ featured,       setFeatured       ] = usePostMeta( '_isoft_fmf_featured', false );
+	const [ externalOnly,   setExternalOnly   ] = usePostMeta( '_isoft_fmf_external_only', false );
+	const [ authorName,     setAuthorName     ] = usePostMeta( '_isoft_fmf_author_name' );
+	const [ authorUrl,      setAuthorUrl      ] = usePostMeta( '_isoft_fmf_author_url' );
+	const [ datePublished,  setDatePublished  ] = usePostMeta( '_isoft_fmf_date_published' );
+	// Download count is read-only here; it drives the change-warning copy.
+	const downloadCount = useSelect(
+		( s ) => {
+			const meta = s( 'core/editor' ).getEditedPostAttribute( 'meta' );
+			return parseInt( meta?._isoft_fmf_download_count || 0, 10 );
+		},
+		[]
+	);
+
+	const [ licenses, setLicenses ]                 = useState( null );
+	const [ initialLicenseId, setInitialLicenseId ] = useState( null );
+
+	useEffect( () => {
+		if ( initialLicenseId === null ) {
+			setInitialLicenseId( parseInt( licenseId, 10 ) || LICENSE_NONE );
+		}
+	}, [ licenseId, initialLicenseId ] );
+
+	useEffect( () => {
+		apiFetch( { path: '/isoft-fm-foundation/v1/licenses' } )
+			.then( ( rows ) => setLicenses( Array.isArray( rows ) ? rows : [] ) )
+			.catch( () => setLicenses( [] ) );
+	}, [] );
+
+	const licenseOptions = [
+		{ label: __( '— None —', 'isoft-fm-foundation' ),                    value: String( LICENSE_NONE ) },
+		{ label: __( '— Inherit from category —', 'isoft-fm-foundation' ), value: String( LICENSE_INHERIT ) },
+		...( licenses || [] ).map( ( lic ) => ( {
+			label: lic.title,
+			value: String( lic.id ),
+		} ) ),
+	];
+
+	const currentLicenseValue = String( parseInt( licenseId, 10 ) || LICENSE_NONE );
+	const licenseChanged      =
+		initialLicenseId !== null &&
+		parseInt( currentLicenseValue, 10 ) !== initialLicenseId &&
+		downloadCount > 0;
+
+	return (
+		<PluginDocumentSettingPanel
+			name="isoft-fmf-version-license"
+			title={ __( 'Version & License', 'isoft-fm-foundation' ) }
+			className="isoft-fmf-version-license-panel"
+		>
+			<TextControl
+				label={ __( 'Version', 'isoft-fm-foundation' ) }
+				value={ version || '' }
+				onChange={ setVersion }
+				placeholder="1.0.0"
+				__next40pxDefaultSize
+				__nextHasNoMarginBottom
+			/>
+
+			<TextareaControl
+				label={ __( 'Changelog', 'isoft-fm-foundation' ) }
+				value={ changelog || '' }
+				onChange={ setChangelog }
+				help={ __( "What's new in this version.", 'isoft-fm-foundation' ) }
+				rows={ 4 }
+				__nextHasNoMarginBottom
+			/>
+
+			<CheckboxControl
+				label={ __( 'Featured — pin to the top of listings', 'isoft-fm-foundation' ) }
+				checked={ !! featured }
+				onChange={ setFeatured }
+				__nextHasNoMarginBottom
+			/>
+
+			<CheckboxControl
+				label={ __( 'External only — hide local files on the card', 'isoft-fm-foundation' ) }
+				checked={ !! externalOnly }
+				onChange={ setExternalOnly }
+				help={ __( 'Use when local files exist as backups but the external URL is canonical.', 'isoft-fm-foundation' ) }
+				__nextHasNoMarginBottom
+			/>
+
+			{ licenses === null ? (
+				<div style={ { marginTop: '12px' } }>
+					<Spinner />
+				</div>
+			) : (
+				<SelectControl
+					label={ __( 'License', 'isoft-fm-foundation' ) }
+					value={ currentLicenseValue }
+					options={ licenseOptions }
+					onChange={ ( v ) => setLicenseId( parseInt( v, 10 ) ) }
+					__nextHasNoMarginBottom
+				/>
+			) }
+
+			{ licenseChanged && (
+				<p style={ { color: '#b32d2e', fontSize: '12px', marginTop: '8px' } }>
+					<strong>{ __( 'Heads up:', 'isoft-fm-foundation' ) }</strong>{ ' ' }
+					{ sprintf(
+						/* translators: %d: prior download count under the original license */
+						_n(
+							'This file has been downloaded %d time under the previous license. Changing it affects new downloads only — recipients who already downloaded keep the original license terms (most permissive licenses are irrevocable for distributed copies).',
+							'This file has been downloaded %d times under the previous license. Changing it affects new downloads only — recipients who already downloaded keep the original license terms (most permissive licenses are irrevocable for distributed copies).',
+							downloadCount,
+							'isoft-fm-foundation'
+						),
+						downloadCount
+					) }
+				</p>
+			) }
+
+			<CheckboxControl
+				label={ __( 'Require user to agree before downloading', 'isoft-fm-foundation' ) }
+				checked={ !! requireAgree }
+				onChange={ setRequireAgree }
+				help={ __( 'Uses the license full text, or the custom text below.', 'isoft-fm-foundation' ) }
+				__nextHasNoMarginBottom
+			/>
+
+			{ !! requireAgree && (
+				<TextareaControl
+					label={ __( 'Agreement text', 'isoft-fm-foundation' ) }
+					value={ agreeText || '' }
+					onChange={ setAgreeText }
+					help={ __( 'Shown in the agreement modal if no license is assigned.', 'isoft-fm-foundation' ) }
+					rows={ 3 }
+					__nextHasNoMarginBottom
+				/>
+			) }
+
+			<TextControl
+				label={ __( 'Author name', 'isoft-fm-foundation' ) }
+				value={ authorName || '' }
+				onChange={ setAuthorName }
+				__next40pxDefaultSize
+				__nextHasNoMarginBottom
+			/>
+
+			<TextControl
+				label={ __( 'Author URL', 'isoft-fm-foundation' ) }
+				value={ authorUrl || '' }
+				onChange={ setAuthorUrl }
+				type="url"
+				placeholder="https://…"
+				__next40pxDefaultSize
+				__nextHasNoMarginBottom
+			/>
+
+			<TextControl
+				label={ __( 'Date published', 'isoft-fm-foundation' ) }
+				value={ datePublished || '' }
+				onChange={ setDatePublished }
+				type="date"
+				help={ __( 'Original publication date (may differ from the WP post date).', 'isoft-fm-foundation' ) }
+				__next40pxDefaultSize
+				__nextHasNoMarginBottom
+			/>
+		</PluginDocumentSettingPanel>
+	);
+};
+
 // Scope the registration to the post type so neither panel leaks onto
 // regular posts / pages / other CPTs that happen to use the block
 // editor.
@@ -415,6 +619,7 @@ const ScopedSidebar = () => {
 	return (
 		<>
 			<CategoryPanel />
+			<VersionLicensePanel />
 			<FilesPanel />
 			<AccessRoleStatusInfo />
 		</>
