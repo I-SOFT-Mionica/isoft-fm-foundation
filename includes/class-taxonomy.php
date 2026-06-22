@@ -34,6 +34,15 @@ class ISOFT_FMF_Taxonomy {
 				'show_ui'           => true,
 				'show_admin_column' => true,
 				'show_in_rest'      => true,
+				// Suppress the classic-editor multi-checkbox meta box. The
+				// block editor reads taxonomy registration separately and
+				// still shows its own panel, which our editor-sidebar JS
+				// hides via removeEditorPanel(). Setting meta_box_cb=false
+				// is the belt-and-braces classic-editor side of that fix —
+				// even if a third-party plugin somehow forces classic
+				// editing back on, the multi-checkbox UI still won't render
+				// (matching the single-category filesystem invariant).
+				'meta_box_cb'       => false,
 				'rewrite'           => array( 'slug' => get_option( 'isoft_fmf_category_slug', 'download-category' ) ),
 				'capabilities'      => array(
 					'manage_terms' => 'isoft_fmf_manage_categories',
