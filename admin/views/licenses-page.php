@@ -6,6 +6,32 @@
 if ( ! current_user_can( 'isoft_fmf_manage_settings' ) ) {
 	wp_die( esc_html__( 'You do not have permission to manage licenses.', 'isoft-fm-foundation' ), 403 );
 }
+
+// React-app path. When the licenses-page bundle enqueued successfully,
+// hand the screen over to the React app — it owns layout, list, modal,
+// notices, and submission. The single mount node is all the PHP shell
+// needs to emit.
+if ( wp_script_is( ISOFT_FMF_Licenses_Page::SCRIPT_HANDLE, 'enqueued' ) ) {
+	?>
+	<div class="wrap">
+		<div id="isoft-fmf-licenses-root"></div>
+		<noscript>
+			<div class="notice notice-warning">
+				<p><?php esc_html_e( 'The Licenses page requires JavaScript. Please enable JavaScript in your browser, or revert to the previous plugin version.', 'isoft-fm-foundation' ); ?></p>
+			</div>
+		</noscript>
+	</div>
+	<?php
+	return;
+}
+
+// ---------------------------------------------------------------------
+// Fallback path. Built asset missing (local dev pre-`npm run build` or
+// malformed deploy) — render the original PHP form so admins can still
+// manage licenses while the React bundle is fixed. Identical UI to
+// pre-0.12.2 because it IS the pre-0.12.2 markup.
+// ---------------------------------------------------------------------
+
 ?>
 <div class="wrap">
 	<h1><?php esc_html_e( 'Licenses', 'isoft-fm-foundation' ); ?> <a href="<?php echo esc_url( add_query_arg( array( 'action' => 'new' ), isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '' ) ); ?>" class="page-title-action"><?php esc_html_e( 'Add New', 'isoft-fm-foundation' ); ?></a></h1>
