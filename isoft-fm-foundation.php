@@ -143,6 +143,7 @@ add_action(
 		( new ISOFT_FMF_Rest_Licenses() )->register_hooks();
 		( new ISOFT_FMF_Rest_Settings() )->register_hooks();
 		( new ISOFT_FMF_Rest_Files() )->register_hooks();
+		( new ISOFT_FMF_Rest_Broken_Links() )->register_hooks();
 
 		// Gutenberg blocks
 		( new ISOFT_FMF_Blocks() )->register_hooks();
