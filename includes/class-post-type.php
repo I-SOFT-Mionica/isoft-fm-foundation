@@ -111,11 +111,23 @@ class ISOFT_FMF_Post_Type {
 			)
 		);
 
-		// Disable block editor for downloads — files are the primary content, not prose.
+		// Block editor enabled as of 0.12.1 so the editor-sidebar plugin
+		// (ISOFT_FMF_Editor_Sidebar) can mount its Document panels.
+		// Existing meta boxes still render below the editor canvas (WP
+		// degrades them as collapsible "Additional fields" panels in the
+		// block editor) until 0.12.5 demolition swaps each one out for
+		// its sidebar equivalent.
+		//
+		// Legacy classic-editor post_content renders fine as a single
+		// "Classic" block — no auto-conversion required, opt-in per post.
+		//
+		// Revert path: change the literal `true` below back to `false`.
+		// The filter signature is preserved so other plugins' override
+		// chains still work.
 		add_filter(
 			'use_block_editor_for_post_type',
 			function ( bool $use, string $post_type ): bool {
-				return $post_type === 'isoft_fmf_file' ? false : $use;
+				return $post_type === 'isoft_fmf_file' ? true : $use;
 			},
 			10,
 			2
