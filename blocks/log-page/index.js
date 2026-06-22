@@ -103,17 +103,13 @@ const LogApp = ( { exportBaseUrl, purgeUrl, retentionDays, loggingEnabled, canEx
 		setLoading( true );
 		setError( null );
 
-		apiFetch( {
-			path:  `${ LOGS_ROUTE }?${ params.toString() }`,
-			parse: false,
-		} )
-			.then( async ( response ) => {
-				const totalHdr = parseInt( response.headers.get( 'X-WP-Total' ) || '0', 10 );
-				const pagesHdr = parseInt( response.headers.get( 'X-WP-TotalPages' ) || '0', 10 );
-				const payload  = await response.json();
-				setRows( Array.isArray( payload ) ? payload : [] );
-				setTotal( totalHdr );
-				setTotalPages( pagesHdr );
+		// Plain apiFetch (no parse:false). The REST endpoint returns
+		// { items, totalItems, totalPages } as a single JSON object.
+		apiFetch( { path: `${ LOGS_ROUTE }?${ params.toString() }` } )
+			.then( ( payload ) => {
+				setRows( Array.isArray( payload?.items ) ? payload.items : [] );
+				setTotal( parseInt( payload?.totalItems || 0, 10 ) );
+				setTotalPages( parseInt( payload?.totalPages || 0, 10 ) );
 			} )
 			.catch( ( err ) => {
 				setError(

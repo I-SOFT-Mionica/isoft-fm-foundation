@@ -501,10 +501,19 @@ class ISOFT_FMF_Rest_Api {
 			$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}isoft_fmf_download_log" );
 		}
 
-		$response = new WP_REST_Response( $rows ?? array(), 200 );
-		$response->header( 'X-WP-Total', $total );
-		$response->header( 'X-WP-TotalPages', $per_page > 0 ? (int) ceil( $total / $per_page ) : 0 );
-
-		return $response;
+		// Wrap items + pagination metadata in a single response object so
+		// the React client can consume one parsed payload. The original
+		// X-WP-Total / X-WP-TotalPages header pattern fought with
+		// @wordpress/api-fetch's middleware chain — switching to a body
+		// envelope sidesteps that and matches what we'd do for any new
+		// paginated endpoint going forward.
+		return new WP_REST_Response(
+			array(
+				'items'      => $rows ?? array(),
+				'totalItems' => $total,
+				'totalPages' => $per_page > 0 ? (int) ceil( $total / $per_page ) : 0,
+			),
+			200
+		);
 	}
 }
