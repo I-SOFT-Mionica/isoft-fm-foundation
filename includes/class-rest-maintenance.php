@@ -124,7 +124,18 @@ class ISOFT_FMF_Rest_Maintenance {
 			$status = ! empty( $result['installed'] ) ? 200 : 409;
 			return new WP_REST_Response( $result, $status );
 		}
-		return new WP_REST_Response( $this->service->remove_demo(), 200 );
+		if ( 'remove' === $action ) {
+			return new WP_REST_Response( $this->service->remove_demo(), 200 );
+		}
+		// Schema enum is informational only without an explicit
+		// validate_callback. Defensive check so unknown actions don't
+		// silently fall through to remove.
+		return new WP_Error(
+			'isoft_fmf_unknown_action',
+			/* translators: %s: action name */
+			sprintf( __( 'Unknown demo-content action: %s', 'isoft-fm-foundation' ), $action ),
+			array( 'status' => 400 )
+		);
 	}
 
 	public function clear_bundle_cache(): WP_REST_Response {

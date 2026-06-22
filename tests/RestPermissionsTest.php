@@ -61,14 +61,20 @@ class RestPermissionsTest extends WP_UnitTestCase {
 	 *     A = author
 	 *     E = editor
 	 *     M = administrator
-	 *   200/400 = allowed (some routes 400 due to missing required body args).
+	 *   200/201 = allowed and the handler ran.
+	 *   400     = allowed-or-denied AND schema rejected the no-body
+	 *             request before reaching the permission_callback. We
+	 *             treat 400 as "non-success" — fine for either bucket.
 	 *   401     = denied, no user.
 	 *   403     = denied, wrong user.
 	 */
 	public static function routes_matrix(): array {
-		// allowed → "200 or 400 — schema may complain about missing body".
-		$ok       = array( 200, 400 );
-		$denied_a = array( 401, 403 );
+		// allowed → "200/201, or 400 because the request body was minimal".
+		$ok       = array( 200, 201, 400 );
+		// denied → 401/403 OR 400 (schema validation runs before
+		// permission_callback, so a no-body request to /demo-content gets
+		// 400 even for a subscriber — never reaches our cap check).
+		$denied_a = array( 400, 401, 403 );
 
 		return array(
 			// route_key                 => [method, path,                                    expectations]
