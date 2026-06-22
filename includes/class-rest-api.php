@@ -239,10 +239,13 @@ class ISOFT_FMF_Rest_Api {
 
 		global $wpdb;
 
+		// download_count + is_missing added in 0.12.1 so the editor-sidebar
+		// Stats panel can render per-file counts and the Files panel can
+		// show a "X broken" badge — one fetch, two consumers.
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		$files = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT id, title, file_name, file_type, file_size, file_mime, external_url, sort_order
+				"SELECT id, title, file_name, file_type, file_size, file_mime, external_url, sort_order, download_count, is_missing
 				   FROM {$wpdb->prefix}isoft_fmf_files
 				  WHERE download_id = %d
 				  ORDER BY sort_order ASC, id ASC",
@@ -266,13 +269,15 @@ class ISOFT_FMF_Rest_Api {
 					(int) $f->id
 				);
 				return array(
-					'id'           => (int) $f->id,
-					'title'        => $label,
-					'file_name'    => $f->file_name,
-					'file_type'    => $f->file_type,
-					'file_size'    => (int) $f->file_size,
-					'file_mime'    => $f->file_mime,
-					'external_url' => $f->external_url,
+					'id'             => (int) $f->id,
+					'title'          => $label,
+					'file_name'      => $f->file_name,
+					'file_type'      => $f->file_type,
+					'file_size'      => (int) $f->file_size,
+					'file_mime'      => $f->file_mime,
+					'external_url'   => $f->external_url,
+					'download_count' => (int) $f->download_count,
+					'is_missing'     => (bool) $f->is_missing,
 				);
 			},
 			$files
