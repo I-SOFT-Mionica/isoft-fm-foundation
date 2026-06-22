@@ -57,10 +57,18 @@
 		</div>
 		<div class="card" style="max-width:360px;">
 			<h3>
-				I-Soft File Manager: Arbiter
+				I-Soft File Manager: Nomad
 				<span class="isoft-fmf-soon-badge"><?php esc_html_e( 'Coming soon', 'isoft-fm-foundation' ); ?></span>
 			</h3>
 			<p><?php esc_html_e( 'One-shot importer from jDownloads. Reads the legacy categories, downloads, files, and counter rows directly from the database and rebuilds them in the Foundation data model. Preserves slug paths so URLs and category folder names stay stable across the cutover.', 'isoft-fm-foundation' ); ?></p>
+			<p><a href="https://isoft.rs/nomad" target="_blank" rel="noopener" class="button" aria-disabled="true"><?php esc_html_e( 'Learn More', 'isoft-fm-foundation' ); ?></a></p>
+		</div>
+		<div class="card" style="max-width:360px;">
+			<h3>
+				I-Soft File Manager: Arbiter
+				<span class="isoft-fmf-soon-badge"><?php esc_html_e( 'Coming soon', 'isoft-fm-foundation' ); ?></span>
+			</h3>
+			<p><?php esc_html_e( 'Extended licensing and enforcement. Per-license acceptance gates (read-and-confirm checkbox, scroll-through, read timer), signed download receipts that bundle a verifiable rider PDF with the file, and custom rider templates with your institution\'s branding — logos, fonts, colors, per-department layouts.', 'isoft-fm-foundation' ); ?></p>
 			<p><a href="https://isoft.rs/arbiter" target="_blank" rel="noopener" class="button" aria-disabled="true"><?php esc_html_e( 'Learn More', 'isoft-fm-foundation' ); ?></a></p>
 		</div>
 	</div>
