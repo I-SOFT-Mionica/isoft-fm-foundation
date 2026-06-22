@@ -41,12 +41,13 @@ class ISOFT_FMF_Log_Page {
 			true
 		);
 
-		// DataViews ships its own stylesheet in WP core; the wp-scripts
-		// dependency extractor doesn't auto-enqueue styles, only scripts.
-		// Without this the column headers / pagination controls are
-		// unstyled. wp-components covers the Notice / Spinner / Button.
+		// wp-components covers the Notice / Spinner / Button. DataViews
+		// styles ride along inside our bundle's JS-injected CSS — we
+		// can't enqueue `wp-dataviews` style independently because WP
+		// core only registers that handle inside editor contexts (see
+		// note in webpack.config.js explaining why DataViews itself is
+		// bundled rather than externalised).
 		wp_enqueue_style( 'wp-components' );
-		wp_enqueue_style( 'wp-dataviews' );
 
 		wp_set_script_translations(
 			self::SCRIPT_HANDLE,

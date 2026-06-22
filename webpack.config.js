@@ -1,30 +1,14 @@
 const defaultConfig = require( '@wordpress/scripts/config/webpack.config' );
-const DependencyExtractionWebpackPlugin = require( '@wordpress/dependency-extraction-webpack-plugin' );
-const path = require( 'path' );
+const path          = require( 'path' );
 
-// Replace the default DependencyExtractionWebpackPlugin with one that
-// also recognises @wordpress/dataviews → wp-dataviews. Without this,
-// dataviews is bundled into our output (adds ~220 KB per entry that
-// uses it) instead of being loaded from WP core as a separate script
-// handle. The plugin's default requestToExternal map is shipped from
-// @wordpress/scripts, so we extend rather than replace it.
-const plugins = ( defaultConfig.plugins || [] ).filter(
-	( p ) => ! ( p instanceof DependencyExtractionWebpackPlugin )
-);
-plugins.push(
-	new DependencyExtractionWebpackPlugin( {
-		requestToExternal( request ) {
-			if ( '@wordpress/dataviews' === request ) {
-				return [ 'wp', 'dataviews' ];
-			}
-		},
-		requestToHandle( request ) {
-			if ( '@wordpress/dataviews' === request ) {
-				return 'wp-dataviews';
-			}
-		},
-	} )
-);
+// Note: @wordpress/dataviews is NOT externalised. WP core registers the
+// `wp-dataviews` script handle only inside specific editor contexts
+// (post / site editor) — outside those screens an enqueue depending on
+// it triggers the WP 6.9.1+ "dependencies that are not registered"
+// notice. Bundling adds ~220 KB to entries that use it (currently only
+// log-page; later broken-links-page) but ships a working admin screen
+// instead of a half-broken one. Revisit if WP core promotes
+// wp-dataviews to a globally-registered handle.
 
 module.exports = {
 	...defaultConfig,
@@ -42,5 +26,4 @@ module.exports = {
 		filename: '[name].js',
 		path: path.resolve( process.cwd(), 'blocks/build' ),
 	},
-	plugins,
 };

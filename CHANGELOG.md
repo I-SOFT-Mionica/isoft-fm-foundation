@@ -36,8 +36,8 @@ This release does NOT ship to WordPress.org SVN. 0.12.x stays GitHub-only until 
 
 ### Changed (sub-PR 2 — Download Log)
 
-- **`webpack.config.js` externalizes `@wordpress/dataviews` → `wp-dataviews`** by extending `DependencyExtractionWebpackPlugin`'s `requestToExternal` / `requestToHandle` maps. Without this the dataviews package bundled into our output (~220 KB per entry that uses it) instead of loading from WP core; with it the log-page bundle drops to 5.9 KB. Same hook will cover sub-PR 3 (Broken Links DataViews) at no extra cost.
 - **`admin/views/log-viewer.php`** branches on `wp_script_is( ISOFT_FMF_Log_Page::SCRIPT_HANDLE, 'enqueued' )`: when the React bundle is loaded, the page renders as a single `<div id="isoft-fmf-log-root">` mount node with `data-*` attributes carrying server-side state; when the bundle is missing, the original `WP_List_Table`-backed markup renders unchanged.
+- **`@wordpress/dataviews` is bundled inside the log-page entry, not externalised.** WP core registers the `wp-dataviews` script handle only inside specific editor contexts (post / site editor) — outside those screens an enqueue depending on it triggers the WP 6.9.1+ "dependencies that are not registered" notice. Bundling adds ~220 KB to entries that use DataViews (currently log-page; later broken-links-page) but ships a working admin screen instead of a half-broken one. Revisit if WP core promotes `wp-dataviews` to a globally-registered handle.
 
 ## [0.12.2] — 2026-06-22
 
