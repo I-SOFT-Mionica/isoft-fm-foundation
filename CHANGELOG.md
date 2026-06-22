@@ -19,6 +19,11 @@ This release does NOT ship to WordPress.org SVN. 0.12.x stays GitHub-only until 
 - **`GET /isoft-fm-foundation/v1/stats/overview` response extended** to include the full dashboard payload: `top_alltime` (10 rows), full `top_30d` (10 rows), `top_30d_window` ('30d' or 'alltime'), `daily_30d` (date => count map for the chart), and `logging_enabled` (boolean). Existing `top_downloads_30d` field (5 rows) preserved for any third-party consumer of the pre-0.12.3 shape — purely additive change. Underlying `isoft_fmf_get_stats_overview()` helper unchanged, so the 5-minute transient cache covers both the React payload and any remaining PHP call sites with no extra query cost.
 - **`admin/views/stats-dashboard.php`** branches on `wp_script_is( ISOFT_FMF_Stats_Page::SCRIPT_HANDLE, 'enqueued' )`: when the React bundle is loaded, the page renders as a single `<div id="isoft-fmf-stats-root">` mount node; when the bundle is missing, the original PHP markup renders unchanged.
 
+### Fixed
+
+- **Uninstall handler now drops `wp_isoft_fmf_download_daily`.** The aggregate table that feeds the "Top Downloads (Last 30 Days)" panel was missing from `uninstall.php`'s DROP TABLE list since the table was introduced; it survived deletion of the plugin even with "Delete all plugin data" enabled. Subsequent reinstalls would see stale rows from the prior install paired with fresh rows at identical counts (the daily-cron pipeline re-aggregated for the new post IDs), surfacing as `(deleted)` entries on the dashboard. Existing installs that already have orphan rows will not be cleaned retroactively — the next clean uninstall + reinstall is the lifecycle that fixes it.
+- **Deleted-post rows in the React Stats Top-30d panel no longer render as clickable links.** They show as `(deleted)` in italic, matching the PHP version's behaviour. The daily-aggregate query retains the original `download_id` FK even after the post is gone, so the React row's `download_id` is a positive number — the link guard now checks `post_title` presence (null when the join failed) instead of the FK presence.
+
 ## [0.12.2] — 2026-06-22
 
 Phase 3 of the React-admin rewrite. The Licenses admin page becomes the first fully-React standalone screen, proving the mount-and-fallback pattern that the larger 0.12.3 (Settings + Stats + Log + Broken Links) will reuse.

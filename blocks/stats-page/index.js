@@ -309,7 +309,11 @@ const StatsApp = () => {
 					rows={ data.top_30d || [] }
 					title={ top30Label }
 					fallbackNote={ top30Fallback }
-					getId={ ( r ) => parseInt( r.download_id, 10 ) || 0 }
+					// top_30d rows come from the daily aggregate via LEFT JOIN
+					// on posts — if the post is deleted, download_id is still
+					// the original FK but post_title is null. Gate the link
+					// on title presence so deleted entries render unclickable.
+					getId={ ( r ) => ( r.post_title ? parseInt( r.download_id, 10 ) : 0 ) || 0 }
 					getTitle={ ( r ) => r.post_title || __( '(deleted)', 'isoft-fm-foundation' ) }
 					getCount={ ( r ) => parseInt( r.count, 10 ) || 0 }
 				/>
