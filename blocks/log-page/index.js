@@ -25,6 +25,7 @@ import {
 } from '@wordpress/components';
 import { useState, useEffect, useMemo, createRoot, render } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
+import { dateI18n, getSettings as getDateSettings } from '@wordpress/date';
 import apiFetch from '@wordpress/api-fetch';
 
 const LOGS_ROUTE      = '/isoft-fm-foundation/v1/logs';
@@ -55,23 +56,17 @@ const DEFAULT_VIEW = {
 };
 
 /**
- * Friendly date for a MySQL UTC DATETIME. "Jun 23, 2:17 AM" when in the
- * current year; full date + time when older. Locale-aware via Intl.
+ * Format a MySQL DATETIME using the site's WP date + time format
+ * settings (Settings > General). @wordpress/date is auto-hydrated by
+ * WP with the current site formats when wp-date is enqueued.
  */
 const formatDate = ( mysqlDate ) => {
 	if ( ! mysqlDate ) {
 		return '';
 	}
-	const d = new Date( mysqlDate.replace( ' ', 'T' ) + 'Z' );
-	if ( isNaN( d.getTime() ) ) {
-		return mysqlDate;
-	}
-	const now    = new Date();
-	const sameYr = d.getFullYear() === now.getFullYear();
-	const opts   = sameYr
-		? { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }
-		: { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' };
-	return d.toLocaleString( undefined, opts );
+	const formats = getDateSettings().formats;
+	const fmt     = `${ formats.date } ${ formats.time }`;
+	return dateI18n( fmt, mysqlDate );
 };
 
 const LogApp = ( { exportBaseUrl, purgeUrl, retentionDays, loggingEnabled, canExport, canPurge } ) => {
