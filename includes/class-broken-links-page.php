@@ -14,7 +14,15 @@ defined( 'ABSPATH' ) || exit;
 
 class ISOFT_FMF_Broken_Links_Page {
 
-	public const SCRIPT_HANDLE = 'isoft-fmf-broken-links';
+	// Handle deliberately suffixed `-page` to avoid colliding with the
+	// `isoft-fmf-broken-links` handle the legacy class-settings.php
+	// enqueue still uses for admin/js/broken-links.js (the jQuery
+	// fallback). When both classes registered the same handle, Settings
+	// won (registered first), the React bundle silently no-op'd, and
+	// the page rendered with the React mount div but no React script
+	// tag, leaving the mount empty. The legacy handle gets dropped
+	// entirely in 0.12.5 demolition.
+	public const SCRIPT_HANDLE = 'isoft-fmf-broken-links-page';
 
 	/** Admin-page hook suffix for the Broken Links submenu (parent_slug + page_slug). */
 	public const PAGE_HOOK_SUFFIX = 'isoft_fmf_file_page_isoft-fmf-broken-links';
