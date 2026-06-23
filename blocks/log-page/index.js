@@ -38,19 +38,26 @@ const DEFAULT_VIEW = {
 		field:     'downloaded_at',
 		direction: 'desc',
 	},
-	search:  '',
-	filters: [],
-	fields:  [
+	search:   '',
+	filters:  [],
+	fields:   [
 		'downloaded_at',
 		'download_title',
 		'file_name',
 		'user_id',
 		'user_ip',
 	],
+	// Compact density by default — the log is information-dense and the
+	// default "balanced" mode wastes vertical space. Users can switch
+	// back via Appearance > Density.
+	density: 'compact',
 	layout:  {},
 };
 
-/** Locale-aware date+time string for a MySQL DATETIME (UTC). */
+/**
+ * Friendly date for a MySQL UTC DATETIME. "Jun 23, 2:17 AM" when in the
+ * current year; full date + time when older. Locale-aware via Intl.
+ */
 const formatDate = ( mysqlDate ) => {
 	if ( ! mysqlDate ) {
 		return '';
@@ -59,7 +66,12 @@ const formatDate = ( mysqlDate ) => {
 	if ( isNaN( d.getTime() ) ) {
 		return mysqlDate;
 	}
-	return d.toLocaleString();
+	const now    = new Date();
+	const sameYr = d.getFullYear() === now.getFullYear();
+	const opts   = sameYr
+		? { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }
+		: { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' };
+	return d.toLocaleString( undefined, opts );
 };
 
 const LogApp = ( { exportBaseUrl, purgeUrl, retentionDays, loggingEnabled, canExport, canPurge } ) => {
