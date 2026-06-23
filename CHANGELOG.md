@@ -4,7 +4,7 @@ All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads
 
 ## [0.12.3] — unreleased
 
-Phase 4 of the React-admin rewrite. Sub-PR 1 of 4: the Statistics dashboard becomes a React app. Subsequent sub-PRs cover Log, Broken Links, and Settings.
+Phase 4 of the React-admin rewrite. Sub-PR 1 of 4: the Statistics dashboard becomes a React app. Sub-PR 2 of 4: the Download Log becomes a React app on top of `@wordpress/dataviews`. Subsequent sub-PRs cover Broken Links and Settings.
 
 This release does NOT ship to WordPress.org SVN. 0.12.x stays GitHub-only until the full rewrite graduates to 1.0.0.
 
@@ -26,6 +26,18 @@ This release does NOT ship to WordPress.org SVN. 0.12.x stays GitHub-only until 
 - **Dashboard "Top Downloads (Last 30 Days)" no longer surfaces orphan rows at all.** `isoft_fmf_get_stats_overview()`'s top-30d query switches from `LEFT JOIN` to `INNER JOIN` against the posts table, so daily-aggregate rows whose parent post has been deleted are excluded from the result. Defensive: the new `before_delete_post` cleanup below sweeps orphans as posts are deleted going forward, but the INNER JOIN keeps the display honest even when a row escapes that cleanup path.
 - **Permanent post deletion now sweeps the stats trail for that download.** New `ISOFT_FMF_Post_Type::cleanup_stats_on_delete()` hook on `before_delete_post` removes the post's rows from `wp_isoft_fmf_download_daily` and `wp_isoft_fmf_download_log`, and busts the 5-minute stats transient. Scoped to `isoft_fmf_file` so unrelated post deletions don't touch our tables. Closes the root cause of the orphan-rows-on-dashboard issue.
 - **PDF thumbnail Imagick warning is silent when the feature is disabled in settings.** `ISOFT_FMF_Pdf_Thumbnail::maybe_show_notice()` previously rendered the "Imagick extension is not available" notice on every admin page whenever Imagick was missing, regardless of whether the admin had opted into PDF thumbnail generation. Now it bails when `enable_pdf_thumbnails` is off. Admins who don't want PDF thumbnails no longer get nagged about a missing extension they don't need.
+
+### Added (sub-PR 2 — Download Log)
+
+- **React Download Log page** — Downloads → Download Log is now rendered with `@wordpress/dataviews`. Server-side pagination, filtering by download, and search across title / file / IP all driven by the existing `/isoft-fm-foundation/v1/logs` endpoint. Columns: When (locale-formatted datetime), Download (linked when post exists, italic `(deleted)` otherwise), File, User (`#id` linked to user-edit, italic `Guest` for anonymous), IP. Logging-disabled warning and Export CSV / Export JSON / Purge buttons all preserved from the PHP version. Capability gating for export and purge surfaces in the React UI via `data-*` attributes on the mount node so the JS bundle stays free of PHP coupling.
+- **`ISOFT_FMF_Log_Page`** — new class that enqueues `blocks/build/log-page.js` on the Download Log admin screen only (hook suffix `isoft_fmf_file_page_isoft-fmf-log`). Also enqueues `wp-dataviews` style which the `@wordpress/scripts` dependency extractor doesn't auto-attach for the script.
+- **Log page webpack entry** (`blocks/log-page/index.js`, built via `npm run build` to `blocks/build/log-page.js`).
+- **`GET /isoft-fm-foundation/v1/logs` gains a `search` parameter** matching against `post_title`, `file_name`, and `user_ip` (LIKE). The query expands to four explicit literal-prepare branches (`{none, search, download, download+search}`) to keep WPCS happy with the no-concatenated-SQL convention the file already follows. `X-WP-Total` / `X-WP-TotalPages` headers cover both the existing and new branches.
+
+### Changed (sub-PR 2 — Download Log)
+
+- **`admin/views/log-viewer.php`** branches on `wp_script_is( ISOFT_FMF_Log_Page::SCRIPT_HANDLE, 'enqueued' )`: when the React bundle is loaded, the page renders as a single `<div id="isoft-fmf-log-root">` mount node with `data-*` attributes carrying server-side state; when the bundle is missing, the original `WP_List_Table`-backed markup renders unchanged.
+- **`@wordpress/dataviews` is bundled inside the log-page entry, not externalised.** WP core registers the `wp-dataviews` script handle only inside specific editor contexts (post / site editor) — outside those screens an enqueue depending on it triggers the WP 6.9.1+ "dependencies that are not registered" notice. Bundling adds ~220 KB to entries that use DataViews (currently log-page; later broken-links-page) but ships a working admin screen instead of a half-broken one. Revisit if WP core promotes `wp-dataviews` to a globally-registered handle.
 
 ## [0.12.2] — 2026-06-22
 
