@@ -21,6 +21,7 @@ module.exports = {
 		'stats-page':      './blocks/stats-page/index.js',
 		'log-page':        './blocks/log-page/index.js',
 		'broken-links-page': './blocks/broken-links-page/index.js',
+		'settings-page':   './blocks/settings-page/index.js',
 	},
 	output: {
 		...defaultConfig.output,
