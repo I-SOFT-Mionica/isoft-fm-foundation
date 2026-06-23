@@ -458,10 +458,44 @@ class ISOFT_FMF_Broken_Links_Service {
 		if ( ! $file ) {
 			return self::not_found();
 		}
+		$download_id = (int) $file->download_id;
 		$this->files->delete_file( $file_id );
-		self::mark_healthy( $file_id, (int) $file->download_id );
+		self::mark_healthy( $file_id, $download_id );
 
-		return array( 'message' => __( 'File detached from download.', 'isoft-fm-foundation' ) );
+		// If detaching this file leaves zero local files on the download,
+		// auto-unpublish — same policy handle_missing() applies when all
+		// local files go missing. A published download with no files is
+		// just a broken card on the frontend ("No files available."). The
+		// _isoft_fmf_auto_unpublished_at flag lets a future reupload /
+		// re-attach in the edit screen flip it back to publish via the
+		// mark_healthy auto-republish path.
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Live count immediately after delete; freshness required.
+		$remaining   = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$wpdb->prefix}isoft_fmf_files
+				  WHERE download_id = %d
+				    AND file_type   = 'local'",
+				$download_id
+			)
+		);
+		$unpublished = false;
+		if ( 0 === $remaining && 'publish' === get_post_status( $download_id ) ) {
+			wp_update_post(
+				array(
+					'ID'          => $download_id,
+					'post_status' => 'draft',
+				)
+			);
+			update_post_meta( $download_id, '_isoft_fmf_auto_unpublished_at', time() );
+			$unpublished = true;
+		}
+
+		return array(
+			'message' => $unpublished
+				? __( 'File detached. Download moved to draft (no files remaining).', 'isoft-fm-foundation' )
+				: __( 'File detached from download.', 'isoft-fm-foundation' ),
+		);
 	}
 
 	// ---------------------------------------------------------------------

@@ -35,7 +35,7 @@ $saw_running = isset( $_GET['isoft_fmf_running'] );  // phpcs:ignore WordPress.S
 
 	<?php if ( $just_ran ) : ?>
 		<div class="notice notice-success is-dismissible" style="margin-top:1em;">
-			<p><?php esc_html_e( 'Integrity check complete. Any newly-discovered missing files appear in the table below.', 'isoft-fm-foundation' ); ?></p>
+			<p><?php esc_html_e( 'Integrity check complete. The table below lists all files currently missing on disk.', 'isoft-fm-foundation' ); ?></p>
 		</div>
 	<?php elseif ( $saw_running ) : ?>
 		<div class="notice notice-warning is-dismissible" style="margin-top:1em;">
@@ -133,52 +133,79 @@ $saw_running = isset( $_GET['isoft_fmf_running'] );  // phpcs:ignore WordPress.S
 		</p>
 	</div>
 
-	<?php if ( empty( $table->items ) ) : ?>
-		<div class="notice notice-success inline" style="margin-top:1em;">
-			<p><?php esc_html_e( 'All files are present. Nothing to recover.', 'isoft-fm-foundation' ); ?></p>
-		</div>
+	<?php
+	// React path (0.12.3+). The React app owns the broken-files list,
+	// per-row Recover action, and the recovery modal that talks to
+	// /broken-links/{id}/probe + /recover + /reupload. PHP keeps the
+	// integrity-check panel above (server-side lock state + admin-post
+	// action) since that's not list/CRUD work.
+	if ( wp_script_is( ISOFT_FMF_Broken_Links_Page::SCRIPT_HANDLE, 'enqueued' ) ) :
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- One-shot page-render count; cheap and always fresh.
+		$initial_total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}isoft_fmf_files WHERE is_missing = 1" );
+		$initial_pages = (int) ceil( $initial_total / 25 );
+		?>
+		<div
+			id="isoft-fmf-broken-links-root"
+			data-initial-total="<?php echo esc_attr( (string) $initial_total ); ?>"
+			data-initial-pages="<?php echo esc_attr( (string) $initial_pages ); ?>"
+			style="margin-top:1em;"
+		></div>
+		<noscript>
+			<div class="notice notice-warning">
+				<p><?php esc_html_e( 'The Broken Links page requires JavaScript. Please enable JavaScript in your browser, or revert to the previous plugin version.', 'isoft-fm-foundation' ); ?></p>
+			</div>
+		</noscript>
 	<?php else : ?>
-		<form method="get">
-			<input type="hidden" name="post_type" value="isoft_fmf_file" />
-			<input type="hidden" name="page" value="isoft-fmf-broken-links" />
-			<?php $table->display(); ?>
-		</form>
-	<?php endif; ?>
 
-	<!-- Recovery dialog template (hidden, cloned by JS per row click). -->
-	<div id="isoft-fmf-recover-dialog" style="display:none;" aria-hidden="true">
-		<div class="isoft-fmf-recover-dialog__backdrop"></div>
-		<div class="isoft-fmf-recover-dialog__panel" role="dialog" aria-modal="true" aria-labelledby="isoft-fmf-recover-title">
-			<button type="button" class="isoft-fmf-recover-close" aria-label="<?php esc_attr_e( 'Close', 'isoft-fm-foundation' ); ?>">&times;</button>
-			<h2 id="isoft-fmf-recover-title"><?php esc_html_e( 'Recover File', 'isoft-fm-foundation' ); ?></h2>
-			<div class="isoft-fmf-recover-status" aria-live="polite"></div>
-			<div class="isoft-fmf-recover-summary"></div>
-			<div class="isoft-fmf-recover-actions">
-				<p class="isoft-fmf-recover-cross-cat" hidden>
-					<strong><?php esc_html_e( 'File found in a different category folder.', 'isoft-fm-foundation' ); ?></strong><br>
-					<span class="description"><?php esc_html_e( 'Pick how to resolve the mismatch:', 'isoft-fm-foundation' ); ?></span>
-				</p>
-				<p>
-					<button type="button" class="button" data-action="move_back" hidden>
-						<?php esc_html_e( '1. Move file back', 'isoft-fm-foundation' ); ?>
-					</button>
-					<button type="button" class="button" data-action="reassign" hidden>
-						<?php esc_html_e( '2. Reassign download', 'isoft-fm-foundation' ); ?>
-					</button>
-					<button type="button" class="button" data-action="split" hidden>
-						<?php esc_html_e( '3. Split into new download', 'isoft-fm-foundation' ); ?>
-					</button>
-				</p>
-				<p class="isoft-fmf-recover-fallback">
-					<label class="button">
-						<?php esc_html_e( 'Reupload…', 'isoft-fm-foundation' ); ?>
-						<input type="file" class="isoft-fmf-recover-file" hidden>
-					</label>
-					<button type="button" class="button button-link-delete" data-action="detach">
-						<?php esc_html_e( 'Detach file', 'isoft-fm-foundation' ); ?>
-					</button>
-				</p>
+		<?php if ( empty( $table->items ) ) : ?>
+			<div class="notice notice-success inline" style="margin-top:1em;">
+				<p><?php esc_html_e( 'All files are present. Nothing to recover.', 'isoft-fm-foundation' ); ?></p>
+			</div>
+		<?php else : ?>
+			<form method="get">
+				<input type="hidden" name="post_type" value="isoft_fmf_file" />
+				<input type="hidden" name="page" value="isoft-fmf-broken-links" />
+				<?php $table->display(); ?>
+			</form>
+		<?php endif; ?>
+
+		<!-- Recovery dialog template (hidden, cloned by JS per row click). PHP fallback only. -->
+		<div id="isoft-fmf-recover-dialog" style="display:none;" aria-hidden="true">
+			<div class="isoft-fmf-recover-dialog__backdrop"></div>
+			<div class="isoft-fmf-recover-dialog__panel" role="dialog" aria-modal="true" aria-labelledby="isoft-fmf-recover-title">
+				<button type="button" class="isoft-fmf-recover-close" aria-label="<?php esc_attr_e( 'Close', 'isoft-fm-foundation' ); ?>">&times;</button>
+				<h2 id="isoft-fmf-recover-title"><?php esc_html_e( 'Recover File', 'isoft-fm-foundation' ); ?></h2>
+				<div class="isoft-fmf-recover-status" aria-live="polite"></div>
+				<div class="isoft-fmf-recover-summary"></div>
+				<div class="isoft-fmf-recover-actions">
+					<p class="isoft-fmf-recover-cross-cat" hidden>
+						<strong><?php esc_html_e( 'File found in a different category folder.', 'isoft-fm-foundation' ); ?></strong><br>
+						<span class="description"><?php esc_html_e( 'Pick how to resolve the mismatch:', 'isoft-fm-foundation' ); ?></span>
+					</p>
+					<p>
+						<button type="button" class="button" data-action="move_back" hidden>
+							<?php esc_html_e( '1. Move file back', 'isoft-fm-foundation' ); ?>
+						</button>
+						<button type="button" class="button" data-action="reassign" hidden>
+							<?php esc_html_e( '2. Reassign download', 'isoft-fm-foundation' ); ?>
+						</button>
+						<button type="button" class="button" data-action="split" hidden>
+							<?php esc_html_e( '3. Split into new download', 'isoft-fm-foundation' ); ?>
+						</button>
+					</p>
+					<p class="isoft-fmf-recover-fallback">
+						<label class="button">
+							<?php esc_html_e( 'Reupload…', 'isoft-fm-foundation' ); ?>
+							<input type="file" class="isoft-fmf-recover-file" hidden>
+						</label>
+						<button type="button" class="button button-link-delete" data-action="detach">
+							<?php esc_html_e( 'Detach file', 'isoft-fm-foundation' ); ?>
+						</button>
+					</p>
+				</div>
 			</div>
 		</div>
-	</div>
+
+	<?php endif; ?>
 </div>

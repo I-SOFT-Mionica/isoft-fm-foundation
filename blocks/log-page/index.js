@@ -220,7 +220,7 @@ const LogApp = ( {
 	const defaultLayouts = { table: {} };
 
 	return (
-		<div className="wrap">
+		<div className="wrap isoft-fmf-dataviews-table">
 			<h1 className="wp-heading-inline">
 				{ __( 'Download Log', 'isoft-fm-foundation' ) }
 			</h1>

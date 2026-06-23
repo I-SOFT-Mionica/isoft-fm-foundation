@@ -218,8 +218,10 @@ class ISOFT_FMF_Shortcodes {
 
 			wp_reset_postdata();
 
+			// paginate_links() returns null when only one page exists; PHP
+			// 8.1+ deprecates passing null to wp_kses_post. Cast to string.
 			echo wp_kses_post(
-				paginate_links(
+				(string) paginate_links(
 					array(
 						'total'   => $query->max_num_pages,
 						'current' => max( 1, get_query_var( 'paged' ) ),
@@ -692,9 +694,13 @@ class ISOFT_FMF_Shortcodes {
 		}
 
 		if ( $require_agree ) {
-			$license_id  = (int) get_post_meta( $download_id, '_isoft_fmf_license_id', true );
-			$license     = $license_id ? ( new ISOFT_FMF_License_Manager() )->get( $license_id ) : null;
-			$agree_text  = $license ? wp_kses_post( $license->full_text ) : wp_kses_post( (string) get_post_meta( $download_id, '_isoft_fmf_agree_text', true ) );
+			$license_id = (int) get_post_meta( $download_id, '_isoft_fmf_license_id', true );
+			$license    = $license_id ? ( new ISOFT_FMF_License_Manager() )->get( $license_id ) : null;
+			// Cast to string on BOTH branches — see note in download-card.php at
+			// the matching wp_kses_post call. Nullable LONGTEXT in the
+			// licenses table; without the cast a NULL full_text triggers a
+			// PHP 8.1+ deprecation warning on the frontend.
+			$agree_text  = $license ? wp_kses_post( (string) $license->full_text ) : wp_kses_post( (string) get_post_meta( $download_id, '_isoft_fmf_agree_text', true ) );
 			$agree_title = $license ? esc_html( $license->title ) : esc_html( get_the_title( $download_id ) );
 
 			// Hidden div holds the agreement content for the modal JS to pick up

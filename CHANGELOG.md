@@ -4,7 +4,7 @@ All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads
 
 ## [0.12.3] — unreleased
 
-Phase 4 of the React-admin rewrite. Sub-PR 1 of 4: the Statistics dashboard becomes a React app. Sub-PR 2 of 4: the Download Log becomes a React app on top of `@wordpress/dataviews`. Subsequent sub-PRs cover Broken Links and Settings.
+Phase 4 of the React-admin rewrite. Sub-PR 1 of 4: the Statistics dashboard becomes a React app. Sub-PR 2 of 4: the Download Log becomes a React app on top of `@wordpress/dataviews`. Sub-PR 3 of 4: the Broken Links page becomes a React app on top of DataViews + a `Modal`-based recovery dialog. Sub-PR 4 will cover Settings.
 
 This release does NOT ship to WordPress.org SVN. 0.12.x stays GitHub-only until the full rewrite graduates to 1.0.0.
 
@@ -37,6 +37,18 @@ This release does NOT ship to WordPress.org SVN. 0.12.x stays GitHub-only until 
 ### Changed (sub-PR 2 — Download Log)
 
 - **`admin/views/log-viewer.php`** branches on `wp_script_is( ISOFT_FMF_Log_Page::SCRIPT_HANDLE, 'enqueued' )`: when the React bundle is loaded, the page renders as a single `<div id="isoft-fmf-log-root">` mount node with `data-*` attributes carrying server-side state; when the bundle is missing, the original `WP_List_Table`-backed markup renders unchanged.
+
+### Added (sub-PR 3 — Broken Links)
+
+- **React Broken Links page** — Downloads → Broken Links is now rendered with `@wordpress/dataviews` for the broken-files list plus a `@wordpress/components` `Modal` for the recovery dialog. Each row has a single "Recover" action that opens the modal; the modal hits `/broken-links/{file_id}/probe` to classify the situation (cross-category vs. lost entirely) and reveals the relevant action buttons (`move_back`, `reassign`, `split`, `reupload`, `detach`). Successful actions close the modal, refresh the list, and surface a success notice in one motion. Closes the "modal hangs after action" UX issue carried over from the 0.11.x jQuery dialog (deferred under 0.12.1).
+- **`ISOFT_FMF_Broken_Links_Page`** — new class that enqueues `blocks/build/broken-links-page.js` on the Broken Links admin screen only (hook suffix `isoft_fmf_file_page_isoft-fmf-broken-links`).
+- **Broken Links page webpack entry** (`blocks/broken-links-page/index.js`, built via `npm run build` to `blocks/build/broken-links-page.js`).
+- **`admin/css/dataviews-table.css`** — shared style sheet that gives DataViews the wp-list-table look (borders, zebra striping, full-width container). Renamed from `log-page.css` and rewritten around the `isoft-fmf-dataviews-table` wrapper class so both the Log and Broken Links pages pick up the treatment from one file.
+
+### Changed (sub-PR 3 — Broken Links)
+
+- **`admin/views/broken-links-page.php`** keeps the PHP-rendered integrity-check panel at the top (server-side lock state + admin-post action — not a list/CRUD concern) but branches on `wp_script_is( ISOFT_FMF_Broken_Links_Page::SCRIPT_HANDLE, 'enqueued' )` for the list section. React mount node when the bundle is loaded; the original `WP_List_Table` + jQuery modal fallback otherwise.
+- **`GET /isoft-fm-foundation/v1/broken-links` response shape** switches to the envelope `{ items, totalItems, totalPages }` (matching `/logs` from sub-PR 2). Drops the `X-WP-Total` / `X-WP-TotalPages` headers — those required the brittle `apiFetch( { parse: false } ) + response.json()` pattern on the React side, which broke on body-stream consumption inside the middleware chain.
 - **`@wordpress/dataviews` is bundled inside the log-page entry, not externalised.** WP core registers the `wp-dataviews` script handle only inside specific editor contexts (post / site editor) — outside those screens an enqueue depending on it triggers the WP 6.9.1+ "dependencies that are not registered" notice. Bundling adds ~220 KB to entries that use DataViews (currently log-page; later broken-links-page) but ships a working admin screen instead of a half-broken one. Revisit if WP core promotes `wp-dataviews` to a globally-registered handle.
 
 ## [0.12.2] — 2026-06-22

@@ -40,7 +40,12 @@ $effective_license = ( new ISOFT_FMF_License_Resolver() )->effective_license_row
 $is_hot     = (bool) get_post_meta( $post->ID, '_isoft_fmf_is_hot', true );
 $license_id = (int) get_post_meta( $post->ID, '_isoft_fmf_license_id', true );
 $license    = ( $require_agree && $license_id ) ? ( new ISOFT_FMF_License_Manager() )->get( $license_id ) : null;
-$agree_text = $license ? wp_kses_post( $license->full_text ) : wp_kses_post( (string) get_post_meta( $post->ID, '_isoft_fmf_agree_text', true ) );
+// Cast to string on BOTH branches: the licenses table's full_text
+// column is nullable (LONGTEXT, no NOT NULL constraint), and a license
+// row with full_text=NULL would hit wp_kses_post(null) — deprecated
+// since PHP 8.1, triggers a public-facing warning on frontends with
+// display_errors on.
+$agree_text = $license ? wp_kses_post( (string) $license->full_text ) : wp_kses_post( (string) get_post_meta( $post->ID, '_isoft_fmf_agree_text', true ) );
 $btn_text   = $settings['default_button_text'] ?: __( 'Download', 'isoft-fm-foundation' );
 
 // ZIP-bundle button is opt-in via Settings → Display and only renders
