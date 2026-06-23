@@ -34,7 +34,7 @@ import {
 	__experimentalConfirmDialog as ConfirmDialog,
 } from '@wordpress/components';
 import { useState, useEffect, useMemo, useCallback, createRoot, render } from '@wordpress/element';
-import { __, sprintf } from '@wordpress/i18n';
+import { __, _n, sprintf } from '@wordpress/i18n';
 import { dateI18n, getSettings as getDateSettings } from '@wordpress/date';
 import apiFetch from '@wordpress/api-fetch';
 
@@ -428,6 +428,30 @@ const BrokenLinksApp = ( { initialTotal, initialPages } ) => {
 				</Notice>
 			) }
 
+			{ /* Always-visible status row. Tells the admin "the React app
+			   * loaded" even when there are zero broken files (DataViews on
+			   * its own renders nothing visible in that case). */ }
+			<p
+				style={ {
+					margin: '12px 0 8px',
+					color:  '#646970',
+					fontSize: '13px',
+				} }
+			>
+				{ loading
+					? __( 'Loading broken-files list…', 'isoft-fm-foundation' )
+					: sprintf(
+						/* translators: %d: number of broken files */
+						_n(
+							'%d broken file.',
+							'%d broken files.',
+							total,
+							'isoft-fm-foundation'
+						),
+						total
+					) }
+			</p>
+
 			{ ! loading && rows.length === 0 && ! error && (
 				<Notice status="success" isDismissible={ false }>
 					{ __(
@@ -437,19 +461,21 @@ const BrokenLinksApp = ( { initialTotal, initialPages } ) => {
 				</Notice>
 			) }
 
-			<div style={ { marginTop: '16px' } }>
-				<DataViews
-					data={ rows }
-					view={ view }
-					onChangeView={ setView }
-					fields={ fields }
-					paginationInfo={ paginationInfo }
-					defaultLayouts={ { table: {} } }
-					getItemId={ ( item ) => String( item.id ) }
-					isLoading={ loading }
-					actions={ actions }
-				/>
-			</div>
+			{ rows.length > 0 && (
+				<div style={ { marginTop: '16px' } }>
+					<DataViews
+						data={ rows }
+						view={ view }
+						onChangeView={ setView }
+						fields={ fields }
+						paginationInfo={ paginationInfo }
+						defaultLayouts={ { table: {} } }
+						getItemId={ ( item ) => String( item.id ) }
+						isLoading={ loading }
+						actions={ actions }
+					/>
+				</div>
+			) }
 
 			{ recovering && (
 				<RecoverModal
