@@ -39,42 +39,73 @@
 		'maintenance' => __( 'Maintenance', 'isoft-fm-foundation' ),
 		'extensions'  => __( 'Extensions', 'isoft-fm-foundation' ),
 	);
-	?>
-	<nav class="nav-tab-wrapper">
-		<?php foreach ( $tabs as $tab => $label ) : ?>
-			<a href="
-			<?php
-			echo esc_url(
-				add_query_arg(
-					array(
-						'page'      => 'isoft-fmf-settings',
-						'post_type' => 'isoft_fmf_file',
-						'tab'       => $tab,
-					),
-					admin_url( 'edit.php' )
-				)
-			);
-			?>
-						"
-				class="nav-tab <?php echo $active_tab === $tab ? 'nav-tab-active' : ''; ?>">
-				<?php echo esc_html( $label ); ?>
-			</a>
-		<?php endforeach; ?>
-	</nav>
 
-	<?php
-	// 0.12.3+: the 4 option-driven tabs (General, Display, Security,
-	// Advanced) render as a React app. Maintenance + Extensions stay
-	// PHP-rendered — they're action/marketing surfaces with stateful
-	// lock displays, integrity-check controls, marketing copy. No
-	// benefit from a React port.
-	$react_tabs = array( 'general', 'display', 'security', 'advanced' );
-	if ( in_array( $active_tab, $react_tabs, true )
-		&& wp_script_is( ISOFT_FMF_Settings_Page::SCRIPT_HANDLE, 'enqueued' ) ) :
+	$react_tabs     = array( 'general', 'display', 'security', 'advanced' );
+	$react_mounting = in_array( $active_tab, $react_tabs, true )
+		&& wp_script_is( ISOFT_FMF_Settings_Page::SCRIPT_HANDLE, 'enqueued' );
+
+	// PHP-fallback nav: only render when React isn't taking over the
+	// page. When React is mounting, the React TabPanel owns the tab
+	// strip — duplicate nav would just be confusing chrome.
+	if ( ! $react_mounting ) :
+		?>
+		<nav class="nav-tab-wrapper">
+			<?php foreach ( $tabs as $tab => $label ) : ?>
+				<a href="
+				<?php
+				echo esc_url(
+					add_query_arg(
+						array(
+							'page'      => 'isoft-fmf-settings',
+							'post_type' => 'isoft_fmf_file',
+							'tab'       => $tab,
+						),
+						admin_url( 'edit.php' )
+					)
+				);
+				?>
+							"
+					class="nav-tab <?php echo $active_tab === $tab ? 'nav-tab-active' : ''; ?>">
+					<?php echo esc_html( $label ); ?>
+				</a>
+			<?php endforeach; ?>
+		</nav>
+		<?php
+	endif;
+
+	if ( $react_mounting ) :
+		// Build the URL map the React side needs to do full-page
+		// navigation for the PHP-rendered tabs (Maintenance, Extensions).
+		// The 4 React tabs map to the same admin URL so reload-clicks on
+		// them work too, even though React normally handles them
+		// in-place.
+		$tab_urls = array();
+		foreach ( $tabs as $tab => $label ) {
+			$tab_urls[ $tab ] = add_query_arg(
+				array(
+					'page'      => 'isoft-fmf-settings',
+					'post_type' => 'isoft_fmf_file',
+					'tab'       => $tab,
+				),
+				admin_url( 'edit.php' )
+			);
+		}
 		?>
 		<div
 			id="isoft-fmf-settings-root"
 			data-tab="<?php echo esc_attr( $active_tab ); ?>"
+			data-php-tab-urls="
+			<?php
+			echo esc_attr(
+				wp_json_encode(
+					array(
+						'maintenance' => $tab_urls['maintenance'],
+						'extensions'  => $tab_urls['extensions'],
+					)
+				)
+			);
+			?>
+								"
 		></div>
 		<noscript>
 			<div class="notice notice-warning">
@@ -82,13 +113,11 @@
 			</div>
 		</noscript>
 
-		<?php if ( 'general' === $active_tab ) : ?>
-			<p class="description" style="margin-top: 24px; max-width: 720px;">
-				<strong><?php esc_html_e( 'Storage Location:', 'isoft-fm-foundation' ); ?></strong>
-				<code><?php echo esc_html( isoft_fmf_files_dir() ); ?></code><br>
-				<?php esc_html_e( 'All files are stored here, organised by category. The folder is protected by .htaccess and served through the plugin\'s secure download handler.', 'isoft-fm-foundation' ); ?>
-			</p>
-		<?php endif; ?>
+		<p class="description" style="margin-top: 24px; max-width: 720px;">
+			<strong><?php esc_html_e( 'Storage Location:', 'isoft-fm-foundation' ); ?></strong>
+			<code><?php echo esc_html( isoft_fmf_files_dir() ); ?></code><br>
+			<?php esc_html_e( 'All files are stored here, organised by category. The folder is protected by .htaccess and served through the plugin\'s secure download handler.', 'isoft-fm-foundation' ); ?>
+		</p>
 		<?php
 		return;
 	endif;

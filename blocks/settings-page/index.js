@@ -30,6 +30,7 @@ import {
 	Notice,
 	Spinner,
 	Button,
+	TabPanel,
 	ToggleControl,
 	SelectControl,
 	TextControl,
@@ -477,12 +478,83 @@ const SettingsApp = ( { tab } ) => {
 	);
 };
 
+/**
+ * Wrapper that owns client-side tab switching for the 4 option tabs.
+ * The 6-tab strip is rendered in React so flipping between General /
+ * Display / Security / Advanced is instant — no page reload, no
+ * bundle re-download. The Maintenance and Extensions tabs are
+ * PHP-rendered surfaces, so clicking them does a full navigation to
+ * their URL (handed in via data-tab-urls on the mount node).
+ *
+ * Replaces the PHP nav-tab-wrapper when the React bundle is loaded;
+ * the PHP nav stays only for the JS-disabled fallback path.
+ */
+const SettingsTabs = ( { initialTab, phpTabUrls } ) => {
+	const tabs = [
+		{ name: 'general',     title: __( 'General', 'isoft-fm-foundation' ) },
+		{ name: 'display',     title: __( 'Display', 'isoft-fm-foundation' ) },
+		{ name: 'security',    title: __( 'Security', 'isoft-fm-foundation' ) },
+		{ name: 'advanced',    title: __( 'Advanced', 'isoft-fm-foundation' ) },
+		{ name: 'maintenance', title: __( 'Maintenance', 'isoft-fm-foundation' ) },
+		{ name: 'extensions',  title: __( 'Extensions', 'isoft-fm-foundation' ) },
+	];
+
+	const onSelect = ( tabName ) => {
+		// PHP tabs need a full navigation — their content isn't in the
+		// React bundle. Returning early would still leave TabPanel's
+		// internal selection in the bad state, but window.location
+		// fires before that visual flicker matters.
+		if ( phpTabUrls[ tabName ] ) {
+			window.location.href = phpTabUrls[ tabName ];
+		}
+	};
+
+	return (
+		<TabPanel
+			className="isoft-fmf-settings-tabs"
+			activeClass="is-active"
+			initialTabName={ initialTab }
+			tabs={ tabs }
+			onSelect={ onSelect }
+		>
+			{ ( tab ) => {
+				// PHP tabs: handled by onSelect's window.location. While the
+				// navigation kicks off, show a Spinner so the area isn't
+				// blank.
+				if ( phpTabUrls[ tab.name ] ) {
+					return (
+						<div style={ { padding: '20px', textAlign: 'center' } }>
+							<Spinner />
+						</div>
+					);
+				}
+				return <SettingsApp tab={ tab.name } />;
+			} }
+		</TabPanel>
+	);
+};
+
 const mountNode = document.getElementById( 'isoft-fmf-settings-root' );
 if ( mountNode ) {
-	const tab = mountNode.getAttribute( 'data-tab' ) || 'general';
+	const initialTab = mountNode.getAttribute( 'data-tab' ) || 'general';
+
+	// PHP-rendered tab URLs come in as a JSON blob in a data attribute
+	// so the React side stays free of admin_url() / current site logic.
+	let phpTabUrls = {};
+	try {
+		phpTabUrls = JSON.parse( mountNode.getAttribute( 'data-php-tab-urls' ) || '{}' );
+	} catch ( e ) {
+		phpTabUrls = {};
+	}
+
 	if ( typeof createRoot === 'function' ) {
-		createRoot( mountNode ).render( <SettingsApp tab={ tab } /> );
+		createRoot( mountNode ).render(
+			<SettingsTabs initialTab={ initialTab } phpTabUrls={ phpTabUrls } />
+		);
 	} else if ( typeof render === 'function' ) {
-		render( <SettingsApp tab={ tab } />, mountNode );
+		render(
+			<SettingsTabs initialTab={ initialTab } phpTabUrls={ phpTabUrls } />,
+			mountNode
+		);
 	}
 }
