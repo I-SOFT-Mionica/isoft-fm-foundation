@@ -122,60 +122,93 @@ class ISOFT_FMF_Demo_Content {
 
 			$ids[ $slug ] = (int) $result['term_id'];
 			update_term_meta( $ids[ $slug ], '_isoft_fmf_demo_term', 1 );
+
+			// Icon is a per-category meta read by the Category Grid block
+			// and the category-listing templates. Seeding sensible
+			// dashicons here makes the demo look styled out-of-the-box
+			// instead of every card showing a generic placeholder.
+			if ( ! empty( $node['icon'] ) ) {
+				update_term_meta( $ids[ $slug ], '_isoft_fmf_cat_icon', $node['icon'] );
+			}
 		}
 
 		return $ids;
 	}
 
 	/**
-	 * @return array<string,array{name:string,parent?:string}>
+	 * @return array<string,array{name:string,parent?:string,icon?:string}>
 	 */
 	private function category_tree(): array {
 		return array(
-			'municipal-assembly'    => array( 'name' => 'Municipal Assembly' ),
+			'municipal-assembly'    => array(
+				'name' => 'Municipal Assembly',
+				'icon' => 'dashicons-groups',
+			),
 			'term-2025-2029'        => array(
 				'name'   => 'Term 2025-2029',
 				'parent' => 'municipal-assembly',
+				'icon'   => 'dashicons-calendar-alt',
 			),
 			'session-i'             => array(
 				'name'   => 'Session I',
 				'parent' => 'term-2025-2029',
+				'icon'   => 'dashicons-megaphone',
 			),
 			'session-ii'            => array(
 				'name'   => 'Session II',
 				'parent' => 'term-2025-2029',
+				'icon'   => 'dashicons-megaphone',
 			),
 			'term-2021-2025'        => array(
 				'name'   => 'Term 2021-2025',
 				'parent' => 'municipal-assembly',
+				'icon'   => 'dashicons-calendar-alt',
 			),
-			'municipal-council'     => array( 'name' => 'Municipal Council' ),
+			'municipal-council'     => array(
+				'name' => 'Municipal Council',
+				'icon' => 'dashicons-businessperson',
+			),
 			'decisions'             => array(
 				'name'   => 'Decisions',
 				'parent' => 'municipal-council',
+				'icon'   => 'dashicons-yes-alt',
 			),
 			'resolutions'           => array(
 				'name'   => 'Resolutions',
 				'parent' => 'municipal-council',
+				'icon'   => 'dashicons-clipboard',
 			),
-			'public-procurement'    => array( 'name' => 'Public Procurement' ),
+			'public-procurement'    => array(
+				'name' => 'Public Procurement',
+				'icon' => 'dashicons-cart',
+			),
 			'open-procedures'       => array(
 				'name'   => 'Open Procedures',
 				'parent' => 'public-procurement',
+				'icon'   => 'dashicons-unlock',
 			),
 			'negotiated-procedures' => array(
 				'name'   => 'Negotiated Procedures',
 				'parent' => 'public-procurement',
+				'icon'   => 'dashicons-format-chat',
 			),
-			'urban-planning'        => array( 'name' => 'Urban Planning' ),
-			'finance'               => array( 'name' => 'Finance' ),
+			'urban-planning'        => array(
+				'name' => 'Urban Planning',
+				'icon' => 'dashicons-admin-multisite',
+			),
+			'finance'               => array(
+				'name' => 'Finance',
+				'icon' => 'dashicons-chart-pie',
+			),
 			'budget'                => array(
 				'name'   => 'Budget',
 				'parent' => 'finance',
+				'icon'   => 'dashicons-money-alt',
 			),
 			'final-account'         => array(
 				'name'   => 'Final Account',
 				'parent' => 'finance',
+				'icon'   => 'dashicons-chart-area',
 			),
 		);
 	}
