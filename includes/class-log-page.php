@@ -49,13 +49,15 @@ class ISOFT_FMF_Log_Page {
 		// bundled rather than externalised).
 		wp_enqueue_style( 'wp-components' );
 
-		// Page-specific overrides that give DataViews the wp-list-table
-		// look (borders, zebra striping, full-width container). The
-		// base DataViews styling is tuned for the site editor and reads
-		// anaemic against the gray WP admin background.
+		// Shared DataViews-table styling that gives the React-mounted
+		// list pages the wp-list-table look (borders, zebra striping,
+		// full-width container). The base DataViews styling is tuned for
+		// the site editor and reads anaemic against the gray WP admin
+		// background. Apply by adding the `isoft-fmf-dataviews-table`
+		// class to the mount-node wrapper.
 		wp_enqueue_style(
-			self::SCRIPT_HANDLE . '-style',
-			ISOFT_FMF_PLUGIN_URL . 'admin/css/log-page.css',
+			'isoft-fmf-dataviews-table',
+			ISOFT_FMF_PLUGIN_URL . 'admin/css/dataviews-table.css',
 			array( 'wp-components' ),
 			ISOFT_FMF_VERSION
 		);

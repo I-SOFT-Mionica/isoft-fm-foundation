@@ -117,17 +117,25 @@ class ISOFT_FMF_Rest_Broken_Links {
 	// ---------------------------------------------------------------------
 
 	public function list_items( WP_REST_Request $request ): WP_REST_Response {
-		$result = $this->service->list_broken(
+		$per_page = (int) $request->get_param( 'per_page' );
+		$result   = $this->service->list_broken(
 			(int) $request->get_param( 'page' ),
-			(int) $request->get_param( 'per_page' )
+			$per_page
 		);
-		$response = new WP_REST_Response( $result['items'], 200 );
-		$response->header( 'X-WP-Total', (string) $result['total'] );
-		$response->header(
-			'X-WP-TotalPages',
-			(string) (int) ceil( $result['total'] / max( 1, (int) $request->get_param( 'per_page' ) ) )
+		// Envelope shape (items + totalItems + totalPages) for the React
+		// client. Matches /logs from sub-PR 2. Sidesteps the body-stream
+		// consumption issues we hit trying to read X-WP-Total via the
+		// parse:false + response.json() pattern.
+		return new WP_REST_Response(
+			array(
+				'items'      => $result['items'],
+				'totalItems' => (int) $result['total'],
+				'totalPages' => $per_page > 0
+					? (int) ceil( $result['total'] / $per_page )
+					: 0,
+			),
+			200
 		);
-		return $response;
 	}
 
 	public function probe( WP_REST_Request $request ): WP_REST_Response|WP_Error {

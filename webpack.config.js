@@ -20,6 +20,7 @@ module.exports = {
 		'licenses-page':   './blocks/licenses-page/index.js',
 		'stats-page':      './blocks/stats-page/index.js',
 		'log-page':        './blocks/log-page/index.js',
+		'broken-links-page': './blocks/broken-links-page/index.js',
 	},
 	output: {
 		...defaultConfig.output,
