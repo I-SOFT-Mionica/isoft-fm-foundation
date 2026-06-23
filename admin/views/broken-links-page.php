@@ -35,7 +35,7 @@ $saw_running = isset( $_GET['isoft_fmf_running'] );  // phpcs:ignore WordPress.S
 
 	<?php if ( $just_ran ) : ?>
 		<div class="notice notice-success is-dismissible" style="margin-top:1em;">
-			<p><?php esc_html_e( 'Integrity check complete. Any newly-discovered missing files appear in the table below.', 'isoft-fm-foundation' ); ?></p>
+			<p><?php esc_html_e( 'Integrity check complete. The table below lists all files currently missing on disk.', 'isoft-fm-foundation' ); ?></p>
 		</div>
 	<?php elseif ( $saw_running ) : ?>
 		<div class="notice notice-warning is-dismissible" style="margin-top:1em;">

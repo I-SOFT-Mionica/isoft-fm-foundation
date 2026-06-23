@@ -488,36 +488,15 @@ const BrokenLinksApp = ( { initialTotal, initialPages } ) => {
 	);
 };
 
-// eslint-disable-next-line no-console
-console.log( '[isoft-fmf broken-links] bundle executing' );
-
 const mountNode = document.getElementById( 'isoft-fmf-broken-links-root' );
-
-// eslint-disable-next-line no-console
-console.log( '[isoft-fmf broken-links] mount node:', mountNode );
-
 if ( mountNode ) {
 	const props = {
 		initialTotal: parseInt( mountNode.getAttribute( 'data-initial-total' ) || '0', 10 ),
 		initialPages: parseInt( mountNode.getAttribute( 'data-initial-pages' ) || '0', 10 ),
 	};
-	// eslint-disable-next-line no-console
-	console.log( '[isoft-fmf broken-links] props:', props, 'createRoot:', typeof createRoot, 'render:', typeof render );
-	try {
-		if ( typeof createRoot === 'function' ) {
-			createRoot( mountNode ).render( <BrokenLinksApp { ...props } /> );
-			// eslint-disable-next-line no-console
-			console.log( '[isoft-fmf broken-links] createRoot mounted' );
-		} else if ( typeof render === 'function' ) {
-			render( <BrokenLinksApp { ...props } />, mountNode );
-			// eslint-disable-next-line no-console
-			console.log( '[isoft-fmf broken-links] render mounted' );
-		} else {
-			// eslint-disable-next-line no-console
-			console.error( '[isoft-fmf broken-links] neither createRoot nor render available' );
-		}
-	} catch ( err ) {
-		// eslint-disable-next-line no-console
-		console.error( '[isoft-fmf broken-links] mount threw:', err );
+	if ( typeof createRoot === 'function' ) {
+		createRoot( mountNode ).render( <BrokenLinksApp { ...props } /> );
+	} else if ( typeof render === 'function' ) {
+		render( <BrokenLinksApp { ...props } />, mountNode );
 	}
 }
