@@ -169,6 +169,7 @@ add_action(
 			( new ISOFT_FMF_Broken_Links_Page() )->register_hooks();
 			( new ISOFT_FMF_Settings_Page() )->register_hooks();
 			( new ISOFT_FMF_Profile_ACL_Page() )->register_hooks();
+			( new ISOFT_FMF_Taxonomy_Form_Page() )->register_hooks();
 			( new ISOFT_FMF_Pdf_Thumbnail() )->register_hooks();
 			( new ISOFT_FMF_Tinymce() )->register_hooks();
 			( new ISOFT_FMF_Demo_Content() )->register_hooks();

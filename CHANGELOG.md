@@ -20,6 +20,17 @@ This release does NOT ship to WordPress.org SVN. 0.12.x stays GitHub-only until 
 - **`ISOFT_FMF_Category_ACL::render_profile_field()`** branches on `wp_script_is( ISOFT_FMF_Profile_ACL_Page::SCRIPT_HANDLE, 'enqueued' )`: when the React bundle is loaded, the section renders as a single `<div id="isoft-fmf-profile-acl-root" data-user-id="…">` mount node; when the bundle is missing, the original `<details>` checkbox tree renders unchanged. The existing `save_profile_field` action stays wired so the no-JS fallback's form submission still works.
 - **Version bumped to 0.12.4-dev.**
 
+### Added (sub-PR 2 — Taxonomy form icon picker)
+
+- **WP media-library icon picker** on the Downloads → Categories add/edit screens. The existing free-text Icon field gains a "Select from media library" button (opens the WP media modal via `@wordpress/media-utils`'s `MediaUpload`), a live 32×32 preview that renders dashicon glyphs OR pasted/picked image URLs, and a Clear button. The native `<input name="isoft_fmf_cat_icon">` stays as the source of truth that ships to `$_POST` — React keeps it in sync with its own state but doesn't replace the input, so the existing `save_term_fields` handler keeps working unchanged.
+- **`ISOFT_FMF_Taxonomy_Form_Page`** — new class that enqueues `blocks/build/taxonomy-form.js` on `edit-tags.php` and `term.php` only when `taxonomy=isoft_fmf_category` and the user has `manage_categories`. Calls `wp_enqueue_media()` so the underlying `wp.media()` modal is registered. Handle suffixed `-page` per convention.
+- **Taxonomy-form webpack entry** (`blocks/taxonomy-form/index.js`, built to `blocks/build/taxonomy-form.js`).
+
+### Scope cut
+
+- **Access role / default license selects** stay as their PHP dropdowns. Already functional, no UX gain from a React port.
+- **License inheritance preview** ("show what license a download would inherit from this category's nearest ancestor") deferred — fits better on the editor sidebar where it actually previews effective resolution for the specific download being edited, not on the category form where it's an abstract demonstration.
+
 ## [0.12.3] — 2026-06-23
 
 Phase 4 of the React-admin rewrite. Sub-PR 1 of 4: the Statistics dashboard becomes a React app. Sub-PR 2 of 4: the Download Log becomes a React app on top of `@wordpress/dataviews`. Sub-PR 3 of 4: the Broken Links page becomes a React app on top of DataViews + a `Modal`-based recovery dialog. Sub-PR 4 of 4: the Settings page becomes a React app for the 4 option-driven tabs (General, Display, Security, Advanced); Maintenance and Extensions stay PHP — they're action/marketing surfaces with no benefit from a React port.
