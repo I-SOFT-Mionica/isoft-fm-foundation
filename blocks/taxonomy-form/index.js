@@ -111,7 +111,7 @@ const IconPicker = ( { input } ) => {
 						onChange={ ( e ) => setValue( e.target.value ) }
 						style={ { minWidth: '260px', flex: 1 } }
 						placeholder={ __(
-							'dashicons-folder or https://example.com/icon.png',
+							'dashicons-folder, https://example.com/icon.png, or [iconify icon="lucide:folder"]',
 							'isoft-fm-foundation'
 						) }
 					/>

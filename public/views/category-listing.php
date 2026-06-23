@@ -14,16 +14,9 @@ defined( 'ABSPATH' ) || exit;
 	<div class="isoft-fmf-category-grid isoft-fmf-grid isoft-fmf-grid--cols-3">
 		<?php foreach ( $terms as $term ) : ?>
 		<div class="isoft-fmf-category-card">
-			<?php $icon = get_term_meta( $term->term_id, '_isoft_fmf_cat_icon', true ); ?>
-			<?php if ( $icon ) : ?>
 			<div class="isoft-fmf-category-card__icon">
-				<?php if ( filter_var( $icon, FILTER_VALIDATE_URL ) ) : ?>
-					<img src="<?php echo esc_url( $icon ); ?>" alt="" />
-				<?php else : ?>
-					<span class="dashicons <?php echo esc_attr( $icon ); ?>"></span>
-				<?php endif; ?>
+				<?php isoft_fmf_render_category_icon( (int) $term->term_id ); ?>
 			</div>
-			<?php endif; ?>
 
 			<h3 class="isoft-fmf-category-card__title">
 				<a href="<?php echo esc_url( get_term_link( $term ) ); ?>"><?php echo esc_html( $term->name ); ?></a>

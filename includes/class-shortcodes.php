@@ -742,18 +742,10 @@ class ISOFT_FMF_Shortcodes {
 	}
 
 	private function render_category_card( WP_Term $term, bool $show_count, bool $show_desc ): void {
-		$icon = get_term_meta( $term->term_id, '_isoft_fmf_cat_icon', true );
 		echo '<div class="isoft-fmf-category-card">';
-
-		if ( $icon ) {
-			echo '<div class="isoft-fmf-category-card__icon">';
-			if ( filter_var( $icon, FILTER_VALIDATE_URL ) ) {
-				echo '<img src="' . esc_url( $icon ) . '" alt="" />';
-			} else {
-				echo '<span class="dashicons ' . esc_attr( $icon ) . '"></span>';
-			}
-			echo '</div>';
-		}
+		echo '<div class="isoft-fmf-category-card__icon">';
+		isoft_fmf_render_category_icon( (int) $term->term_id );
+		echo '</div>';
 
 		echo '<h3 class="isoft-fmf-category-card__title"><a href="' . esc_url( get_term_link( $term ) ) . '">' . esc_html( $term->name ) . '</a></h3>';
 
