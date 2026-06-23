@@ -21,9 +21,32 @@
  */
 
 import { Button, BaseControl } from '@wordpress/components';
-import { MediaUpload, MediaUploadCheck } from '@wordpress/media-utils';
-import { useState, useEffect, createRoot, render } from '@wordpress/element';
+import { useState, useEffect, useCallback, createRoot, render } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
+
+// Open the WP media-library modal directly via the wp.media() global
+// that wp_enqueue_media() registers. @wordpress/media-utils' MediaUpload
+// component bridges to the same modal but isn't reliably exported as
+// `wp-media-utils` outside editor contexts — using wp.media() directly
+// avoids the dependency-resolution roulette.
+const openMediaPicker = ( onSelect ) => {
+	if ( ! window.wp || ! window.wp.media ) {
+		return;
+	}
+	const frame = window.wp.media( {
+		title:    __( 'Select Category Icon', 'isoft-fm-foundation' ),
+		button:   { text: __( 'Use this image', 'isoft-fm-foundation' ) },
+		library:  { type: 'image' },
+		multiple: false,
+	} );
+	frame.on( 'select', () => {
+		const attachment = frame.state().get( 'selection' ).first().toJSON();
+		if ( attachment && attachment.url ) {
+			onSelect( attachment.url );
+		}
+	} );
+	frame.open();
+};
 
 const isUrl = ( v ) => typeof v === 'string' && /^https?:\/\//i.test( v );
 const isDashicon = ( v ) => typeof v === 'string' && /^dashicons-[a-z0-9-]+$/i.test( v );
@@ -40,11 +63,9 @@ const IconPicker = ( { input } ) => {
 		input.dispatchEvent( new Event( 'change', { bubbles: true } ) );
 	}, [ value, input ] );
 
-	const onMediaSelect = ( media ) => {
-		if ( media && media.url ) {
-			setValue( media.url );
-		}
-	};
+	const onPickFromLibrary = useCallback( () => {
+		openMediaPicker( ( url ) => setValue( url ) );
+	}, [] );
 
 	const preview = (
 		<span
@@ -94,25 +115,16 @@ const IconPicker = ( { input } ) => {
 							'isoft-fm-foundation'
 						) }
 					/>
-					<MediaUploadCheck>
-						<MediaUpload
-							onSelect={ onMediaSelect }
-							allowedTypes={ [ 'image' ] }
-							value={ isUrl( value ) ? value : 0 }
-							render={ ( { open } ) => (
-								<Button
-									variant="secondary"
-									onClick={ open }
-									__next40pxDefaultSize
-								>
-									{ __(
-										'Select from media library',
-										'isoft-fm-foundation'
-									) }
-								</Button>
-							) }
-						/>
-					</MediaUploadCheck>
+					<Button
+						variant="secondary"
+						onClick={ onPickFromLibrary }
+						__next40pxDefaultSize
+					>
+						{ __(
+							'Select from media library',
+							'isoft-fm-foundation'
+						) }
+					</Button>
 					{ value && (
 						<Button
 							variant="tertiary"
