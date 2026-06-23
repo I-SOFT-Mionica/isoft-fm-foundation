@@ -71,7 +71,7 @@ function isoft_fmf_get_settings(): array {
 		'enable_logging'           => (bool) get_option( 'isoft_fmf_enable_logging', true ),
 		'enable_detailed_logging'  => (bool) get_option( 'isoft_fmf_enable_detailed_logging', false ),
 		'log_retention_days'       => (int) get_option( 'isoft_fmf_log_retention_days', 365 ),
-		'enable_pdf_thumbnails'    => (bool) get_option( 'isoft_fmf_enable_pdf_thumbnails', true ),
+		'enable_pdf_thumbnails'    => (bool) get_option( 'isoft_fmf_enable_pdf_thumbnails', false ),
 		'pdf_thumb_width'          => (int) get_option( 'isoft_fmf_pdf_thumb_width', 300 ),
 		'pdf_thumb_height'         => (int) get_option( 'isoft_fmf_pdf_thumb_height', 424 ),
 		'pdf_thumb_quality'        => (int) get_option( 'isoft_fmf_pdf_thumb_quality', 85 ),

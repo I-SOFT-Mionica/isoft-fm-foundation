@@ -194,6 +194,7 @@ const CategoryPanel = () => {
 				value={ currentId }
 				options={ options }
 				onChange={ onChange }
+				__next40pxDefaultSize
 				__nextHasNoMarginBottom
 			/>
 			<p style={ { color: '#646970', fontSize: '12px', marginTop: '8px' } }>
@@ -238,6 +239,7 @@ const AccessRoleStatusInfo = () => {
 				value={ accessRole }
 				options={ options }
 				onChange={ setAccessRole }
+				__next40pxDefaultSize
 				__nextHasNoMarginBottom
 			/>
 		</PluginPostStatusInfo>
@@ -551,6 +553,7 @@ const VersionLicensePanel = () => {
 					value={ currentLicenseValue }
 					options={ licenseOptions }
 					onChange={ ( v ) => setLicenseId( parseInt( v, 10 ) ) }
+					__next40pxDefaultSize
 					__nextHasNoMarginBottom
 				/>
 			) }

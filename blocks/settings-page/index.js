@@ -95,7 +95,8 @@ const TAB_SCHEMAS = {
 			key:     'isoft_fmf_enable_pdf_thumbnails',
 			label:   __( 'Auto-generate thumbnail from PDF first page', 'isoft-fm-foundation' ),
 			type:    'toggle',
-			default: 1,
+			help:    __( 'Requires the Imagick PHP extension. Off by default — turn on per-install when Imagick is verified available.', 'isoft-fm-foundation' ),
+			default: 0,
 		},
 		{
 			key:     'isoft_fmf_allowed_extensions',
@@ -302,6 +303,7 @@ const FieldControl = ( { field, value, onChange } ) => {
 					value={ String( value ?? '' ) }
 					options={ field.options || [] }
 					onChange={ onChange }
+					__next40pxDefaultSize
 					__nextHasNoMarginBottom
 				/>
 			);
