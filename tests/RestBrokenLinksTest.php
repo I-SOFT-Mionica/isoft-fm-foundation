@@ -59,17 +59,26 @@ class RestBrokenLinksTest extends WP_UnitTestCase {
 		return (int) $wpdb->insert_id;
 	}
 
-	public function test_list_returns_total_header_and_items(): void {
+	public function test_list_returns_envelope_with_items_and_totals(): void {
 		$this->login_as_admin();
 		$download_id = $this->make_download();
 		$this->seed_broken_row( $download_id, 'a.pdf' );
 		$this->seed_broken_row( $download_id, 'b.pdf' );
 
 		$response = $this->server->dispatch( new WP_REST_Request( 'GET', self::NS . '/broken-links' ) );
+		$data     = $response->get_data();
 
 		$this->assertSame( 200, $response->get_status() );
-		$this->assertCount( 2, $response->get_data() );
-		$this->assertSame( '2', $response->get_headers()['X-WP-Total'] );
+		// 0.12.3+: envelope shape { items, totalItems, totalPages } —
+		// X-WP-Total / X-WP-TotalPages headers dropped (the React client
+		// reads totals from the body instead).
+		$this->assertIsArray( $data );
+		$this->assertArrayHasKey( 'items', $data );
+		$this->assertArrayHasKey( 'totalItems', $data );
+		$this->assertArrayHasKey( 'totalPages', $data );
+		$this->assertCount( 2, $data['items'] );
+		$this->assertSame( 2, $data['totalItems'] );
+		$this->assertSame( 1, $data['totalPages'] );
 	}
 
 	public function test_probe_returns_404_for_missing_file(): void {
