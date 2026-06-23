@@ -4,7 +4,17 @@ All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads
 
 ## [0.12.3] — unreleased
 
-Phase 4 of the React-admin rewrite. Sub-PR 1 of 4: the Statistics dashboard becomes a React app. Sub-PR 2 of 4: the Download Log becomes a React app on top of `@wordpress/dataviews`. Sub-PR 3 of 4: the Broken Links page becomes a React app on top of DataViews + a `Modal`-based recovery dialog. Sub-PR 4 will cover Settings.
+Phase 4 of the React-admin rewrite. Sub-PR 1 of 4: the Statistics dashboard becomes a React app. Sub-PR 2 of 4: the Download Log becomes a React app on top of `@wordpress/dataviews`. Sub-PR 3 of 4: the Broken Links page becomes a React app on top of DataViews + a `Modal`-based recovery dialog. Sub-PR 4 of 4: the Settings page becomes a React app for the 4 option-driven tabs (General, Display, Security, Advanced); Maintenance and Extensions stay PHP — they're action/marketing surfaces with no benefit from a React port.
+
+### Added (sub-PR 4 — Settings)
+
+- **React Settings page** — Downloads → Settings renders as a React app for the 4 option-driven tabs (General, Display, Security, Advanced). Each tab is driven by a per-tab schema that maps option key → control type (`ToggleControl` / `SelectControl` / `TextControl` / `TextareaControl` / `NumberControl`) + label + help text + default. The schema mirrors the PHP form controls one-for-one so admins switching between React and the fallback see identical fields in the same order. Per-tab "Save Changes" button with a dirty-state guard; POSTs only the changed keys so a one-toggle edit doesn't write 30 options.
+- **`ISOFT_FMF_Settings_Page`** — new class that enqueues `blocks/build/settings-page.js` on the Settings admin screen only (hook suffix `isoft_fmf_file_page_isoft-fmf-settings`). Handle suffixed `-page` per the collision lesson saved from PR #50.
+- **Settings page webpack entry** (`blocks/settings-page/index.js`, built via `npm run build` to `blocks/build/settings-page.js`).
+
+### Changed (sub-PR 4 — Settings)
+
+- **`admin/views/settings-page.php`** branches per tab. The nav-tab-wrapper stays PHP-rendered. For the 4 React tabs, the page renders a `<div id="isoft-fmf-settings-root" data-tab="…">` mount node; the React app reads `data-tab` to pick which schema to render. Maintenance and Extensions tabs still go through their existing `require` for the legacy PHP. Bundle Cache clear, Flush Rewrite, and integrity-check Run Now buttons keep using their `admin-post.php` endpoints — nonced server-side and not a fit for the option-save flow.
 
 This release does NOT ship to WordPress.org SVN. 0.12.x stays GitHub-only until the full rewrite graduates to 1.0.0.
 
