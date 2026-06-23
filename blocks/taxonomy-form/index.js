@@ -140,25 +140,42 @@ const IconPicker = ( { input } ) => {
  *     <tr class="form-field"> row.
  */
 const mountIconPicker = () => {
+	// eslint-disable-next-line no-console
+	console.log( '[isoft-fmf taxonomy-form] bundle executing' );
+
 	const input = document.getElementById( 'isoft-fmf-cat-icon' );
+	// eslint-disable-next-line no-console
+	console.log( '[isoft-fmf taxonomy-form] icon input:', input );
+
 	if ( ! input ) {
 		return;
 	}
 
-	// Hide the original input but keep it in the DOM so the form
-	// submission still includes its value.
 	input.style.display = 'none';
 
-	// Mount point: append a sibling after the input.
 	const host = document.createElement( 'div' );
 	host.className = 'isoft-fmf-icon-picker-host';
 	input.parentNode.insertBefore( host, input.nextSibling );
 
-	if ( typeof createRoot === 'function' ) {
-		createRoot( host ).render( <IconPicker input={ input } /> );
-	} else if ( typeof render === 'function' ) {
-		render( <IconPicker input={ input } />, host );
+	try {
+		if ( typeof createRoot === 'function' ) {
+			createRoot( host ).render( <IconPicker input={ input } /> );
+			// eslint-disable-next-line no-console
+			console.log( '[isoft-fmf taxonomy-form] createRoot mounted' );
+		} else if ( typeof render === 'function' ) {
+			render( <IconPicker input={ input } />, host );
+			// eslint-disable-next-line no-console
+			console.log( '[isoft-fmf taxonomy-form] render mounted' );
+		} else {
+			// eslint-disable-next-line no-console
+			console.error( '[isoft-fmf taxonomy-form] no React mount fn available' );
+		}
+	} catch ( err ) {
+		// eslint-disable-next-line no-console
+		console.error( '[isoft-fmf taxonomy-form] mount threw:', err );
 	}
 };
 
+// The script is enqueued in_footer, so the DOM is parsed by the time
+// this file executes. No need for DOMContentLoaded wrapping.
 mountIconPicker();
