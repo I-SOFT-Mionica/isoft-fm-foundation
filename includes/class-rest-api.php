@@ -393,13 +393,13 @@ class ISOFT_FMF_Rest_Api {
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
 					"SELECT l.id, l.download_id, p.post_title AS download_title,
-					        l.file_id, f.file_name, l.user_id, l.user_ip,
+					        l.file_id, f.file_name, l.user_id, l.ip_address AS user_ip,
 					        l.user_agent, l.downloaded_at
 					   FROM {$wpdb->prefix}isoft_fmf_download_log l
 					   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
 					   LEFT JOIN {$wpdb->prefix}isoft_fmf_files f ON f.id = l.file_id
 					  WHERE l.download_id = %d
-					    AND ( p.post_title LIKE %s OR f.file_name LIKE %s OR l.user_ip LIKE %s )
+					    AND ( p.post_title LIKE %s OR f.file_name LIKE %s OR l.ip_address LIKE %s )
 					  ORDER BY l.downloaded_at DESC
 					  LIMIT %d OFFSET %d",
 					$download_id,
@@ -417,7 +417,7 @@ class ISOFT_FMF_Rest_Api {
 					   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
 					   LEFT JOIN {$wpdb->prefix}isoft_fmf_files f ON f.id = l.file_id
 					  WHERE l.download_id = %d
-					    AND ( p.post_title LIKE %s OR f.file_name LIKE %s OR l.user_ip LIKE %s )",
+					    AND ( p.post_title LIKE %s OR f.file_name LIKE %s OR l.ip_address LIKE %s )",
 					$download_id,
 					$like,
 					$like,
@@ -429,7 +429,7 @@ class ISOFT_FMF_Rest_Api {
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
 					"SELECT l.id, l.download_id, p.post_title AS download_title,
-					        l.file_id, f.file_name, l.user_id, l.user_ip,
+					        l.file_id, f.file_name, l.user_id, l.ip_address AS user_ip,
 					        l.user_agent, l.downloaded_at
 					   FROM {$wpdb->prefix}isoft_fmf_download_log l
 					   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
@@ -454,12 +454,12 @@ class ISOFT_FMF_Rest_Api {
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
 					"SELECT l.id, l.download_id, p.post_title AS download_title,
-					        l.file_id, f.file_name, l.user_id, l.user_ip,
+					        l.file_id, f.file_name, l.user_id, l.ip_address AS user_ip,
 					        l.user_agent, l.downloaded_at
 					   FROM {$wpdb->prefix}isoft_fmf_download_log l
 					   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
 					   LEFT JOIN {$wpdb->prefix}isoft_fmf_files f ON f.id = l.file_id
-					  WHERE ( p.post_title LIKE %s OR f.file_name LIKE %s OR l.user_ip LIKE %s )
+					  WHERE ( p.post_title LIKE %s OR f.file_name LIKE %s OR l.ip_address LIKE %s )
 					  ORDER BY l.downloaded_at DESC
 					  LIMIT %d OFFSET %d",
 					$like,
@@ -475,7 +475,7 @@ class ISOFT_FMF_Rest_Api {
 					"SELECT COUNT(*) FROM {$wpdb->prefix}isoft_fmf_download_log l
 					   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
 					   LEFT JOIN {$wpdb->prefix}isoft_fmf_files f ON f.id = l.file_id
-					  WHERE ( p.post_title LIKE %s OR f.file_name LIKE %s OR l.user_ip LIKE %s )",
+					  WHERE ( p.post_title LIKE %s OR f.file_name LIKE %s OR l.ip_address LIKE %s )",
 					$like,
 					$like,
 					$like
@@ -486,7 +486,7 @@ class ISOFT_FMF_Rest_Api {
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
 					"SELECT l.id, l.download_id, p.post_title AS download_title,
-					        l.file_id, f.file_name, l.user_id, l.user_ip,
+					        l.file_id, f.file_name, l.user_id, l.ip_address AS user_ip,
 					        l.user_agent, l.downloaded_at
 					   FROM {$wpdb->prefix}isoft_fmf_download_log l
 					   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
