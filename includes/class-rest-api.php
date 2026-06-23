@@ -393,7 +393,7 @@ class ISOFT_FMF_Rest_Api {
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
 					"SELECT l.id, l.download_id, p.post_title AS download_title,
-					        l.file_id, f.file_name, l.user_id, l.ip_address AS user_ip,
+					        l.file_id, f.file_name, l.user_id, l.user_login, l.ip_address AS user_ip,
 					        l.user_agent, l.downloaded_at
 					   FROM {$wpdb->prefix}isoft_fmf_download_log l
 					   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
@@ -429,7 +429,7 @@ class ISOFT_FMF_Rest_Api {
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
 					"SELECT l.id, l.download_id, p.post_title AS download_title,
-					        l.file_id, f.file_name, l.user_id, l.ip_address AS user_ip,
+					        l.file_id, f.file_name, l.user_id, l.user_login, l.ip_address AS user_ip,
 					        l.user_agent, l.downloaded_at
 					   FROM {$wpdb->prefix}isoft_fmf_download_log l
 					   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
@@ -454,7 +454,7 @@ class ISOFT_FMF_Rest_Api {
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
 					"SELECT l.id, l.download_id, p.post_title AS download_title,
-					        l.file_id, f.file_name, l.user_id, l.ip_address AS user_ip,
+					        l.file_id, f.file_name, l.user_id, l.user_login, l.ip_address AS user_ip,
 					        l.user_agent, l.downloaded_at
 					   FROM {$wpdb->prefix}isoft_fmf_download_log l
 					   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
@@ -486,7 +486,7 @@ class ISOFT_FMF_Rest_Api {
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
 					"SELECT l.id, l.download_id, p.post_title AS download_title,
-					        l.file_id, f.file_name, l.user_id, l.ip_address AS user_ip,
+					        l.file_id, f.file_name, l.user_id, l.user_login, l.ip_address AS user_ip,
 					        l.user_agent, l.downloaded_at
 					   FROM {$wpdb->prefix}isoft_fmf_download_log l
 					   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id

@@ -73,12 +73,19 @@ const formatDate = ( mysqlDate ) => {
 	return dateI18n( fmt, mysqlDate );
 };
 
-const LogApp = ( { exportBaseUrl, purgeUrl, retentionDays, loggingEnabled, canExport, canPurge } ) => {
+const LogApp = ( {
+	exportBaseUrl, purgeUrl, retentionDays, loggingEnabled,
+	canExport, canPurge, initialTotal, initialPages,
+} ) => {
 	const [ view, setView ]           = useState( DEFAULT_VIEW );
 	const [ rows, setRows ]           = useState( [] );
-	const [ total, setTotal ]         = useState( 0 );
-	const [ totalPages, setTotalPages ] = useState( 0 );
-	const [ loading, setLoading ]     = useState( false );
+	// Initialise pagination from the PHP-precomputed count so the
+	// pagination strip + total count render immediately on mount, before
+	// the first REST fetch resolves. The first useEffect tick will
+	// refresh these from the REST response.
+	const [ total, setTotal ]         = useState( initialTotal );
+	const [ totalPages, setTotalPages ] = useState( initialPages );
+	const [ loading, setLoading ]     = useState( true );
 	const [ error, setError ]         = useState( null );
 
 	// Download list for the filter dropdown. Independent fetch — cheap,
@@ -188,8 +195,9 @@ const LogApp = ( { exportBaseUrl, purgeUrl, retentionDays, loggingEnabled, canEx
 					if ( ! item.user_id ) {
 						return <em>{ __( 'Guest', 'isoft-fm-foundation' ) }</em>;
 					}
-					const url = `${ window.location.origin }/wp-admin/user-edit.php?user_id=${ item.user_id }`;
-					return <a href={ url }>{ `#${ item.user_id }` }</a>;
+					const label = item.user_login || `#${ item.user_id }`;
+					const url   = `${ window.location.origin }/wp-admin/user-edit.php?user_id=${ item.user_id }`;
+					return <a href={ url }>{ label }</a>;
 				},
 			},
 			{
@@ -252,19 +260,7 @@ const LogApp = ( { exportBaseUrl, purgeUrl, retentionDays, loggingEnabled, canEx
 				</Notice>
 			) }
 
-			<div style={ { marginTop: '16px', position: 'relative' } }>
-				{ loading && (
-					<div
-						style={ {
-							position:        'absolute',
-							top:             '12px',
-							right:           '12px',
-							zIndex:          10,
-						} }
-					>
-						<Spinner />
-					</div>
-				) }
+			<div style={ { marginTop: '16px' } }>
 				<DataViews
 					data={ rows }
 					view={ view }
@@ -273,6 +269,7 @@ const LogApp = ( { exportBaseUrl, purgeUrl, retentionDays, loggingEnabled, canEx
 					paginationInfo={ paginationInfo }
 					defaultLayouts={ defaultLayouts }
 					getItemId={ ( item ) => String( item.id ) }
+					isLoading={ loading }
 					// No row actions on the log — read-only audit trail.
 					// Bulk delete-individual-log-rows was never wired in
 					// the PHP page either; purge-by-retention is the only
@@ -353,6 +350,8 @@ if ( mountNode ) {
 		loggingEnabled:  mountNode.getAttribute( 'data-logging-enabled' ) === '1',
 		canExport:       mountNode.getAttribute( 'data-can-export' ) === '1',
 		canPurge:        mountNode.getAttribute( 'data-can-purge' ) === '1',
+		initialTotal:    parseInt( mountNode.getAttribute( 'data-initial-total' ) || '0', 10 ),
+		initialPages:    parseInt( mountNode.getAttribute( 'data-initial-pages' ) || '0', 10 ),
 	};
 	if ( typeof createRoot === 'function' ) {
 		createRoot( mountNode ).render( <LogApp { ...props } /> );

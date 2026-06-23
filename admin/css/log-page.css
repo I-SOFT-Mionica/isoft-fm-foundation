@@ -13,45 +13,53 @@
 	max-width: 100%;
 }
 
-#isoft-fmf-log-root .dataviews-wrapper {
+#isoft-fmf-log-root .dataviews-wrapper,
+#isoft-fmf-log-root .dataviews-view-table-wrapper,
+#isoft-fmf-log-root .dataviews-view-table {
 	max-width: 100%;
 	width: 100%;
 }
 
-#isoft-fmf-log-root .dataviews-view-table-wrapper,
 #isoft-fmf-log-root .dataviews-view-table {
-	width: 100%;
-	max-width: 100%;
 	background: #fff;
 	border: 1px solid #c3c4c7;
 	box-shadow: 0 1px 1px rgba( 0, 0, 0, 0.04 );
+	border-collapse: collapse;
 }
 
 /* Header row: match wp-list-table thead — gray background, bold,
  * stronger bottom border so the data clearly starts below it. */
 #isoft-fmf-log-root .dataviews-view-table thead th,
 #isoft-fmf-log-root .dataviews-view-table thead td {
-	background: #f6f7f7;
-	font-weight: 600;
-	color: #1d2327;
-	border-bottom: 1px solid #c3c4c7;
-	padding: 8px 12px;
+	background: #f6f7f7 !important;
+	font-weight: 600 !important;
+	color: #1d2327 !important;
+	border-bottom: 1px solid #c3c4c7 !important;
+	padding: 10px 12px !important;
 }
 
-/* Body rows: zebra striping + hover, hairline row separators. */
+/* Body rows: zebra striping + hover, hairline row separators.
+ * Selectors deliberately broad — DataViews wraps cells in extra
+ * elements (e.g., .dataviews-view-table__cell-content) and applies
+ * its own backgrounds that would otherwise win on specificity. The
+ * background is applied to TR (zebra) and also explicitly to TD so
+ * any inner cell background DataViews sets doesn't paint over it. */
 #isoft-fmf-log-root .dataviews-view-table tbody tr {
 	border-bottom: 1px solid #f0f0f1;
+	background: #ffffff !important;
 }
 
-#isoft-fmf-log-root .dataviews-view-table tbody tr:nth-child( even ) {
-	background: #fafafa;
+#isoft-fmf-log-root .dataviews-view-table tbody tr:nth-child( even ),
+#isoft-fmf-log-root .dataviews-view-table tbody tr:nth-child( even ) td {
+	background: #f6f7f7 !important;
 }
 
-#isoft-fmf-log-root .dataviews-view-table tbody tr:hover {
-	background: #f0f6fc;
+#isoft-fmf-log-root .dataviews-view-table tbody tr:hover,
+#isoft-fmf-log-root .dataviews-view-table tbody tr:hover td {
+	background: #f0f6fc !important;
 }
 
 #isoft-fmf-log-root .dataviews-view-table tbody td {
-	padding: 8px 12px;
+	padding: 10px 12px !important;
 	color: #1d2327;
 }
