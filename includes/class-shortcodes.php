@@ -218,8 +218,10 @@ class ISOFT_FMF_Shortcodes {
 
 			wp_reset_postdata();
 
+			// paginate_links() returns null when only one page exists; PHP
+			// 8.1+ deprecates passing null to wp_kses_post. Cast to string.
 			echo wp_kses_post(
-				paginate_links(
+				(string) paginate_links(
 					array(
 						'total'   => $query->max_num_pages,
 						'current' => max( 1, get_query_var( 'paged' ) ),
