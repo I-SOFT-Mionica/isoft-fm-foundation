@@ -2,7 +2,25 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
-## [0.12.3] — unreleased
+## [0.12.4] — unreleased
+
+Phase 5 of the React-admin rewrite. Sub-PR 1 of 3: the per-user category ACL on the WordPress profile screens becomes a React app. Subsequent sub-PRs cover the taxonomy add/edit form (icon picker + access role) and the admin list-table enhancer (quick-edit popovers, inline status toggles).
+
+This release does NOT ship to WordPress.org SVN. 0.12.x stays GitHub-only until the full rewrite graduates to 1.0.0.
+
+### Added (sub-PR 1 — Profile ACL)
+
+- **React per-user category ACL** — the "Allowed Categories" section on profile.php and user-edit.php is now rendered by a React app. Hierarchical checkbox tree with depth-based indent, type-to-filter search, and auto-expand for any branch containing a selected node. Save button is gated on a dirty-diff so an unchanged form can't accidentally write. Selection persists through a new `POST /users/{id}/category-acl` endpoint instead of riding on the user-edit form's `$_POST` submission, so the save no longer requires submitting the entire user profile form.
+- **`ISOFT_FMF_Rest_Users`** — new REST controller at `/isoft-fm-foundation/v1/users/{id}/category-acl`. GET returns the explicit (not effective) category-id list; POST replaces it. Permission gate is `manage_options` — same as the legacy `render_profile_field` / `save_profile_field` flow that this endpoint replaces.
+- **`ISOFT_FMF_Profile_ACL_Page`** — enqueues `blocks/build/profile-acl.js` on profile.php / user-edit.php only, and only when the current user has `manage_options` (the legacy field was already admin-only). Handle suffixed `-page` per the collision-prevention convention.
+- **Profile ACL webpack entry** (`blocks/profile-acl/index.js`, built via `npm run build` to `blocks/build/profile-acl.js`).
+
+### Changed (sub-PR 1 — Profile ACL)
+
+- **`ISOFT_FMF_Category_ACL::render_profile_field()`** branches on `wp_script_is( ISOFT_FMF_Profile_ACL_Page::SCRIPT_HANDLE, 'enqueued' )`: when the React bundle is loaded, the section renders as a single `<div id="isoft-fmf-profile-acl-root" data-user-id="…">` mount node; when the bundle is missing, the original `<details>` checkbox tree renders unchanged. The existing `save_profile_field` action stays wired so the no-JS fallback's form submission still works.
+- **Version bumped to 0.12.4-dev.**
+
+## [0.12.3] — 2026-06-23
 
 Phase 4 of the React-admin rewrite. Sub-PR 1 of 4: the Statistics dashboard becomes a React app. Sub-PR 2 of 4: the Download Log becomes a React app on top of `@wordpress/dataviews`. Sub-PR 3 of 4: the Broken Links page becomes a React app on top of DataViews + a `Modal`-based recovery dialog. Sub-PR 4 of 4: the Settings page becomes a React app for the 4 option-driven tabs (General, Display, Security, Advanced); Maintenance and Extensions stay PHP — they're action/marketing surfaces with no benefit from a React port.
 

@@ -428,19 +428,40 @@ class ISOFT_FMF_Category_ACL {
 			return;
 		}
 
-		$explicit = self::get_explicit( $user->ID );
-		$selected = array_flip( $explicit );
-		$tree     = $this->build_category_tree();
-
 		?>
 		<h2><?php esc_html_e( 'I-Soft File Manager: Foundation — Allowed Categories', 'isoft-fm-foundation' ); ?></h2>
 		<p class="description">
 			<?php esc_html_e( 'This user can create, edit and delete downloads in the selected categories and all their descendants. Leave empty to restrict them completely (admins are always unrestricted).', 'isoft-fm-foundation' ); ?>
 		</p>
-		<div class="isoft-fmf-acl-tree">
-			<?php $this->render_tree_nodes( $tree, $selected ); ?>
-		</div>
+
 		<?php
+		// 0.12.4+: when the React bundle loads, hand the surface over to
+		// it via a mount node + data-user-id. The React app reads/writes
+		// through the new REST /users/{id}/category-acl endpoint so the
+		// save no longer rides on the user-edit form's $_POST. Fallback
+		// to the PHP <details> checkbox tree when JS is unavailable.
+		if ( wp_script_is( ISOFT_FMF_Profile_ACL_Page::SCRIPT_HANDLE, 'enqueued' ) ) :
+			?>
+			<div
+				id="isoft-fmf-profile-acl-root"
+				data-user-id="<?php echo esc_attr( (string) $user->ID ); ?>"
+			></div>
+			<noscript>
+				<div class="notice notice-warning inline">
+					<p><?php esc_html_e( 'The category ACL editor requires JavaScript. Please enable JavaScript in your browser, or revert to the previous plugin version.', 'isoft-fm-foundation' ); ?></p>
+				</div>
+			</noscript>
+			<?php
+		else :
+			$explicit = self::get_explicit( $user->ID );
+			$selected = array_flip( $explicit );
+			$tree     = $this->build_category_tree();
+			?>
+			<div class="isoft-fmf-acl-tree">
+				<?php $this->render_tree_nodes( $tree, $selected ); ?>
+			</div>
+			<?php
+		endif;
 	}
 
 	public function save_profile_field( int $user_id ): void {

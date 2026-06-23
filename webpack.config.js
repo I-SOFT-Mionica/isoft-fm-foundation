@@ -22,6 +22,7 @@ module.exports = {
 		'log-page':        './blocks/log-page/index.js',
 		'broken-links-page': './blocks/broken-links-page/index.js',
 		'settings-page':   './blocks/settings-page/index.js',
+		'profile-acl':     './blocks/profile-acl/index.js',
 	},
 	output: {
 		...defaultConfig.output,
