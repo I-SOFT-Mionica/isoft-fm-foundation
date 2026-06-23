@@ -66,6 +66,8 @@ export default function Edit( { attributes, setAttributes } ) {
 							options={ parentOptions }
 							onChange={ ( val ) => setAttributes( { parent: Number( val ) } ) }
 							help={ __( 'Select a parent to show its subcategories, or leave as top level.', 'isoft-fm-foundation' ) }
+							__next40pxDefaultSize
+							__nextHasNoMarginBottom
 						/>
 					) }
 				</PanelBody>

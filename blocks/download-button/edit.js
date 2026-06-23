@@ -160,6 +160,8 @@ export default function Edit( { attributes, setAttributes } ) {
 								value={ categoryFilter }
 								options={ categoryOptions }
 								onChange={ ( val ) => setCategoryFilter( Number( val ) ) }
+								__next40pxDefaultSize
+								__nextHasNoMarginBottom
 							/>
 						) }
 					</div>

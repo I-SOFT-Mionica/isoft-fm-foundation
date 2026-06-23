@@ -23,6 +23,7 @@ module.exports = {
 		'broken-links-page': './blocks/broken-links-page/index.js',
 		'settings-page':   './blocks/settings-page/index.js',
 		'profile-acl':     './blocks/profile-acl/index.js',
+		'taxonomy-form':   './blocks/taxonomy-form/index.js',
 	},
 	output: {
 		...defaultConfig.output,

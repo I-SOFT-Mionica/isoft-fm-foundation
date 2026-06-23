@@ -60,6 +60,50 @@ function isoft_fmf_create_draft_download( array $args ): int|false {
  *
  * @return array<string,mixed>
  */
+/**
+ * Render the icon for a category term, with a default-cat fallback.
+ *
+ * Stored value (`_isoft_fmf_cat_icon` term meta) is one of:
+ *   - Empty → bundled default-category-icon.svg (cat-4 from svgrepo, CC0)
+ *   - URL   → <img src="…">
+ *   - Shortcode (starts with `[`) → do_shortcode(); lets admins reference
+ *     a third-party icon plugin's output (e.g. [iconify icon="lucide:folder"])
+ *     without us bundling an icon library
+ *   - Dashicon class name → <span class="dashicons …">
+ *
+ * Output is echoed inside the existing .isoft-fmf-category-card__icon
+ * wrapper at the call site. Caller is responsible for that wrapper.
+ */
+function isoft_fmf_render_category_icon( int $term_id ): void {
+	$icon = (string) get_term_meta( $term_id, '_isoft_fmf_cat_icon', true );
+
+	if ( '' === $icon ) {
+		printf(
+			'<img src="%s" alt="" class="isoft-fmf-category-card__icon-img isoft-fmf-category-card__icon-img--default" />',
+			esc_url( ISOFT_FMF_PLUGIN_URL . 'public/images/default-category-icon.svg' )
+		);
+		return;
+	}
+
+	if ( filter_var( $icon, FILTER_VALIDATE_URL ) ) {
+		printf(
+			'<img src="%s" alt="" class="isoft-fmf-category-card__icon-img" />',
+			esc_url( $icon )
+		);
+		return;
+	}
+
+	if ( str_starts_with( $icon, '[' ) && str_ends_with( $icon, ']' ) ) {
+		// Third-party shortcode (Iconify, Better Font Awesome, etc.).
+		// Output trusted to the shortcode plugin's own sanitisation.
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- do_shortcode is the explicit hand-off to the icon plugin's escaping.
+		echo do_shortcode( $icon );
+		return;
+	}
+
+	printf( '<span class="dashicons %s"></span>', esc_attr( $icon ) );
+}
+
 function isoft_fmf_get_settings(): array {
 	static $cached = null;
 	if ( null !== $cached ) {
@@ -71,7 +115,7 @@ function isoft_fmf_get_settings(): array {
 		'enable_logging'           => (bool) get_option( 'isoft_fmf_enable_logging', true ),
 		'enable_detailed_logging'  => (bool) get_option( 'isoft_fmf_enable_detailed_logging', false ),
 		'log_retention_days'       => (int) get_option( 'isoft_fmf_log_retention_days', 365 ),
-		'enable_pdf_thumbnails'    => (bool) get_option( 'isoft_fmf_enable_pdf_thumbnails', true ),
+		'enable_pdf_thumbnails'    => (bool) get_option( 'isoft_fmf_enable_pdf_thumbnails', false ),
 		'pdf_thumb_width'          => (int) get_option( 'isoft_fmf_pdf_thumb_width', 300 ),
 		'pdf_thumb_height'         => (int) get_option( 'isoft_fmf_pdf_thumb_height', 424 ),
 		'pdf_thumb_quality'        => (int) get_option( 'isoft_fmf_pdf_thumb_quality', 85 ),

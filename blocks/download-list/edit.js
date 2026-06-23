@@ -70,6 +70,8 @@ export default function Edit( { attributes, setAttributes } ) {
 								value={ category }
 								options={ categoryOptions }
 								onChange={ ( val ) => setAttributes( { category: Number( val ) } ) }
+								__next40pxDefaultSize
+								__nextHasNoMarginBottom
 							/>
 							<ToggleControl
 								label={ __( 'Include subcategories', 'isoft-fm-foundation' ) }
@@ -83,6 +85,8 @@ export default function Edit( { attributes, setAttributes } ) {
 								value={ tag }
 								options={ tagOptions }
 								onChange={ ( val ) => setAttributes( { tag: Number( val ) } ) }
+								__next40pxDefaultSize
+								__nextHasNoMarginBottom
 							/>
 						</>
 					) }
@@ -105,6 +109,8 @@ export default function Edit( { attributes, setAttributes } ) {
 							{ label: __( 'Table', 'isoft-fm-foundation' ), value: 'table' },
 						] }
 						onChange={ ( val ) => setAttributes( { layout: val } ) }
+						__next40pxDefaultSize
+						__nextHasNoMarginBottom
 					/>
 					<SelectControl
 						label={ __( 'Order by', 'isoft-fm-foundation' ) }
@@ -115,6 +121,8 @@ export default function Edit( { attributes, setAttributes } ) {
 							{ label: __( 'Download count', 'isoft-fm-foundation' ), value: 'download_count' },
 						] }
 						onChange={ ( val ) => setAttributes( { orderby: val } ) }
+						__next40pxDefaultSize
+						__nextHasNoMarginBottom
 					/>
 					<SelectControl
 						label={ __( 'Order', 'isoft-fm-foundation' ) }
@@ -124,6 +132,8 @@ export default function Edit( { attributes, setAttributes } ) {
 							{ label: __( 'Oldest first', 'isoft-fm-foundation' ), value: 'ASC' },
 						] }
 						onChange={ ( val ) => setAttributes( { order: val } ) }
+						__next40pxDefaultSize
+						__nextHasNoMarginBottom
 					/>
 					<ToggleControl
 						label={ __( 'Show search bar', 'isoft-fm-foundation' ) }

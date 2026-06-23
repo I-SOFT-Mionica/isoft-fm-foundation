@@ -179,7 +179,7 @@
 			</tr>
 			<tr>
 				<th><?php esc_html_e( 'PDF Thumbnails', 'isoft-fm-foundation' ); ?></th>
-				<td><label><input type="checkbox" name="isoft_fmf_enable_pdf_thumbnails" value="1" <?php checked( get_option( 'isoft_fmf_enable_pdf_thumbnails', 1 ) ); ?> /> <?php esc_html_e( 'Auto-generate thumbnail from PDF first page', 'isoft-fm-foundation' ); ?></label></td>
+				<td><label><input type="checkbox" name="isoft_fmf_enable_pdf_thumbnails" value="1" <?php checked( get_option( 'isoft_fmf_enable_pdf_thumbnails', 0 ) ); ?> /> <?php esc_html_e( 'Auto-generate thumbnail from PDF first page', 'isoft-fm-foundation' ); ?></label></td>
 			</tr>
 			<tr>
 				<th><label for="isoft-fmf-allowed-extensions"><?php esc_html_e( 'Allowed File Extensions', 'isoft-fm-foundation' ); ?></label></th>
