@@ -1,0 +1,57 @@
+/*
+ * Visual heft for the React Log page (DataViews) so it reads as a
+ * real admin table — borders, zebra striping, full-width container —
+ * matching the pre-0.12.3 WP_List_Table look. DataViews' built-in
+ * styling is tuned for the site editor (minimal borders, sparse) and
+ * looks anaemic against the WP admin gray background.
+ */
+
+#isoft-fmf-log-root {
+	/* Reclaim the full wrap width — DataViews' inner container otherwise
+	 * caps at a narrower max-width that leaves big margins on wide
+	 * screens. */
+	max-width: 100%;
+}
+
+#isoft-fmf-log-root .dataviews-wrapper {
+	max-width: 100%;
+	width: 100%;
+}
+
+#isoft-fmf-log-root .dataviews-view-table-wrapper,
+#isoft-fmf-log-root .dataviews-view-table {
+	width: 100%;
+	max-width: 100%;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	box-shadow: 0 1px 1px rgba( 0, 0, 0, 0.04 );
+}
+
+/* Header row: match wp-list-table thead — gray background, bold,
+ * stronger bottom border so the data clearly starts below it. */
+#isoft-fmf-log-root .dataviews-view-table thead th,
+#isoft-fmf-log-root .dataviews-view-table thead td {
+	background: #f6f7f7;
+	font-weight: 600;
+	color: #1d2327;
+	border-bottom: 1px solid #c3c4c7;
+	padding: 8px 12px;
+}
+
+/* Body rows: zebra striping + hover, hairline row separators. */
+#isoft-fmf-log-root .dataviews-view-table tbody tr {
+	border-bottom: 1px solid #f0f0f1;
+}
+
+#isoft-fmf-log-root .dataviews-view-table tbody tr:nth-child( even ) {
+	background: #fafafa;
+}
+
+#isoft-fmf-log-root .dataviews-view-table tbody tr:hover {
+	background: #f0f6fc;
+}
+
+#isoft-fmf-log-root .dataviews-view-table tbody td {
+	padding: 8px 12px;
+	color: #1d2327;
+}

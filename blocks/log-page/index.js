@@ -41,12 +41,16 @@ const DEFAULT_VIEW = {
 	},
 	search:   '',
 	filters:  [],
+	// Column order matches the pre-0.12.3 WP_List_Table layout:
+	// Download | File | User | Date. IP is omitted from the default
+	// visible set (the prior page didn't surface it either) but stays
+	// in the schema below so admins can toggle it on via the
+	// Appearance > Properties panel when they need it.
 	fields:   [
-		'downloaded_at',
 		'download_title',
 		'file_name',
 		'user_id',
-		'user_ip',
+		'downloaded_at',
 	],
 	// Compact density by default — the log is information-dense and the
 	// default "balanced" mode wastes vertical space. Users can switch
@@ -135,7 +139,7 @@ const LogApp = ( { exportBaseUrl, purgeUrl, retentionDays, loggingEnabled, canEx
 		() => [
 			{
 				id:       'downloaded_at',
-				label:    __( 'When', 'isoft-fm-foundation' ),
+				label:    __( 'Date', 'isoft-fm-foundation' ),
 				enableSorting: false,
 				render:   ( { item } ) => formatDate( item.downloaded_at ),
 			},
