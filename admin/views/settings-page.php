@@ -62,6 +62,38 @@
 		<?php endforeach; ?>
 	</nav>
 
+	<?php
+	// 0.12.3+: the 4 option-driven tabs (General, Display, Security,
+	// Advanced) render as a React app. Maintenance + Extensions stay
+	// PHP-rendered — they're action/marketing surfaces with stateful
+	// lock displays, integrity-check controls, marketing copy. No
+	// benefit from a React port.
+	$react_tabs = array( 'general', 'display', 'security', 'advanced' );
+	if ( in_array( $active_tab, $react_tabs, true )
+		&& wp_script_is( ISOFT_FMF_Settings_Page::SCRIPT_HANDLE, 'enqueued' ) ) :
+		?>
+		<div
+			id="isoft-fmf-settings-root"
+			data-tab="<?php echo esc_attr( $active_tab ); ?>"
+		></div>
+		<noscript>
+			<div class="notice notice-warning">
+				<p><?php esc_html_e( 'The Settings page requires JavaScript. Please enable JavaScript in your browser, or revert to the previous plugin version.', 'isoft-fm-foundation' ); ?></p>
+			</div>
+		</noscript>
+
+		<?php if ( 'general' === $active_tab ) : ?>
+			<p class="description" style="margin-top: 24px; max-width: 720px;">
+				<strong><?php esc_html_e( 'Storage Location:', 'isoft-fm-foundation' ); ?></strong>
+				<code><?php echo esc_html( isoft_fmf_files_dir() ); ?></code><br>
+				<?php esc_html_e( 'All files are stored here, organised by category. The folder is protected by .htaccess and served through the plugin\'s secure download handler.', 'isoft-fm-foundation' ); ?>
+			</p>
+		<?php endif; ?>
+		<?php
+		return;
+	endif;
+	?>
+
 	<?php if ( 'extensions' === $active_tab ) : ?>
 		<?php require __DIR__ . '/extensions-tab.php'; ?>
 	<?php elseif ( 'maintenance' === $active_tab ) : ?>
