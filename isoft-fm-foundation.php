@@ -3,7 +3,7 @@
  * Plugin Name: I-Soft File Manager: Foundation
  * Plugin URI:  https://github.com/I-SOFT-Mionica/isoft-fm-foundation
  * Description: Hierarchical file download manager — categories, multi-file entries, secure download handler, audit logging, and role-based access control.
- * Version:     0.12.4-dev
+ * Version:     0.12.5-dev
  * Author:      I-SOFT Mionica
  * Author URI:  https://github.com/I-SOFT-Mionica
  * License:     GPL v2 or later
@@ -16,7 +16,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-const ISOFT_FMF_VERSION = '0.12.4-dev';
+const ISOFT_FMF_VERSION = '0.12.5-dev';
 define( 'ISOFT_FMF_PLUGIN_FILE', __FILE__ );
 define( 'ISOFT_FMF_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'ISOFT_FMF_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -161,7 +161,6 @@ add_action(
 			( new ISOFT_FMF_Admin_Meta_Boxes() )->register_hooks();
 			( new ISOFT_FMF_Admin_Columns() )->register_hooks();
 			( new ISOFT_FMF_Settings() )->register_hooks();
-			( new ISOFT_FMF_Broken_Links_Ajax() )->register_hooks();
 			( new ISOFT_FMF_License_Manager() )->register_hooks();
 			( new ISOFT_FMF_Licenses_Page() )->register_hooks();
 			( new ISOFT_FMF_Stats_Page() )->register_hooks();
@@ -171,7 +170,6 @@ add_action(
 			( new ISOFT_FMF_Profile_ACL_Page() )->register_hooks();
 			( new ISOFT_FMF_Taxonomy_Form_Page() )->register_hooks();
 			( new ISOFT_FMF_Pdf_Thumbnail() )->register_hooks();
-			( new ISOFT_FMF_Tinymce() )->register_hooks();
 			( new ISOFT_FMF_Demo_Content() )->register_hooks();
 		}
 	}
