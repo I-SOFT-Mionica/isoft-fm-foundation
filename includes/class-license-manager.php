@@ -1,14 +1,13 @@
 <?php
 /**
- * Admin UI shell for the licenses page. Data layer lives in
- * [[ISOFT_FMF_License_Service]] — the historical methods on this class
- * (`get()`, `get_all()`, `install_missing_seeds()`, `seed_defaults()`,
- * `bust_cache()`) are kept as thin delegators so existing call sites
- * (templates, resolver, shortcodes, activator, tests) keep working without
- * a sweeping rename in the same PR as the service extraction.
+ * Admin UI shell for the Licenses page: registers the submenu, renders
+ * the React mount, and preserves the pre-0.12.0 public API (`get()`,
+ * `get_all()`, `install_missing_seeds()`, `seed_defaults()`,
+ * `bust_cache()`) as thin delegators onto [[ISOFT_FMF_License_Service]].
  *
- * The 0.12.5 demolition phase will migrate those callers to the service
- * directly and remove the delegators.
+ * All CRUD is served by [[ISOFT_FMF_Rest_Licenses]] and driven by the
+ * React app in `blocks/licenses-page/`. The legacy `admin_init` POST
+ * handler and its fallback form were demolished in 0.12.5.
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -25,7 +24,6 @@ class ISOFT_FMF_License_Manager {
 
 	public function register_hooks(): void {
 		add_action( 'admin_menu', array( $this, 'register_menu' ) );
-		add_action( 'admin_init', array( $this, 'handle_form_actions' ) );
 	}
 
 	// ---------------------------------------------------------------------
@@ -73,95 +71,5 @@ class ISOFT_FMF_License_Manager {
 			wp_die( esc_html__( 'You do not have permission to manage licenses.', 'isoft-fm-foundation' ) );
 		}
 		require ISOFT_FMF_PLUGIN_DIR . 'admin/views/licenses-page.php';
-	}
-
-	public function handle_form_actions(): void {
-		if ( empty( $_POST['isoft_fmf_license_action'] ) ) {
-			return;
-		}
-		check_admin_referer( 'isoft_fmf_license_action' );
-		if ( ! current_user_can( 'isoft_fmf_manage_settings' ) ) {
-			wp_die( esc_html__( 'Insufficient permissions.', 'isoft-fm-foundation' ) );
-		}
-
-		$action = sanitize_text_field( wp_unslash( $_POST['isoft_fmf_license_action'] ) );
-		if ( 'save' === $action ) {
-			$this->handle_save();
-		} elseif ( 'delete' === $action ) {
-			$this->handle_delete( absint( $_POST['license_id'] ?? 0 ) );
-		} elseif ( 'restore_seeds' === $action ) {
-			$this->handle_restore_seeds();
-		}
-	}
-
-	private function handle_save(): void {
-		// Nonce verified by caller (handle_form_actions).
-		// phpcs:disable WordPress.Security.NonceVerification.Missing
-		$id    = absint( $_POST['license_id'] ?? 0 );
-		$title = isset( $_POST['title'] ) ? sanitize_text_field( wp_unslash( $_POST['title'] ) ) : '';
-		$data  = array(
-			'title'       => $title,
-			'slug'        => isset( $_POST['slug'] ) ? sanitize_title( wp_unslash( $_POST['slug'] ) ) : $title,
-			'description' => isset( $_POST['description'] ) ? sanitize_text_field( wp_unslash( $_POST['description'] ) ) : '',
-			'full_text'   => isset( $_POST['full_text'] ) ? wp_kses_post( wp_unslash( $_POST['full_text'] ) ) : '',
-			'url'         => isset( $_POST['url'] ) ? esc_url_raw( wp_unslash( $_POST['url'] ) ) : '',
-			'is_default'  => ! empty( $_POST['is_default'] ),
-			'sort_order'  => isset( $_POST['sort_order'] ) ? absint( $_POST['sort_order'] ) : 0,
-		);
-		// phpcs:enable WordPress.Security.NonceVerification.Missing
-
-		if ( $id ) {
-			$this->service->update( $id, $data );
-		} else {
-			$this->service->create( $data );
-		}
-
-		wp_safe_redirect(
-			add_query_arg(
-				array(
-					'page'      => 'isoft-fmf-licenses',
-					'post_type' => 'isoft_fmf_file',
-					'saved'     => '1',
-				),
-				admin_url( 'edit.php' )
-			)
-		);
-		exit;
-	}
-
-	private function handle_delete( int $id ): void {
-		$this->service->delete( $id );
-		wp_safe_redirect(
-			add_query_arg(
-				array(
-					'page'      => 'isoft-fmf-licenses',
-					'post_type' => 'isoft_fmf_file',
-					'deleted'   => '1',
-				),
-				admin_url( 'edit.php' )
-			)
-		);
-		exit;
-	}
-
-	/**
-	 * Admin action: install any seeded licenses missing by slug on this
-	 * install. Doubles as the "mass-update" channel for plugin releases
-	 * that add new seeds — admins click once per release to pick up new
-	 * canonical entries. Existing rows are never touched (add-only by slug).
-	 */
-	private function handle_restore_seeds(): void {
-		$added = $this->service->install_missing_seeds();
-		wp_safe_redirect(
-			add_query_arg(
-				array(
-					'page'      => 'isoft-fmf-licenses',
-					'post_type' => 'isoft_fmf_file',
-					'restored'  => (int) $added,
-				),
-				admin_url( 'edit.php' )
-			)
-		);
-		exit;
 	}
 }

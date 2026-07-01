@@ -4,11 +4,10 @@
  * admin screen.
  *
  * The PHP view at admin/views/licenses-page.php emits a mount node
- * `<div id="isoft-fmf-licenses-root">` and a JS-disabled fallback. When
- * this script is enqueued, the React app takes over; when it isn't
- * (asset missing, JS disabled, future revert), the fallback form is
- * rendered server-side and ISOFT_FMF_License_Manager::handle_form_actions
- * processes submissions through the legacy admin-post pipeline.
+ * `<div id="isoft-fmf-licenses-root">` and a JS-disabled `<noscript>`
+ * notice. When this script is enqueued, the React app takes over; the
+ * PHP fallback form was demolished in 0.12.5, so a missing bundle now
+ * shows only the noscript notice.
  *
  * Screen scoping happens at the hook-suffix level: the Licenses submenu
  * registers under hook suffix 'isoft_fmf_file_page_isoft-fmf-licenses'

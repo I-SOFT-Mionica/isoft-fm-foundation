@@ -2,6 +2,35 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.12.5] — unreleased
+
+Phase 6 of the React-admin rewrite: the demolition pass. All PHP surfaces that the 0.12.0-0.12.4 React apps replaced are removed. This is the one-way door — reverting past this point means going back to 0.11.x trunk, not to 0.12.4.
+
+This release does NOT ship to WordPress.org SVN. 0.12.x stays GitHub-only until 1.0.0 graduation.
+
+### Removed
+
+- **6 broken-links AJAX handlers** — `class-broken-links-ajax.php` (probe, move_back, reassign, split, reupload, detach). The React recovery modal drives everything through `POST /broken-links/{id}/recover` now.
+- **1 TinyMCE AJAX handler** — `class-tinymce.php` (isoft_fmf_tmce_search). The classic-editor shortcode inserter is retired; block editor users have the Download List block and downloads shortcodes work in any editor.
+- **2 `WP_List_Table` subclasses** — `class-log-table.php` and `class-broken-links-table.php`. Both surfaces are DataViews-driven React apps since 0.12.3.
+- **Legacy jQuery admin JS** — `admin/js/broken-links.js` (recovery dialog) and `admin/js/tinymce-plugin.js`.
+- **Sidebar-replaced meta boxes** — `admin/views/meta-box-version-info.php`, `admin/views/meta-box-stats.php`, plus their `render_version_info` / `render_stats` callbacks. The editor sidebar's VersionLicensePanel + StatsPanel own these surfaces since 0.12.1.
+- **PHP fallback forms** in the five admin pages that are React apps — the Licenses page's edit/list form, the Statistics dashboard's PHP chart + top-N tables, the Download Log's WP_List_Table view, the Broken Links page's WP_List_Table fallback + hidden recovery dialog template, and the Settings page's four schema-tab forms (General / Display / Security / Advanced). Each view is now a mount node + noscript notice; server-rendered PHP for the four Maintenance/Extensions surfaces stays because those are action/marketing pages, not option forms.
+- **Legacy license-form handler** — `ISOFT_FMF_License_Manager::handle_form_actions()` and its `admin_init` hook, plus the `handle_save` / `handle_delete` / `handle_restore_seeds` helpers. `ISOFT_FMF_Rest_Licenses` is the sole write path.
+- **Legacy meta save handler** — `ISOFT_FMF_Admin_Meta_Boxes::save()` and its `save_post_isoft_fmf_file` hook, plus the `isoft_fmf_meta_nonce` field on the Files meta box. Every meta field is registered `show_in_rest:true` and written by the editor sidebar via `useEntityProp`.
+
+### Kept
+
+- **Files meta box + `admin/js/admin-script.js` + 7 file-management AJAX handlers** (delete_file, save_file_order, add_external, update_file_meta, upload_file, browse_category, import_file). The editor sidebar's FilesPanel is a compact summary that scrolls to this meta box, not a replacement. Retiring this surface is a pre-1.0.0 perf/UX exercise, not a demolition item.
+- **The `admin-post.php` integrity-check trigger + Broken Links integrity panel PHP** — server-side lock state and admin-post action, not a list/CRUD surface.
+- **License Manager service delegators** (`get`, `get_all`, `install_missing_seeds`, `seed_defaults`, `bust_cache`) — external call sites still route through them.
+
+### Changed
+
+- **`class-settings.php::enqueue`** no longer registers the `isoft-fmf-broken-links` jQuery handle (the file it pointed at is gone). Screen-scoping stays wired for `admin-style.css`.
+- **`class-broken-links-page.php` script handle** comment updated to reflect that the collision it worked around is now demolished; the `-page` suffix stays for consistency with the other 0.12.x React entries.
+- **Version bumped to 0.12.5-dev.** `readme.txt` `Stable tag:` stays at 0.11.0 (0.12.x doesn't ship to SVN).
+
 ## [0.12.4] — unreleased
 
 Phase 5 of the React-admin rewrite. Sub-PR 1 of 3: the per-user category ACL on the WordPress profile screens becomes a React app. Subsequent sub-PRs cover the taxonomy add/edit form (icon picker + access role) and the admin list-table enhancer (quick-edit popovers, inline status toggles).

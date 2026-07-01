@@ -14,9 +14,8 @@
  * - POST   /licenses/restore-seeds    re-install any missing seeded licenses
  *                                     by slug (idempotent)
  *
- * Permission parity: write capability matches the legacy admin form handler
- * (ISOFT_FMF_License_Manager::handle_form_actions checks
- * `isoft_fmf_manage_settings`) — verified by tests/test-rest-permissions.php.
+ * Write capability is `isoft_fmf_manage_settings` — verified by
+ * tests/test-rest-permissions.php.
  *
  * Delegates all data work to [[ISOFT_FMF_License_Service]].
  */

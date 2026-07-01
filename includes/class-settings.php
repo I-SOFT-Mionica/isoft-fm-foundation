@@ -21,25 +21,6 @@ class ISOFT_FMF_Settings {
 			return;
 		}
 		wp_enqueue_style( 'isoft-fmf-admin', ISOFT_FMF_PLUGIN_URL . 'admin/css/admin-style.css', array(), ISOFT_FMF_VERSION );
-
-		if ( 'isoft_fmf_file_page_isoft-fmf-broken-links' === $hook ) {
-			wp_enqueue_script( 'isoft-fmf-broken-links', ISOFT_FMF_PLUGIN_URL . 'admin/js/broken-links.js', array( 'jquery' ), ISOFT_FMF_VERSION, true );
-			wp_localize_script(
-				'isoft-fmf-broken-links',
-				'isfmBrokenLinks',
-				array(
-					'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-					'nonce'   => wp_create_nonce( 'isoft_fmf_broken_links' ),
-					'i18n'    => array(
-						'confirmMoveBack' => __( 'Move the file back to the original folder?', 'isoft-fm-foundation' ),
-						'confirmReassign' => __( 'Move this download (and all its files) to the new category?', 'isoft-fm-foundation' ),
-						'confirmSplit'    => __( 'Create a new download for this file in its new category?', 'isoft-fm-foundation' ),
-						'confirmDetach'   => __( 'Remove this file from the download? The file on disk will not be deleted.', 'isoft-fm-foundation' ),
-						'generic_error'   => __( 'Action failed. Please reload the page and try again.', 'isoft-fm-foundation' ),
-					),
-				)
-			);
-		}
 	}
 
 	public function register_menu(): void {
@@ -89,8 +70,6 @@ class ISOFT_FMF_Settings {
 		if ( ! current_user_can( 'isoft_fmf_manage_settings' ) ) {
 			wp_die( esc_html__( 'You do not have permission to view broken links.', 'isoft-fm-foundation' ) );
 		}
-		$table = new ISOFT_FMF_Broken_Links_Table();
-		$table->prepare_items();
 		require ISOFT_FMF_PLUGIN_DIR . 'admin/views/broken-links-page.php';
 	}
 
@@ -105,8 +84,6 @@ class ISOFT_FMF_Settings {
 		if ( ! current_user_can( 'isoft_fmf_view_logs' ) ) {
 			wp_die( esc_html__( 'You do not have permission to view the download log.', 'isoft-fm-foundation' ) );
 		}
-		$table = new ISOFT_FMF_Log_Table();
-		$table->prepare_items();
 		require ISOFT_FMF_PLUGIN_DIR . 'admin/views/log-viewer.php';
 	}
 
