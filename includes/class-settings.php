@@ -5,6 +5,11 @@ class ISOFT_FMF_Settings {
 
 	public function register_hooks(): void {
 		add_action( 'admin_menu', array( $this, 'register_menu' ) );
+		// Hide the 3 legacy Tools sub-URLs from the WP admin sidebar
+		// after the menu is built. They still resolve — the shell
+		// renders on them with the correct sub-tab pre-selected — so
+		// bookmarks and inbound links keep working.
+		add_action( 'admin_menu', array( $this, 'consolidate_tools_menu' ), 999 );
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
 		add_action( 'admin_init', array( $this, 'handle_flush_rewrite' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue' ) );
@@ -12,6 +17,7 @@ class ISOFT_FMF_Settings {
 
 	public function enqueue( string $hook ): void {
 		$isoft_fmf_pages = array(
+			'isoft_fmf_file_page_isoft-fmf-tools',
 			'isoft_fmf_file_page_isoft-fmf-stats',
 			'isoft_fmf_file_page_isoft-fmf-log',
 			'isoft_fmf_file_page_isoft-fmf-settings',
@@ -24,6 +30,29 @@ class ISOFT_FMF_Settings {
 	}
 
 	public function register_menu(): void {
+		// Tools — the single sidebar entry that houses Statistics /
+		// Download Log / Broken Links as sub-tabs inside the shell.
+		// Position 17 places it right after Licenses (position 16),
+		// which sits right after Tags (WordPress-native position 15).
+		$missing_count = ISOFT_FMF_File_Integrity::missing_count();
+		$tools_label   = __( 'Tools', 'isoft-fm-foundation' );
+		if ( $missing_count > 0 ) {
+			$tools_label .= ' <span class="awaiting-mod isoft-fmf-broken-badge">' . number_format_i18n( $missing_count ) . '</span>';
+		}
+		add_submenu_page(
+			'edit.php?post_type=isoft_fmf_file',
+			__( 'Tools', 'isoft-fm-foundation' ),
+			$tools_label,
+			'isoft_fmf_view_logs',
+			'isoft-fmf-tools',
+			array( $this, 'render_tools' ),
+			17
+		);
+
+		// Legacy Tools sub-URLs — still registered so admin.php?page=…
+		// resolves for existing bookmarks and for the shell's own
+		// intra-Tools client-side URLs (pushState uses these). They
+		// get hidden from the sidebar by consolidate_tools_menu().
 		add_submenu_page(
 			'edit.php?post_type=isoft_fmf_file',
 			__( 'Statistics', 'isoft-fm-foundation' ),
@@ -40,17 +69,10 @@ class ISOFT_FMF_Settings {
 			'isoft-fmf-log',
 			array( $this, 'render_log' )
 		);
-
-		// Broken Links — label carries a count badge when rows are flagged.
-		$missing_count = ISOFT_FMF_File_Integrity::missing_count();
-		$broken_label  = __( 'Broken Links', 'isoft-fm-foundation' );
-		if ( $missing_count > 0 ) {
-			$broken_label .= ' <span class="awaiting-mod isoft-fmf-broken-badge">' . number_format_i18n( $missing_count ) . '</span>';
-		}
 		add_submenu_page(
 			'edit.php?post_type=isoft_fmf_file',
 			__( 'Broken Links', 'isoft-fm-foundation' ),
-			$broken_label,
+			__( 'Broken Links', 'isoft-fm-foundation' ),
 			'isoft_fmf_manage_settings',
 			'isoft-fmf-broken-links',
 			array( $this, 'render_broken_links' )
@@ -62,8 +84,30 @@ class ISOFT_FMF_Settings {
 			__( 'Settings', 'isoft-fm-foundation' ),
 			'isoft_fmf_manage_settings',
 			'isoft-fmf-settings',
-			array( $this, 'render_page' )
+			array( $this, 'render_page' ),
+			18
 		);
+	}
+
+	/**
+	 * Runs after all admin_menu handlers finish (priority 999). Removes
+	 * the three legacy Tools sub-URLs from the sidebar so users see one
+	 * "Tools" entry instead of Statistics + Download Log + Broken
+	 * Links. `remove_submenu_page` only drops the sidebar row — the
+	 * `$_registered_pages` entry survives, so the URLs still load.
+	 */
+	public function consolidate_tools_menu(): void {
+		$parent = 'edit.php?post_type=isoft_fmf_file';
+		remove_submenu_page( $parent, 'isoft-fmf-stats' );
+		remove_submenu_page( $parent, 'isoft-fmf-log' );
+		remove_submenu_page( $parent, 'isoft-fmf-broken-links' );
+	}
+
+	public function render_tools(): void {
+		if ( ! current_user_can( 'isoft_fmf_view_logs' ) ) {
+			wp_die( esc_html__( 'You do not have permission to view Tools.', 'isoft-fm-foundation' ) );
+		}
+		require ISOFT_FMF_PLUGIN_DIR . 'admin/views/tools-page.php';
 	}
 
 	public function render_broken_links(): void {

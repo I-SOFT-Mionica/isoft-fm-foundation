@@ -2,43 +2,46 @@
 /**
  * Shared admin-shell mount partial.
  *
- * Emits one <div id="isoft-fmf-admin-root"> per admin surface, carrying:
- *   - data-section: which of the 5 React sections should render first
- *   - data-bootstrap: JSON blob of every section's server-computed
- *     hints (initial counts, retention days, purge nonce, ...)
+ * Emits `<div id="isoft-fmf-admin-root">` with:
+ *   - data-bootstrap: JSON blob carrying `active = { top, sub }` +
+ *     the active sub-section's slice (+ badge count, always inlined).
  *
- * The React shell in blocks/admin-shell/index.js reads both and mounts
- * the section; subsequent nav between the 5 sections is client-side.
+ * As of 0.12.8 the shell has 3 top-level sections (Licenses / Tools /
+ * Settings). Tools houses Statistics / Download Log / Broken Links as
+ * sub-tabs; Settings houses General / Display / Security / Advanced /
+ * Maintenance / Extensions. The React shell reads bootstrap.active and
+ * mounts the right combo; subsequent nav is client-side.
  *
- * The five per-page views (licenses-page.php, stats-dashboard.php,
- * log-viewer.php, broken-links-page.php, settings-page.php) all
- * reduce to a one-line require of this partial with `$isoft_fmf_section`
- * set to the section slug.
+ * The Broken Links integrity-check panel is a PHP fragment (server-
+ * side lock state + admin-post.php trigger) that only renders when
+ * the shell landed on that sub-tab.
  *
- * Broken Links keeps its PHP integrity-check panel above the mount
- * (server-side lock state + admin-post.php trigger, not a REST/list
- * surface). Section is inlined here rather than in a separate file
- * because it's small enough and only conditionally rendered.
+ * The 6 per-URL views (licenses-page.php, tools-page.php,
+ * stats-dashboard.php, log-viewer.php, broken-links-page.php,
+ * settings-page.php) each reduce to a one-line require of this
+ * partial with `$isoft_fmf_section` set. The shell's PHP side reads
+ * the WP hook_suffix (not $isoft_fmf_section) to derive top+sub.
  */
 
 defined( 'ABSPATH' ) || exit;
 
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- $isoft_fmf_section is set by the including view (already prefixed).
 
-if ( ! isset( $isoft_fmf_section ) || ! in_array( $isoft_fmf_section, array( 'licenses', 'stats', 'log', 'broken-links', 'settings' ), true ) ) {
+if ( ! isset( $isoft_fmf_section ) || ! in_array( $isoft_fmf_section, array( 'licenses', 'tools', 'stats', 'log', 'broken-links', 'settings' ), true ) ) {
 	return;
 }
 
-$isoft_fmf_bootstrap = ISOFT_FMF_Admin_Shell::bootstrap_payload();
+$isoft_fmf_bootstrap            = ISOFT_FMF_Admin_Shell::bootstrap_payload();
+$isoft_fmf_show_integrity_panel = 'tools' === $isoft_fmf_bootstrap['active']['top']
+	&& 'broken-links' === ( $isoft_fmf_bootstrap['active']['sub'] ?? '' );
 ?>
 <div class="wrap isoft-fmf-shell-wrap">
-	<?php if ( 'broken-links' === $isoft_fmf_section ) : ?>
+	<?php if ( $isoft_fmf_show_integrity_panel ) : ?>
 		<?php require __DIR__ . '/broken-links-integrity-panel.php'; ?>
 	<?php endif; ?>
 
 	<div
 		id="isoft-fmf-admin-root"
-		data-section="<?php echo esc_attr( $isoft_fmf_section ); ?>"
 		data-bootstrap="<?php echo esc_attr( wp_json_encode( $isoft_fmf_bootstrap ) ); ?>"
 	></div>
 

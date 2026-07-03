@@ -1,78 +1,73 @@
 /**
- * Admin shell — SPA entry point for the 5 Downloads > * admin pages.
+ * Admin shell — SPA entry point for the Downloads > * admin pages.
  *
- * 0.12.6 replaces five per-page bundles (licenses-page.js, stats-page.js,
- * log-page.js, broken-links-page.js, settings-page.js) with this single
- * entry so:
- *
- *   1. @wordpress/dataviews is bundled ONCE. Pre-0.12.6, Log and Broken
- *      Links each carried ~220 KB of DataViews — clicking between them
- *      re-downloaded the same code.
- *   2. Navigation between the 5 sections is client-side via
- *      router.js. First entry to the shell is still bounded by WP admin
- *      PHP boot (~1.5-2s); subsequent nav is sub-500ms.
- *   3. Sections mount lazily on first visit and stay mounted (hidden
- *      via CSS). Re-visiting Log preserves its DataViews search / page
- *      / filter state.
+ * 0.12.8: three top-level sections (Licenses / Tools / Settings). Tools
+ * houses Statistics / Download Log / Broken Links as horizontal sub-
+ * tabs; Settings houses General / Display / Security / Advanced /
+ * Maintenance / Extensions as a vertical sidebar card.
  *
  * The PHP shell (class-admin-shell.php + admin/views/admin-shell-mount.php)
- * emits one mount div with:
- *   - data-section=<initial section slug>
- *   - data-bootstrap=<JSON blob keyed by section, containing each
- *     section's server-computed initial payload>
+ * emits one mount div with `data-bootstrap` carrying:
+ *   - active = { top, sub }: initial routing state
+ *   - badgeCount: broken-links count (drives both the top nav Tools
+ *     badge and the Tools sub-nav Broken Links badge)
+ *   - one slice for the active top section
  *
  * See docs/architecture.md for the full sequence.
  */
 
-import { createRoot, render, useState, useEffect, useCallback, useMemo, useRef } from '@wordpress/element';
+import {
+	createRoot,
+	render,
+	useState,
+	useEffect,
+	useCallback,
+	useMemo,
+	useRef,
+} from '@wordpress/element';
 
 import { SectionNav } from './nav';
-import { attachRouter, SECTIONS } from './router';
+import { attachRouter, TOPS } from './router';
 
-// Each section is a lazy import to keep the shell entry small and let
-// section bundles evict from cache independently. React.lazy expects a
-// default export from the module; each section file exports its top
-// component as default.
-//
-// Not using React.lazy right now — sections are eagerly imported so
-// the shell mounts synchronously and the section swap doesn't flash a
-// Suspense fallback. If bundle grows past 350 KB the switch to
-// React.lazy is a one-line change per section.
-import LicensesSection    from './sections/licenses';
-import StatsSection       from './sections/stats';
-import LogSection         from './sections/log';
-import BrokenLinksSection from './sections/broken-links';
-import SettingsSection    from './sections/settings';
+import LicensesSection from './sections/licenses';
+import ToolsSection    from './sections/tools';
+import SettingsSection from './sections/settings';
 
 const SECTION_COMPONENTS = {
-	'licenses':     LicensesSection,
-	'stats':        StatsSection,
-	'log':          LogSection,
-	'broken-links': BrokenLinksSection,
-	'settings':     SettingsSection,
+	licenses: LicensesSection,
+	tools:    ToolsSection,
+	settings: SettingsSection,
 };
 
-const Shell = ( { initialSection, bootstrap } ) => {
-	const [ active, setActive ] = useState( initialSection );
+const Shell = ( { initialActive, bootstrap } ) => {
+	const [ activeTop, setActiveTop ] = useState( initialActive.top );
+	const [ activeSubByTop, setActiveSubByTop ] = useState( () => ( {
+		licenses: null,
+		tools:    'tools' === initialActive.top ? initialActive.sub : 'stats',
+		settings: 'settings' === initialActive.top ? initialActive.sub : 'general',
+	} ) );
 
-	// Track which sections have been visited. Visited sections stay in
-	// the tree, hidden via CSS, so returning to them preserves their
-	// React state (DataViews search + page, Settings dirty form, etc.).
-	const [ visited, setVisited ] = useState( () => new Set( [ initialSection ] ) );
+	// Sections mount lazily on first visit and stay in the tree behind
+	// [hidden] so revisits preserve React state (DataViews search,
+	// Settings dirty form, ...).
+	const [ visited, setVisited ] = useState( () => new Set( [ initialActive.top ] ) );
 
 	const routerRef = useRef( null );
 
-	const handleNavigate = useCallback( ( section ) => {
-		if ( ! SECTIONS.includes( section ) ) {
+	const handleNavigate = useCallback( ( top, sub ) => {
+		if ( ! TOPS.includes( top ) ) {
 			return;
 		}
-		setActive( section );
+		setActiveTop( top );
+		if ( sub != null ) {
+			setActiveSubByTop( ( prev ) => ( { ...prev, [ top ]: sub } ) );
+		}
 		setVisited( ( prev ) => {
-			if ( prev.has( section ) ) {
+			if ( prev.has( top ) ) {
 				return prev;
 			}
 			const next = new Set( prev );
-			next.add( section );
+			next.add( top );
 			return next;
 		} );
 	}, [] );
@@ -85,35 +80,55 @@ const Shell = ( { initialSection, bootstrap } ) => {
 		};
 	}, [ handleNavigate ] );
 
-	const onSelect = useCallback( ( section ) => {
-		routerRef.current?.navigate( section );
+	const onSelectTop = useCallback( ( top ) => {
+		routerRef.current?.navigate( top, activeSubByTop[ top ] );
+	}, [ activeSubByTop ] );
+
+	const onSelectSub = useCallback( ( top, sub ) => {
+		routerRef.current?.navigate( top, sub );
 	}, [] );
 
-	// Broken-links badge count for the nav strip. Comes from the
-	// broken-links bootstrap payload; if the bootstrap is missing (e.g.
-	// initial section is elsewhere and broken-links wasn't seeded), the
-	// badge silently omits — it re-populates once broken-links mounts
-	// and fetches fresh data.
-	const brokenCount = parseInt( bootstrap?.[ 'broken-links' ]?.initialTotal, 10 ) || 0;
+	const brokenCount = parseInt( bootstrap?.badgeCount, 10 ) || 0;
 
-	const mountedSections = useMemo( () => Array.from( visited ), [ visited ] );
+	const mountedTops = useMemo( () => Array.from( visited ), [ visited ] );
+
+	// Bootstrap slices per top section. `bootstrap[top]` is the slice
+	// the PHP side computed for the active top; sibling tops receive
+	// an empty object and hydrate over REST on first visit.
+	const perTopBootstrap = useMemo(
+		() => ( {
+			licenses: bootstrap?.licenses || {},
+			tools:    bootstrap?.tools    || {},
+			settings: bootstrap?.settings || {},
+		} ),
+		[ bootstrap ]
+	);
 
 	return (
 		<div className="isoft-fmf-shell">
-			<SectionNav active={ active } onSelect={ onSelect } brokenCount={ brokenCount } />
+			<SectionNav
+				activeTop={ activeTop }
+				onSelect={ onSelectTop }
+				brokenCount={ brokenCount }
+			/>
 			<div className="isoft-fmf-shell__body">
-				{ mountedSections.map( ( section ) => {
-					const Component = SECTION_COMPONENTS[ section ];
+				{ mountedTops.map( ( top ) => {
+					const Component = SECTION_COMPONENTS[ top ];
 					if ( ! Component ) {
 						return null;
 					}
 					return (
 						<div
-							key={ section }
+							key={ top }
 							className="isoft-fmf-shell__section"
-							hidden={ section !== active }
+							hidden={ top !== activeTop }
 						>
-							<Component bootstrap={ bootstrap?.[ section ] || {} } />
+							<Component
+								bootstrap={ perTopBootstrap[ top ] }
+								activeSub={ activeSubByTop[ top ] }
+								onSelectSub={ ( sub ) => onSelectSub( top, sub ) }
+								brokenCount={ brokenCount }
+							/>
 						</div>
 					);
 				} ) }
@@ -122,13 +137,8 @@ const Shell = ( { initialSection, bootstrap } ) => {
 	);
 };
 
-// Bootstrap. PHP shell emits ONE mount node with the initial section +
-// a JSON blob keyed by section carrying each section's server-computed
-// initial state (retention days, purge nonce, initial counts, etc.).
 const mountNode = document.getElementById( 'isoft-fmf-admin-root' );
 if ( mountNode ) {
-	const initialSection = mountNode.getAttribute( 'data-section' ) || 'licenses';
-
 	let bootstrap = {};
 	try {
 		bootstrap = JSON.parse( mountNode.getAttribute( 'data-bootstrap' ) || '{}' );
@@ -136,13 +146,15 @@ if ( mountNode ) {
 		bootstrap = {};
 	}
 
+	const initialActive = bootstrap?.active || { top: 'licenses', sub: null };
+
 	if ( typeof createRoot === 'function' ) {
 		createRoot( mountNode ).render(
-			<Shell initialSection={ initialSection } bootstrap={ bootstrap } />
+			<Shell initialActive={ initialActive } bootstrap={ bootstrap } />
 		);
 	} else if ( typeof render === 'function' ) {
 		render(
-			<Shell initialSection={ initialSection } bootstrap={ bootstrap } />,
+			<Shell initialActive={ initialActive } bootstrap={ bootstrap } />,
 			mountNode
 		);
 	}

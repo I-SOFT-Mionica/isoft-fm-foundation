@@ -2,6 +2,42 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.12.8] — unreleased
+
+Information architecture rework. The admin sidebar collapses from 8 Downloads entries to 5, the shell's top nav goes from 5 tabs to 3, and the Settings tab strip becomes a Site-Health-style vertical sidebar card. No perf changes — this is pure UX.
+
+This release does NOT ship to WordPress.org SVN. 0.12.x stays GitHub-only until 1.0.0 graduation.
+
+### Changed
+
+- **Admin sidebar** now shows 5 Downloads entries instead of 8: All Downloads, Add New, Categories, Tags, Licenses, **Tools**, Settings. Statistics / Download Log / Broken Links are consolidated under Tools; their submenus stay registered (URLs still resolve for bookmarks) but `remove_submenu_page` hides them from the sidebar.
+- **Shell top nav** goes from 5 tabs to 3: Licenses / **Tools** / Settings. The pre-0.12.8 flat strip listing every section side-by-side is gone.
+- **Tools section** is new — a card that houses Statistics / Download Log / Broken Links as horizontal sub-tabs (WP-native `.nav-tab-wrapper` style). Broken-links badge appears on the Tools sub-tab AND on the top nav Tools tab so it's discoverable without opening Tools.
+- **Settings section** is rewritten to a vertical sidebar card layout (Site Health / WooCommerce Settings pattern). Six sub-tabs (General, Display, Security, Advanced, **Maintenance**, **Extensions**) live in the left rail; content renders on the right inside one card.
+- **Maintenance and Extensions** now render inside the shell instead of jumping to a legacy PHP page. Their existing PHP HTML is captured server-side via `ob_start()` in `ISOFT_FMF_Admin_Shell::capture_view()` and inlined into `data-bootstrap`; React injects it via `dangerouslySetInnerHTML`. The forms' `options.php` / `admin-post.php` handlers still process submissions unchanged — the browser reloads to the shell after submit.
+
+### Added
+
+- **`ISOFT_FMF_Settings::consolidate_tools_menu()`** — hooked on `admin_menu` at priority 999. Calls `remove_submenu_page` for the three legacy Tools sub-URLs so they don't appear in the sidebar. Their `$_registered_pages` entries survive, so `admin.php?page=isoft-fmf-stats` etc. still resolves.
+- **`ISOFT_FMF_Admin_Shell::capture_view()`** — buffered-output helper. Runs a PHP view file and returns its rendered HTML as a string.
+- **New Tools view** at `admin/views/tools-page.php` — thin adapter, mounts the shell with `$isoft_fmf_section = 'tools'`.
+- **`blocks/admin-shell/sections/tools.js`** — new React section. Owns the horizontal sub-nav strip; child components (`StatsSection`, `LogSection`, `BrokenLinksSection`) are re-parented from the pre-0.12.8 top-level shell.
+
+### Router / URL model
+
+- Routing state is now `{ top, sub }`. `top ∈ { licenses, tools, settings }`, `sub` names the active inner tab (or null for Licenses). The router derives `{top, sub}` from either the new URL (`?page=isoft-fmf-tools`) or the legacy sub-URLs (`?page=isoft-fmf-log` → `{ tools, log }`), and pushState writes the canonical URL for the current pair. `?tab=general` continues to be Settings' sub-tab discriminator so deep-links stay stable.
+- The `#adminmenu` click hijack now understands the top+sub mapping — clicking a sidebar link to any of our pages routes client-side to the correct top and sub together.
+
+### PHP
+
+- **`ISOFT_FMF_Admin_Shell::section_map()`** now returns `{ top, sub }` tuples instead of section slugs.
+- **`bootstrap_payload()`** shape: `{ active: { top, sub }, badgeCount, licenses: {…}, tools: {…}, settings: {…} }`. Only the active top's slice is populated; sibling tops receive an empty object and hydrate over REST on first visit.
+- **`tools_slice()`** is analogous to the pre-0.12.8 per-section slices — it computes only the active sub-tab's slice (stats overview, log rows, or broken-file rows) and leaves siblings for post-mount fetch.
+
+### Version
+
+Bump to **0.12.8-dev**. `readme.txt` `Stable tag:` stays at `0.11.0`.
+
 ## [0.12.7] — unreleased
 
 Perf pass on top of the 0.12.6 SPA shell, addressing structural cost the shell itself couldn't touch. Four backend changes and one small IA move.
