@@ -1,24 +1,15 @@
 /**
- * React app for the Licenses admin page (Downloads > Licenses).
+ * Licenses section — hand-rolled wp-list-table + Modal-based CRUD.
  *
- * 0.12.2 scope: first standalone React-mounted admin screen. Proves the
- * pattern (PHP renders a single mount node; React app owns the surface;
- * PHP form fallback stays in place when JS is unavailable) before the
- * larger 0.12.3 rewrite covers Settings / Stats / Log / Broken Links.
- *
- * Why not <DataViews>:
- *   License tables are small (typically 5-20 rows). DataViews requires
- *   non-trivial scaffolding (fields schema, view state, layout config)
- *   that's overkill here. The hand-rolled wp-list-table HTML below gets
- *   the same visual treatment from WP core CSS, with a fraction of the
- *   JS. DataViews lands in 0.12.3 for the pages that actually need
- *   pagination / filtering (Log, Broken Links, Stats).
- *
- * Why no custom Redux store:
- *   All state lives on this single page, mounted once. apiFetch
- *   directly + useState is the simplest thing that works. Refetch after
- *   each mutation; license counts are small enough that latency doesn't
- *   matter and we avoid optimistic-update bugs.
+ * Ported from blocks/licenses-page/index.js in 0.12.6 when the 5
+ * per-page bundles collapsed into a single admin-shell entry. Content
+ * is unchanged aside from:
+ *   - Renamed LicensesApp -> LicensesSection.
+ *   - Removed self-mount code at the bottom (shell owns mounting).
+ *   - Section renders bare content — the enclosing .wrap div is
+ *     supplied by admin-shell-mount.php.
+ *   - Bootstrap prop threaded in (unused for Licenses — the REST
+ *     endpoint returns full state, no server-precomputed hints needed).
  */
 
 import {
@@ -31,7 +22,7 @@ import {
 	Spinner,
 	__experimentalConfirmDialog as ConfirmDialog,
 } from '@wordpress/components';
-import { useState, useEffect, useCallback, render, createRoot } from '@wordpress/element';
+import { useState, useEffect, useCallback } from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 
@@ -48,26 +39,21 @@ const emptyLicense = () => ( {
 	sort_order:  0,
 } );
 
-const LicensesApp = () => {
-	const [ licenses, setLicenses ] = useState( null );
+const LicensesSection = () => {
+	const [ licenses, setLicenses ]   = useState( null );
 	const [ loadError, setLoadError ] = useState( null );
 
-	// Editing modal state. null = closed; license object (with id=0 for
-	// new) = open.
-	const [ editing, setEditing ]       = useState( null );
-	const [ saving, setSaving ]         = useState( false );
-	const [ saveError, setSaveError ]   = useState( null );
+	const [ editing, setEditing ]     = useState( null );
+	const [ saving, setSaving ]       = useState( false );
+	const [ saveError, setSaveError ] = useState( null );
 
-	// Delete confirm state. null = closed; license object = open.
-	const [ deleting, setDeleting ]     = useState( null );
+	const [ deleting, setDeleting ]       = useState( null );
 	const [ deleteError, setDeleteError ] = useState( null );
 
-	// Restore-seeds confirm state.
 	const [ confirmRestore, setConfirmRestore ] = useState( false );
 	const [ restoring, setRestoring ]           = useState( false );
 
-	// Cross-cutting success message (saved / deleted / restored).
-	const [ notice, setNotice ]         = useState( null );
+	const [ notice, setNotice ] = useState( null );
 
 	const fetchLicenses = useCallback( () => {
 		setLoadError( null );
@@ -114,9 +100,9 @@ const LicensesApp = () => {
 		setSaving( true );
 		setSaveError( null );
 
-		const isNew   = ! editing.id;
-		const path    = isNew ? ROUTE : `${ ROUTE }/${ editing.id }`;
-		const method  = isNew ? 'POST' : 'PUT';
+		const isNew  = ! editing.id;
+		const path   = isNew ? ROUTE : `${ ROUTE }/${ editing.id }`;
+		const method = isNew ? 'POST' : 'PUT';
 
 		apiFetch( {
 			path,
@@ -215,10 +201,6 @@ const LicensesApp = () => {
 			} )
 			.finally( () => setRestoring( false ) );
 	};
-
-	// ------------------------------------------------------------------
-	// Render
-	// ------------------------------------------------------------------
 
 	return (
 		<div className="isoft-fmf-licenses-app">
@@ -563,14 +545,4 @@ const LicensesApp = () => {
 	);
 };
 
-// Mount. createRoot is the modern API (React 18 / WP 6.2+); render is
-// the fallback for older WP. We require 6.7+ so createRoot is always
-// present, but keep the fallback for defensive robustness.
-const mountNode = document.getElementById( 'isoft-fmf-licenses-root' );
-if ( mountNode ) {
-	if ( typeof createRoot === 'function' ) {
-		createRoot( mountNode ).render( <LicensesApp /> );
-	} else if ( typeof render === 'function' ) {
-		render( <LicensesApp />, mountNode );
-	}
-}
+export default LicensesSection;

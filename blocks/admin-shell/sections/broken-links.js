@@ -1,28 +1,19 @@
 /**
- * React app for the Broken Links admin page
- * (Downloads > Broken Links).
+ * Broken Links section — DataViews table + per-row Recover modal driven
+ * by /broken-links/{id}/probe + /recover + /reupload.
  *
- * 0.12.3 scope, sub-PR 3 of 4. Second DataViews surface. Replaces the
- * WP_List_Table + custom jQuery modal that drove the prior page with
- * a DataViews list + @wordpress/components Modal driven by REST
- * recovery endpoints landed in 0.12.0.
+ * Ported from blocks/broken-links-page/index.js in 0.12.6 when the 5
+ * per-page bundles collapsed into a single admin-shell entry. Content
+ * is unchanged aside from:
+ *   - Renamed BrokenLinksApp -> BrokenLinksSection.
+ *   - Removed self-mount code at the bottom (shell owns mounting).
+ *   - Bootstrap payload arrives as one `bootstrap` prop (initialTotal +
+ *     initialPages destructured inside).
+ *   - formatDate imported from ../util/format instead of defined inline.
  *
- * Out of scope: the integrity-check panel at the top of the page —
- * that stays as PHP (server-side action with a stateful lock, easier
- * to render with PHP than to round-trip through REST for a once-a-day
- * button click). The PHP fragment renders above the React mount, the
- * React app owns just the list + recovery modal.
- *
- * Recovery flow (mirrors the old jQuery dialog):
- *   1. User clicks "Recover" on a row -> Modal opens, kicks off /probe
- *   2. Probe response tells us which actions apply (cross-cat = show
- *      move_back/reassign/split; always = show reupload/detach)
- *   3. User picks an action -> POST /recover (or /reupload for file)
- *   4. On success, modal closes + list refreshes + success notice
- *
- * The "modal hangs after action" UX issue from 0.12.1 (where the old
- * jQuery dialog kept buttons clickable after a successful action) is
- * resolved here by closing the modal immediately on success.
+ * The integrity-check panel remains a PHP fragment rendered above the
+ * shell mount by admin-shell-mount.php — server-side lock state +
+ * admin-post.php action, not a good fit for REST round-tripping.
  */
 
 import { DataViews } from '@wordpress/dataviews';
@@ -31,12 +22,12 @@ import {
 	Spinner,
 	Button,
 	Modal,
-	__experimentalConfirmDialog as ConfirmDialog,
 } from '@wordpress/components';
-import { useState, useEffect, useMemo, useCallback, createRoot, render } from '@wordpress/element';
+import { useState, useEffect, useMemo, useCallback } from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
-import { dateI18n, getSettings as getDateSettings } from '@wordpress/date';
 import apiFetch from '@wordpress/api-fetch';
+
+import { formatDate } from '../util/format';
 
 const LIST_ROUTE = '/isoft-fm-foundation/v1/broken-links';
 
@@ -59,19 +50,6 @@ const DEFAULT_VIEW = {
 	density: 'compact',
 	layout:  {},
 };
-
-const formatDate = ( mysqlDate ) => {
-	if ( ! mysqlDate ) {
-		return '—';
-	}
-	const formats = getDateSettings().formats;
-	const fmt     = `${ formats.date } ${ formats.time }`;
-	return dateI18n( fmt, mysqlDate );
-};
-
-// ---------------------------------------------------------------------
-// Recovery modal — handles probe + action dispatch.
-// ---------------------------------------------------------------------
 
 const RecoverModal = ( { item, onClose, onSuccess } ) => {
 	const [ probe, setProbe ]       = useState( null );
@@ -166,11 +144,11 @@ const RecoverModal = ( { item, onClose, onSuccess } ) => {
 				<>
 					<div
 						style={ {
-							background:    '#f6f7f7',
-							padding:       '12px',
-							borderRadius:  '4px',
-							marginBottom:  '16px',
-							fontSize:      '13px',
+							background:   '#f6f7f7',
+							padding:      '12px',
+							borderRadius: '4px',
+							marginBottom: '16px',
+							fontSize:     '13px',
 						} }
 					>
 						<p style={ { margin: '0 0 4px' } }>
@@ -297,19 +275,20 @@ const RecoverModal = ( { item, onClose, onSuccess } ) => {
 	);
 };
 
-// ---------------------------------------------------------------------
-// Main app
-// ---------------------------------------------------------------------
+const BrokenLinksSection = ( { bootstrap } ) => {
+	const {
+		initialTotal = 0,
+		initialPages = 0,
+	} = bootstrap || {};
 
-const BrokenLinksApp = ( { initialTotal, initialPages } ) => {
-	const [ view, setView ]           = useState( DEFAULT_VIEW );
-	const [ rows, setRows ]           = useState( [] );
-	const [ total, setTotal ]         = useState( initialTotal );
+	const [ view, setView ]             = useState( DEFAULT_VIEW );
+	const [ rows, setRows ]             = useState( [] );
+	const [ total, setTotal ]           = useState( initialTotal );
 	const [ totalPages, setTotalPages ] = useState( initialPages );
-	const [ loading, setLoading ]     = useState( true );
-	const [ error, setError ]         = useState( null );
-	const [ recovering, setRecovering ] = useState( null ); // row being recovered
-	const [ notice, setNotice ]       = useState( null );
+	const [ loading, setLoading ]       = useState( true );
+	const [ error, setError ]           = useState( null );
+	const [ recovering, setRecovering ] = useState( null );
+	const [ notice, setNotice ]         = useState( null );
 
 	const fetchList = useCallback( () => {
 		const params = new URLSearchParams();
@@ -348,10 +327,10 @@ const BrokenLinksApp = ( { initialTotal, initialPages } ) => {
 	const fields = useMemo(
 		() => [
 			{
-				id:       'download_title',
-				label:    __( 'Download', 'isoft-fm-foundation' ),
+				id:            'download_title',
+				label:         __( 'Download', 'isoft-fm-foundation' ),
 				enableSorting: false,
-				render:   ( { item } ) => {
+				render:        ( { item } ) => {
 					const url = `${ window.location.origin }/wp-admin/post.php?post=${ item.download_id }&action=edit`;
 					return item.download_id
 						? <a href={ url }>{ item.download_title || `#${ item.download_id }` }</a>
@@ -359,28 +338,28 @@ const BrokenLinksApp = ( { initialTotal, initialPages } ) => {
 				},
 			},
 			{
-				id:       'file_name',
-				label:    __( 'File', 'isoft-fm-foundation' ),
+				id:            'file_name',
+				label:         __( 'File', 'isoft-fm-foundation' ),
 				enableSorting: false,
-				render:   ( { item } ) => (
+				render:        ( { item } ) => (
 					<code style={ { fontSize: '12px' } }>{ item.file_name || '—' }</code>
 				),
 			},
 			{
-				id:       'expected_path',
-				label:    __( 'Expected Path', 'isoft-fm-foundation' ),
+				id:            'expected_path',
+				label:         __( 'Expected Path', 'isoft-fm-foundation' ),
 				enableSorting: false,
-				render:   ( { item } ) => (
+				render:        ( { item } ) => (
 					<code style={ { fontSize: '11px', color: '#646970' } }>
 						{ item.file_path || '—' }
 					</code>
 				),
 			},
 			{
-				id:       'missing_since',
-				label:    __( 'Missing Since', 'isoft-fm-foundation' ),
+				id:            'missing_since',
+				label:         __( 'Missing Since', 'isoft-fm-foundation' ),
 				enableSorting: false,
-				render:   ( { item } ) => formatDate( item.missing_since ),
+				render:        ( { item } ) => formatDate( item.missing_since ),
 			},
 		],
 		[]
@@ -389,13 +368,10 @@ const BrokenLinksApp = ( { initialTotal, initialPages } ) => {
 	const actions = useMemo(
 		() => [
 			{
-				id:       'recover',
-				label:    __( 'Recover', 'isoft-fm-foundation' ),
+				id:        'recover',
+				label:     __( 'Recover', 'isoft-fm-foundation' ),
 				isPrimary: true,
-				callback: ( items ) => {
-					// DataViews row actions pass an array — single-row
-					// recovery means [item]. We don't support bulk recovery
-					// since the probe + per-file flow is one-at-a-time.
+				callback:  ( items ) => {
 					if ( items?.[ 0 ] ) {
 						setRecovering( items[ 0 ] );
 					}
@@ -428,13 +404,10 @@ const BrokenLinksApp = ( { initialTotal, initialPages } ) => {
 				</Notice>
 			) }
 
-			{ /* Always-visible status row. Tells the admin "the React app
-			   * loaded" even when there are zero broken files (DataViews on
-			   * its own renders nothing visible in that case). */ }
 			<p
 				style={ {
-					margin: '12px 0 8px',
-					color:  '#646970',
+					margin:   '12px 0 8px',
+					color:    '#646970',
 					fontSize: '13px',
 				} }
 			>
@@ -488,15 +461,4 @@ const BrokenLinksApp = ( { initialTotal, initialPages } ) => {
 	);
 };
 
-const mountNode = document.getElementById( 'isoft-fmf-broken-links-root' );
-if ( mountNode ) {
-	const props = {
-		initialTotal: parseInt( mountNode.getAttribute( 'data-initial-total' ) || '0', 10 ),
-		initialPages: parseInt( mountNode.getAttribute( 'data-initial-pages' ) || '0', 10 ),
-	};
-	if ( typeof createRoot === 'function' ) {
-		createRoot( mountNode ).render( <BrokenLinksApp { ...props } /> );
-	} else if ( typeof render === 'function' ) {
-		render( <BrokenLinksApp { ...props } />, mountNode );
-	}
-}
+export default BrokenLinksSection;

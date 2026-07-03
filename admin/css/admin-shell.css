@@ -1,0 +1,27 @@
+/*
+ * Admin shell — chrome for the SPA nav strip and the hidden-section
+ * container. All section content styles come from the shared
+ * admin-style.css + dataviews-table.css + wp-components.
+ */
+
+.isoft-fmf-shell-nav {
+	margin-top: 0;
+}
+
+.isoft-fmf-shell__body {
+	margin-top: 12px;
+}
+
+/*
+ * Hide inactive sections via [hidden] attribute (native HTML). The
+ * default UA style is `display: none`, which unmounts nothing — the
+ * React tree stays mounted and its state (DataViews search, Settings
+ * dirty form, ...) survives round-trips through other sections.
+ */
+.isoft-fmf-shell__section[hidden] {
+	display: none;
+}
+
+.isoft-fmf-broken-badge {
+	margin-left: 4px;
+}
