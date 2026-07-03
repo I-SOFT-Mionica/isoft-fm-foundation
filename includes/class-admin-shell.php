@@ -43,10 +43,26 @@ class ISOFT_FMF_Admin_Shell {
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue' ) );
 	}
 
+	/**
+	 * Stashes the active section derived from hook_suffix so
+	 * bootstrap_payload() knows which slice to compute. The alternative
+	 * — re-deriving from $_GET['page'] inside bootstrap_payload — is
+	 * fragile because the mount partial runs from inside a submenu
+	 * callback, not the admin_enqueue_scripts hook, and $_GET is the
+	 * same but there's no coupling guarantee.
+	 */
+	private static ?string $active_section = null;
+
+	public static function active_section(): ?string {
+		return self::$active_section;
+	}
+
 	public function enqueue( string $hook_suffix ): void {
-		if ( ! array_key_exists( $hook_suffix, self::section_map() ) ) {
+		$section = self::section_map()[ $hook_suffix ] ?? null;
+		if ( null === $section ) {
 			return;
 		}
+		self::$active_section = $section;
 
 		$asset_path = ISOFT_FMF_PLUGIN_DIR . 'blocks/build/admin-shell.asset.php';
 		if ( ! file_exists( $asset_path ) ) {
@@ -94,36 +110,94 @@ class ISOFT_FMF_Admin_Shell {
 	}
 
 	/**
-	 * Compute the per-section bootstrap blob that admin-shell-mount.php
-	 * emits as `data-bootstrap` on the mount div.
+	 * Broken-links badge count — cheap and cached (5-min transient in
+	 * ISOFT_FMF_File_Integrity::missing_count()), invalidated by
+	 * recover / reupload / detach / integrity cron. Always inlined
+	 * regardless of active section so the tab strip badge renders
+	 * correctly even before that section mounts.
+	 */
+	private static function badge_count(): int {
+		return ISOFT_FMF_File_Integrity::missing_count();
+	}
+
+	/**
+	 * Compute the bootstrap blob that admin-shell-mount.php emits as
+	 * `data-bootstrap` on the mount div.
 	 *
-	 * Every section's bootstrap ships on every page load, so a user
-	 * landing on Statistics gets the Log's initial count already
-	 * hydrated — the tab strip's Broken Links badge is accurate before
-	 * the section itself mounts.
+	 * As of the 0.12.7 perf pass, this is LAZY: only the active
+	 * section's slice is computed on page load. The other four
+	 * sections receive an empty placeholder (broken-links keeps the
+	 * badge count, which drives the tab strip). When the user
+	 * navigates to another section, that section's normal post-mount
+	 * REST fetch fires — since the SPA router keeps visited sections
+	 * alive in the DOM, each section pays its query cost exactly once
+	 * per session instead of all five paying on every page load.
 	 *
-	 * As of the 0.12.6 perf pass, each section also ships its full
-	 * first-paint data (log rows, broken-links list, settings values,
-	 * license table, stats overview) so the initial render does zero
-	 * REST calls. The old classic-admin property — "one PHP request
-	 * renders everything visible" — is restored while React interactive
-	 * behaviour (search, filter, pagination, CRUD) still routes through
-	 * REST after mount.
+	 * Pre-0.12.7 shape: ~5-8 uncached DB round-trips per shell page
+	 * load (log rows + downloads-list + broken-file rows + license
+	 * list + settings + stats), regardless of which tab the user is
+	 * actually on. Post-0.12.7: 1-2 (badge + active section's slice),
+	 * with the balance amortised across sessions.
 	 *
 	 * @return array<string,array<string,mixed>>
 	 */
 	public static function bootstrap_payload(): array {
+		$section = self::$active_section ?? 'licenses';
+
+		$payload = array(
+			'licenses'     => (object) array(),
+			'stats'        => (object) array(),
+			'log'          => (object) array(),
+			'broken-links' => array( 'badgeCount' => self::badge_count() ),
+			'settings'     => (object) array(),
+		);
+
+		switch ( $section ) {
+			case 'licenses':
+				$payload['licenses'] = self::licenses_slice();
+				break;
+			case 'stats':
+				$payload['stats'] = self::stats_slice();
+				break;
+			case 'log':
+				$payload['log'] = self::log_slice();
+				break;
+			case 'broken-links':
+				$payload['broken-links'] = array_merge(
+					$payload['broken-links'],
+					self::broken_links_slice()
+				);
+				break;
+			case 'settings':
+				$payload['settings'] = self::settings_slice();
+				break;
+		}
+
+		return $payload;
+	}
+
+	private static function licenses_slice(): array {
+		return array(
+			'initialItems' => ( new ISOFT_FMF_License_Service() )->list(),
+		);
+	}
+
+	private static function stats_slice(): array {
+		return array(
+			'initialOverview' => isoft_fmf_get_stats_overview(),
+		);
+	}
+
+	private static function log_slice(): array {
 		global $wpdb;
 
 		$per_page = 25;
 
-		// -----------------------------------------------------------------
-		// Log — replicates the default view of GET /logs (no filter,
-		// no search, page 1, ORDER BY downloaded_at DESC, LIMIT 25).
-		// -----------------------------------------------------------------
+		// Replicates GET /logs default view: no filter, no search,
+		// page 1, ORDER BY downloaded_at DESC LIMIT 25.
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- One-shot inline-bootstrap read; freshness > cache.
-		$log_initial_total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}isoft_fmf_download_log" );
-		$log_rows          = $wpdb->get_results(
+		$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}isoft_fmf_download_log" );
+		$rows  = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT l.id, l.download_id, p.post_title AS download_title,
 				        l.file_id, f.file_name, l.user_id, l.user_login, l.ip_address AS user_ip,
@@ -138,12 +212,9 @@ class ISOFT_FMF_Admin_Shell {
 		) ?: array();
 		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 
-		// The Log section's filter dropdown lists every download; the
-		// pre-inline shape fetched /downloads?per_page=100. Same shape
-		// here so React can drop the extra fetch.
-		// get_posts() already defaults suppress_filters to true — no
-		// need (and VIP disallows) an explicit key.
-		$log_downloads = get_posts(
+		// Log section's filter-by-download dropdown. get_posts()
+		// defaults suppress_filters=true — no explicit key needed.
+		$downloads       = get_posts(
 			array(
 				'post_type'      => 'isoft_fmf_file',
 				'post_status'    => 'any',
@@ -153,56 +224,48 @@ class ISOFT_FMF_Admin_Shell {
 				'no_found_rows'  => true,
 			)
 		);
-		$log_downloads_shape = array_map(
+		$downloads_shape = array_map(
 			static function ( WP_Post $p ): array {
 				return array(
 					'id'    => $p->ID,
 					'title' => $p->post_title,
 				);
 			},
-			$log_downloads
+			$downloads
 		);
 
-		// -----------------------------------------------------------------
-		// Broken links — first 25 rows via the existing service. It
-		// already returns { items, total } and shapes each item exactly
-		// as the REST endpoint does.
-		// -----------------------------------------------------------------
-		$broken_service = new ISOFT_FMF_Broken_Links_Service();
-		$broken_page    = $broken_service->list_broken( 1, $per_page );
+		$can_purge = current_user_can( 'isoft_fmf_manage_settings' );
 
-		// -----------------------------------------------------------------
-		// Licenses — full table (small; 5-20 rows typical).
-		// -----------------------------------------------------------------
-		$license_items = ( new ISOFT_FMF_License_Service() )->list();
+		return array(
+			'exportBaseUrl'    => admin_url( 'edit.php?post_type=isoft_fmf_file&page=isoft-fmf-log' ),
+			'purgeUrl'         => admin_url( 'admin-post.php' ),
+			'purgeNonce'       => $can_purge ? wp_create_nonce( 'isoft_fmf_purge_logs' ) : '',
+			'retentionDays'    => (int) get_option( 'isoft_fmf_log_retention_days', 365 ),
+			'loggingEnabled'   => (bool) get_option( 'isoft_fmf_enable_logging', true ),
+			'canExport'        => current_user_can( 'isoft_fmf_export_logs' ),
+			'canPurge'         => $can_purge,
+			'initialTotal'     => $total,
+			'initialPages'     => (int) ceil( $total / $per_page ),
+			'initialItems'     => $rows,
+			'initialDownloads' => $downloads_shape,
+		);
+	}
 
-		// -----------------------------------------------------------------
-		// Settings — full options map for the 4 schema tabs.
-		// -----------------------------------------------------------------
-		$settings_values = ( new ISOFT_FMF_Settings_Service() )->get_all();
+	private static function broken_links_slice(): array {
+		$per_page = 25;
+		$page     = ( new ISOFT_FMF_Broken_Links_Service() )->list_broken( 1, $per_page );
+		return array(
+			'initialTotal' => (int) $page['total'],
+			'initialPages' => (int) ceil( $page['total'] / $per_page ),
+			'initialItems' => $page['items'],
+		);
+	}
 
-		// -----------------------------------------------------------------
-		// Stats overview — same payload the /stats/overview REST route
-		// returns. isoft_fmf_get_stats_overview() is cached for 5
-		// minutes so inlining here is free.
-		// -----------------------------------------------------------------
-		$stats_overview = isoft_fmf_get_stats_overview();
-
-		// -----------------------------------------------------------------
-		// Log config + chrome.
-		// -----------------------------------------------------------------
-		$log_export_base    = admin_url( 'edit.php?post_type=isoft_fmf_file&page=isoft-fmf-log' );
-		$log_purge_url      = admin_url( 'admin-post.php' );
-		$log_retention_days = (int) get_option( 'isoft_fmf_log_retention_days', 365 );
-		$log_logging_on     = (bool) get_option( 'isoft_fmf_enable_logging', true );
-		$log_can_export     = current_user_can( 'isoft_fmf_export_logs' );
-		$log_can_purge      = current_user_can( 'isoft_fmf_manage_settings' );
-		$log_purge_nonce    = $log_can_purge ? wp_create_nonce( 'isoft_fmf_purge_logs' ) : '';
-
-		$settings_tabs     = array( 'general', 'display', 'security', 'advanced', 'maintenance', 'extensions' );
-		$settings_tab_urls = array();
-		foreach ( $settings_tabs as $tab ) {
-			$settings_tab_urls[ $tab ] = add_query_arg(
+	private static function settings_slice(): array {
+		$tabs     = array( 'general', 'display', 'security', 'advanced', 'maintenance', 'extensions' );
+		$tab_urls = array();
+		foreach ( $tabs as $tab ) {
+			$tab_urls[ $tab ] = add_query_arg(
 				array(
 					'page'      => 'isoft-fmf-settings',
 					'post_type' => 'isoft_fmf_file',
@@ -212,41 +275,15 @@ class ISOFT_FMF_Admin_Shell {
 			);
 		}
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only tab selector; nonce belongs on form submit, not nav.
-		$settings_initial_tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'general';
+		$initial_tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'general';
 
 		return array(
-			'licenses'     => array(
-				'initialItems' => $license_items,
+			'initialTab'    => in_array( $initial_tab, array( 'general', 'display', 'security', 'advanced' ), true ) ? $initial_tab : 'general',
+			'phpTabUrls'    => array(
+				'maintenance' => $tab_urls['maintenance'],
+				'extensions'  => $tab_urls['extensions'],
 			),
-			'stats'        => array(
-				'initialOverview' => $stats_overview,
-			),
-			'log'          => array(
-				'exportBaseUrl'    => $log_export_base,
-				'purgeUrl'         => $log_purge_url,
-				'purgeNonce'       => $log_purge_nonce,
-				'retentionDays'    => $log_retention_days,
-				'loggingEnabled'   => $log_logging_on,
-				'canExport'        => $log_can_export,
-				'canPurge'         => $log_can_purge,
-				'initialTotal'     => $log_initial_total,
-				'initialPages'     => (int) ceil( $log_initial_total / $per_page ),
-				'initialItems'     => $log_rows,
-				'initialDownloads' => $log_downloads_shape,
-			),
-			'broken-links' => array(
-				'initialTotal' => (int) $broken_page['total'],
-				'initialPages' => (int) ceil( $broken_page['total'] / $per_page ),
-				'initialItems' => $broken_page['items'],
-			),
-			'settings'     => array(
-				'initialTab'    => in_array( $settings_initial_tab, array( 'general', 'display', 'security', 'advanced' ), true ) ? $settings_initial_tab : 'general',
-				'phpTabUrls'    => array(
-					'maintenance' => $settings_tab_urls['maintenance'],
-					'extensions'  => $settings_tab_urls['extensions'],
-				),
-				'initialValues' => $settings_values,
-			),
+			'initialValues' => ( new ISOFT_FMF_Settings_Service() )->get_all(),
 		);
 	}
 }

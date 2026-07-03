@@ -102,9 +102,22 @@ class ISOFT_FMF_Download_Logger {
 	/**
 	 * Delete log entries older than the configured retention period.
 	 *
-	 * @return int  Number of rows deleted.
+	 * Runs in batches of {@see BATCH_SIZE} rows so a large purge (10k+
+	 * rows on a busy site) doesn't hold a single long transaction that
+	 * blocks concurrent writes. The idx_downloaded_at index makes each
+	 * batch's WHERE-scan cheap.
+	 *
+	 * A per-call ceiling caps the loop so a manual "Purge old log
+	 * entries" click on the admin page can't stall the request through
+	 * the PHP max_execution_time — the cron then finishes any remainder
+	 * on its next daily fire.
+	 *
+	 * @param int $max_batches Ceiling on batches per call. 0 = no cap.
+	 *                         Cron passes 0; admin-post handler passes
+	 *                         a small value (see Export::purge_logs).
+	 * @return int             Total rows deleted across all batches.
 	 */
-	public function purge_old_logs(): int {
+	public function purge_old_logs( int $max_batches = 0 ): int {
 		global $wpdb;
 
 		$days = (int) isoft_fmf_get_settings()['log_retention_days'];
@@ -112,21 +125,41 @@ class ISOFT_FMF_Download_Logger {
 			return 0;
 		}
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Retention cleanup on custom log table; never cached.
-		$deleted = (int) $wpdb->query(
-			$wpdb->prepare(
-				'DELETE FROM %i WHERE downloaded_at < DATE_SUB(NOW(), INTERVAL %d DAY)',
-				$this->table,
-				$days
-			)
-		);
+		$total    = 0;
+		$batches  = 0;
+		$per_call = self::BATCH_SIZE;
 
-		if ( $deleted > 0 ) {
-			do_action( 'isoft_fmf_log_purged', $deleted );
+		do {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Retention cleanup on custom log table; batched to avoid long-running transaction.
+			$affected = (int) $wpdb->query(
+				$wpdb->prepare(
+					'DELETE FROM %i WHERE downloaded_at < DATE_SUB(NOW(), INTERVAL %d DAY) LIMIT %d',
+					$this->table,
+					$days,
+					$per_call
+				)
+			);
+			$total   += $affected;
+			++$batches;
+			if ( $max_batches > 0 && $batches >= $max_batches ) {
+				break;
+			}
+		} while ( $affected === $per_call );
+
+		if ( $total > 0 ) {
+			do_action( 'isoft_fmf_log_purged', $total );
 		}
 
-		return $deleted;
+		return $total;
 	}
+
+	/**
+	 * How many rows the retention purge deletes per DELETE call. Small
+	 * enough to keep any single query under a few hundred ms on
+	 * commodity MySQL, large enough that a full purge finishes in a
+	 * reasonable number of iterations.
+	 */
+	private const BATCH_SIZE = 5000;
 
 	private function client_ip(): ?string {
 		foreach ( array( 'HTTP_CF_CONNECTING_IP', 'HTTP_X_FORWARDED_FOR', 'HTTP_X_REAL_IP', 'REMOTE_ADDR' ) as $header ) {

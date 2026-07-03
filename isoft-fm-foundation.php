@@ -3,7 +3,7 @@
  * Plugin Name: I-Soft File Manager: Foundation
  * Plugin URI:  https://github.com/I-SOFT-Mionica/isoft-fm-foundation
  * Description: Hierarchical file download manager — categories, multi-file entries, secure download handler, audit logging, and role-based access control.
- * Version:     0.12.6-dev
+ * Version:     0.12.7-dev
  * Author:      I-SOFT Mionica
  * Author URI:  https://github.com/I-SOFT-Mionica
  * License:     GPL v2 or later
@@ -16,7 +16,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-const ISOFT_FMF_VERSION = '0.12.6-dev';
+const ISOFT_FMF_VERSION = '0.12.7-dev';
 define( 'ISOFT_FMF_PLUGIN_FILE', __FILE__ );
 define( 'ISOFT_FMF_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'ISOFT_FMF_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -138,23 +138,14 @@ add_action(
 		// Shortcodes (registered on all requests for REST/preview compatibility)
 		( new ISOFT_FMF_Shortcodes() )->register_hooks();
 
-		// REST API (needed outside admin too)
-		( new ISOFT_FMF_Rest_Api() )->register_hooks();
-		( new ISOFT_FMF_Rest_Licenses() )->register_hooks();
-		( new ISOFT_FMF_Rest_Settings() )->register_hooks();
-		( new ISOFT_FMF_Rest_Files() )->register_hooks();
-		( new ISOFT_FMF_Rest_Broken_Links() )->register_hooks();
-		( new ISOFT_FMF_Rest_Maintenance() )->register_hooks();
-		( new ISOFT_FMF_Rest_Users() )->register_hooks();
-
-		// Gutenberg blocks
+		// Gutenberg block registration — the register_block_type call
+		// needs to fire on both admin and frontend so block content
+		// renders. Sidebar plugin registration is admin-only (below).
 		( new ISOFT_FMF_Blocks() )->register_hooks();
-		( new ISOFT_FMF_Editor_Sidebar() )->register_hooks();
 
-		// CSV / JSON export + log purge (admin-post.php actions)
-		( new ISOFT_FMF_Export() )->register_hooks();
-
-		// Scheduled tasks (HOT recalculation, log purge)
+		// Scheduled tasks (HOT recalculation, log purge) — the cron
+		// scheduler needs to run so wp_next_scheduled checks succeed
+		// on any request, not only admin.
 		( new ISOFT_FMF_Cron() )->register_hooks();
 
 		if ( is_admin() ) {
@@ -166,10 +157,42 @@ add_action(
 			// classes (Licenses_Page, Stats_Page, Log_Page,
 			// Broken_Links_Page, Settings_Page) retired in 0.12.6.
 			( new ISOFT_FMF_Admin_Shell() )->register_hooks();
+			// Editor sidebar — only mounted inside the block editor;
+			// admin-only load. Was pre-0.12.7 loaded on every request.
+			( new ISOFT_FMF_Editor_Sidebar() )->register_hooks();
+			// Export handlers (admin-post.php actions) — admin-only
+			// entry surface. Was pre-0.12.7 loaded on every request.
+			( new ISOFT_FMF_Export() )->register_hooks();
 			( new ISOFT_FMF_Profile_ACL_Page() )->register_hooks();
 			( new ISOFT_FMF_Taxonomy_Form_Page() )->register_hooks();
 			( new ISOFT_FMF_Pdf_Thumbnail() )->register_hooks();
 			( new ISOFT_FMF_Demo_Content() )->register_hooks();
 		}
+	}
+);
+
+/**
+ * REST controllers — instantiated only on REST requests, not on every
+ * page load. The pre-0.12.7 bootstrap wired them via
+ * add_action('plugins_loaded', ...) which paid the ~7 file autoloads +
+ * constructor cost on every admin and frontend request. Since each
+ * controller's register_hooks() body just adds a listener on
+ * rest_api_init, hooking directly on rest_api_init and calling
+ * register_routes() skips the indirection and the file loads.
+ *
+ * Tests exercise the REST endpoints via WP_REST_Server (not via
+ * register_hooks / register_routes directly), so this hook path is
+ * the only production entry.
+ */
+add_action(
+	'rest_api_init',
+	function (): void {
+		( new ISOFT_FMF_Rest_Api() )->register_routes();
+		( new ISOFT_FMF_Rest_Licenses() )->register_routes();
+		( new ISOFT_FMF_Rest_Settings() )->register_routes();
+		( new ISOFT_FMF_Rest_Files() )->register_routes();
+		( new ISOFT_FMF_Rest_Broken_Links() )->register_routes();
+		( new ISOFT_FMF_Rest_Maintenance() )->register_routes();
+		( new ISOFT_FMF_Rest_Users() )->register_routes();
 	}
 );

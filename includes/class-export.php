@@ -72,7 +72,10 @@ class ISOFT_FMF_Export {
 			wp_die( esc_html__( 'Insufficient permissions.', 'isoft-fm-foundation' ) );
 		}
 
-		$deleted = ( new ISOFT_FMF_Download_Logger() )->purge_old_logs();
+		// Cap the admin-post purge at 10 batches (50k rows) so a manual
+		// click doesn't stall the request under a huge backlog. The
+		// daily cron runs uncapped and finishes any remainder.
+		$deleted = ( new ISOFT_FMF_Download_Logger() )->purge_old_logs( 10 );
 
 		$redirect = add_query_arg(
 			array(

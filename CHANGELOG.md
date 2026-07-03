@@ -2,6 +2,31 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.12.7] — unreleased
+
+Perf pass on top of the 0.12.6 SPA shell, addressing structural cost the shell itself couldn't touch. Four backend changes and one small IA move.
+
+This release does NOT ship to WordPress.org SVN. 0.12.x stays GitHub-only until 1.0.0 graduation.
+
+### Perf
+
+- **Lazy per-section bootstrap.** `ISOFT_FMF_Admin_Shell::bootstrap_payload()` now computes only the active section's slice (derived from the enqueue hook_suffix) plus the broken-links badge count (which is already transient-cached). Pre-0.12.7 shape ran 5–8 uncached DB round-trips per shell page load (log rows + downloads-list + broken-file rows + license list + settings + stats), regardless of tab. Post-0.12.7: 1–2. Since the SPA router keeps visited sections alive in the DOM, each section pays its query cost exactly once per session — the first cross-section click gets a ~100ms spinner, everything else is identical.
+- **Persistent-object-cache layer on the category ACL.** `ISOFT_FMF_Category_ACL::get_effective()` now writes to `wp_cache_set` under group `isoft_fmf_acl` (TTL 1 hour) in addition to the existing in-request memo. With Redis / Memcached / APCu backing `wp_cache_*`, the `get_term_children` walk that resolves a restricted user's allowed set only runs when the user's assignment or the term hierarchy changes. Cache is invalidated by `updated_user_meta` / `added_user_meta` / `deleted_user_meta` on the allowed_categories key (per-user flush) and by `edited_isoft_fmf_category` / `created_isoft_fmf_category` / `delete_isoft_fmf_category` (group flush — child moves affect every ancestor's descendant set).
+- **Batched log-retention purge.** `ISOFT_FMF_Download_Logger::purge_old_logs()` now deletes in batches of 5000 rows in a loop instead of one giant `DELETE`. Same net rows deleted; no single query holds a long transaction that blocks concurrent log-writes on busy sites. The admin-post handler caps the loop at 10 batches (50k rows per click) so a manual purge under a huge backlog can't stall the request past PHP's `max_execution_time`; the daily cron runs uncapped and finishes any remainder. The `idx_downloaded_at` index makes each batch's WHERE scan cheap.
+
+### Changed
+
+- **REST controllers moved off `plugins_loaded`.** The seven `ISOFT_FMF_Rest_*` classes are now instantiated on `rest_api_init` instead of every request. Each pre-0.12.7 request paid ~7 file autoloads + constructor cost on the way to running zero REST code; that cost is now scoped to actual REST requests. Test surfaces are unaffected — tests exercise the endpoints via `WP_REST_Server`, not via `register_hooks` / `register_routes` directly.
+- **Admin-only classes tightened.** `ISOFT_FMF_Editor_Sidebar` and `ISOFT_FMF_Export` moved inside the `is_admin()` guard. Editor sidebar is only mounted inside the block editor; export handlers only run for `admin-post.php` requests. Pre-0.12.7 they loaded on every frontend request too.
+
+### IA (small)
+
+- **Licenses submenu now sits under Tags.** Uses the `add_submenu_page` position argument (16) to land Licenses right after the Tags taxonomy submenu (position 15). Content-facing entries (Categories, Tags, Licenses) read as a visual cluster; Tools-facing entries (Statistics, Download Log, Broken Links) follow.
+
+### Version
+
+Bump to **0.12.7-dev**. `readme.txt` `Stable tag:` stays at `0.11.0`. Ships to `dev/0.12.x` only.
+
 ## [0.12.6] — unreleased
 
 Phase 7 of the React-admin rewrite: the SPA shell. Ships in response to 5+ second menu-item lag reported on real-world Local installs after 0.12.5. Navigation between the 5 Downloads admin surfaces (Licenses / Statistics / Download Log / Broken Links / Settings) is now client-side.
