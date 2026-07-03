@@ -56,13 +56,19 @@ class ISOFT_FMF_License_Manager {
 	// ---------------------------------------------------------------------
 
 	public function register_menu(): void {
+		// Position 16 places Licenses right after Tags in the CPT
+		// submenu. WordPress core assigns each taxonomy submenu entry
+		// position 15 (see wp-admin/menu.php's CPT registration block);
+		// 16 lands us adjacent to the last one — Tags — so the Content
+		// group (Categories, Tags, Licenses) reads as a visual cluster.
 		add_submenu_page(
 			'edit.php?post_type=isoft_fmf_file',
 			__( 'Licenses', 'isoft-fm-foundation' ),
 			__( 'Licenses', 'isoft-fm-foundation' ),
 			'isoft_fmf_manage_settings',
 			'isoft-fmf-licenses',
-			array( $this, 'render_page' )
+			array( $this, 'render_page' ),
+			16
 		);
 	}
 

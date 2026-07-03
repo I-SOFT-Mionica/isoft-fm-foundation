@@ -1,29 +1,19 @@
 /**
- * React app for the Settings admin page
- * (Downloads > Settings — 4 option-driven tabs).
+ * Settings section — schema-driven form for the 4 option tabs
+ * (General / Display / Security / Advanced), backed by /settings.
  *
- * 0.12.3 scope, sub-PR 4 of 4. Pure form-control surface. Each tab
- * renders a vertical stack of @wordpress/components controls bound to
- * the /settings REST endpoint landed in phase 0.12.0. State is held
- * in a single useState({ values }) — small enough that a Redux slice
- * would be overkill.
+ * Ported from blocks/settings-page/index.js in 0.12.6 when the 5
+ * per-page bundles collapsed into a single admin-shell entry. Content
+ * is unchanged aside from:
+ *   - Renamed SettingsApp -> SettingsForm, SettingsTabs -> SettingsSection.
+ *   - Removed self-mount code at the bottom (shell owns mounting).
+ *   - Bootstrap payload arrives as one `bootstrap` prop (initialTab +
+ *     phpTabUrls destructured inside).
  *
- * Mount mode:
- *   - PHP renders the nav-tab-wrapper (unchanged); when the active tab
- *     is one of the 4 option tabs, it mounts <div id="…-settings-root">
- *     with data-tab="general|display|security|advanced".
- *   - Maintenance and Extensions tabs are PHP-rendered (action handlers
- *     + marketing copy — no React port benefit). The PHP view branches
- *     before mount, so React is never asked to render them.
- *
- * Save UX:
- *   - One "Save Changes" button per tab; dirty-state guard disables it
- *     until something actually changed. POSTs only the diff (changed
- *     keys) so we don't write 30 options for a one-toggle change.
- *   - Bundle Cache clear, Flush Rewrite, and any other side-effect
- *     actions still go through their existing admin-post.php endpoints
- *     via plain <a href> links — they're nonced server-side already
- *     and don't fit the option-save flow.
+ * The Maintenance and Extensions tabs still trigger `window.location`
+ * navigation to their PHP-rendered admin URLs — they aren't part of the
+ * SPA (server-side action handlers + marketing surface, no benefit
+ * from a React port).
  */
 
 import {
@@ -37,19 +27,12 @@ import {
 	TextareaControl,
 	__experimentalNumberControl as NumberControl,
 } from '@wordpress/components';
-import { useState, useEffect, useCallback, createRoot, render } from '@wordpress/element';
+import { useState, useEffect, useCallback, useRef } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 
 const SETTINGS_ROUTE = '/isoft-fm-foundation/v1/settings';
 
-/**
- * Per-tab schema. Each entry: option key, label, type, optional help
- * text + per-type extras. Drives both rendering and the dirty-diff
- * computation. Mirrors the PHP form controls in settings-page.php
- * one-for-one so admins flipping between fallback and React see the
- * same fields in the same order.
- */
 const TAB_SCHEMAS = {
 	general: [
 		{
@@ -116,12 +99,12 @@ const TAB_SCHEMAS = {
 	],
 	display: [
 		{
-			key:     'isoft_fmf_default_button_text',
-			label:   __( 'Default Button Text', 'isoft-fm-foundation' ),
-			type:    'text',
+			key:         'isoft_fmf_default_button_text',
+			label:       __( 'Default Button Text', 'isoft-fm-foundation' ),
+			type:        'text',
 			placeholder: __( 'Download', 'isoft-fm-foundation' ),
-			help:    __( 'Text shown on download buttons site-wide. Leave empty to use "Download".', 'isoft-fm-foundation' ),
-			default: '',
+			help:        __( 'Text shown on download buttons site-wide. Leave empty to use "Download".', 'isoft-fm-foundation' ),
+			default:     '',
 		},
 		{
 			key:     'isoft_fmf_listing_layout',
@@ -167,7 +150,7 @@ const TAB_SCHEMAS = {
 			help:    __( 'Where external-URL download buttons open the linked page. Only affects external links — local files always download in place.', 'isoft-fm-foundation' ),
 			default: '_blank',
 			options: [
-				{ label: __( 'Open in new tab',      'isoft-fm-foundation' ), value: '_blank' },
+				{ label: __( 'Open in new tab',     'isoft-fm-foundation' ), value: '_blank' },
 				{ label: __( 'Open in same window', 'isoft-fm-foundation' ), value: '_self' },
 			],
 		},
@@ -200,8 +183,8 @@ const TAB_SCHEMAS = {
 			default: 'auto',
 			options: [
 				{ label: __( 'Auto-detect', 'isoft-fm-foundation' ), value: 'auto' },
-				{ label: 'X-Sendfile (Apache)',                       value: 'xsendfile' },
-				{ label: 'X-Accel-Redirect (Nginx)',                  value: 'xaccel' },
+				{ label: 'X-Sendfile (Apache)',                      value: 'xsendfile' },
+				{ label: 'X-Accel-Redirect (Nginx)',                 value: 'xaccel' },
 				{ label: __( 'PHP streaming', 'isoft-fm-foundation' ), value: 'php' },
 			],
 		},
@@ -220,13 +203,13 @@ const TAB_SCHEMAS = {
 			default: 0,
 		},
 		{
-			key:     'isoft_fmf_block_user_agents',
-			label:   __( 'User-Agent Blocklist', 'isoft-fm-foundation' ),
-			type:    'textarea',
-			rows:    6,
+			key:         'isoft_fmf_block_user_agents',
+			label:       __( 'User-Agent Blocklist', 'isoft-fm-foundation' ),
+			type:        'textarea',
+			rows:        6,
 			placeholder: 'curl\nwget\nHeadlessChrome\nSemrushBot',
-			help:    __( 'One pattern per line. Each line matches as a case-insensitive substring against the request User-Agent header — e.g. "curl" blocks "curl/7.88.1". Empty lines and requests with no User-Agent header are not blocked.', 'isoft-fm-foundation' ),
-			default: '',
+			help:        __( 'One pattern per line. Each line matches as a case-insensitive substring against the request User-Agent header — e.g. "curl" blocks "curl/7.88.1". Empty lines and requests with no User-Agent header are not blocked.', 'isoft-fm-foundation' ),
+			default:     '',
 		},
 	],
 	advanced: [
@@ -258,7 +241,6 @@ const TAB_SCHEMAS = {
 	],
 };
 
-/** Coerce a stored option value into the shape its control expects. */
 const normalise = ( field, raw ) => {
 	if ( field.type === 'toggle' ) {
 		return !! parseInt( raw, 10 );
@@ -269,8 +251,6 @@ const normalise = ( field, raw ) => {
 	return raw == null ? '' : String( raw );
 };
 
-/** Convert a control value back to the wire format the REST endpoint
- *  expects (toggles -> 0/1, numbers -> int, rest -> string). */
 const serialise = ( field, value ) => {
 	if ( field.type === 'toggle' ) {
 		return value ? 1 : 0;
@@ -344,28 +324,53 @@ const FieldControl = ( { field, value, onChange } ) => {
 	}
 };
 
-const SettingsApp = ( { tab } ) => {
+/**
+ * Shape a raw options payload (from bootstrap or /settings) into the
+ * per-tab schema's normalised form. Extracted so both the inline-boot
+ * path and the REST-fetch path use one code path.
+ */
+const shapeValues = ( schema, payload ) => {
+	const next = {};
+	for ( const field of schema ) {
+		const raw = payload && Object.prototype.hasOwnProperty.call( payload, field.key )
+			? payload[ field.key ]
+			: field.default;
+		next[ field.key ] = normalise( field, raw == null ? field.default : raw );
+	}
+	return next;
+};
+
+const SettingsForm = ( { tab, initialPayload } ) => {
 	const schema = TAB_SCHEMAS[ tab ] || [];
 
-	const [ values, setValues ]     = useState( null );   // hydrated form values
-	const [ initial, setInitial ]   = useState( null );   // baseline for dirty-diff
-	const [ loading, setLoading ]   = useState( true );
-	const [ saving, setSaving ]     = useState( false );
-	const [ error, setError ]       = useState( null );
-	const [ notice, setNotice ]     = useState( null );
+	const inlined = initialPayload || null;
+
+	const [ values, setValues ]   = useState( () => ( inlined ? shapeValues( schema, inlined ) : null ) );
+	const [ initial, setInitial ] = useState( () => ( inlined ? shapeValues( schema, inlined ) : null ) );
+	const [ loading, setLoading ] = useState( ! inlined );
+	const [ saving, setSaving ]   = useState( false );
+	const [ error, setError ]     = useState( null );
+	const [ notice, setNotice ]   = useState( null );
+
+	// Skip the initial fetch when the shell inlined the full options
+	// map (data-bootstrap). On tab changes within the same session
+	// we still refetch — the payload arrives per-tab-slice via the
+	// schema; the alternative would be to stash `inlined` in a ref
+	// and only skip the very first fetch, but the tab switch is a
+	// single option-scan on the server so a fresh GET keeps the code
+	// path simple and always shows latest values.
+	const skipFirstFetch = useRef( !! inlined );
 
 	useEffect( () => {
+		if ( skipFirstFetch.current ) {
+			skipFirstFetch.current = false;
+			return;
+		}
 		setLoading( true );
 		setError( null );
 		apiFetch( { path: SETTINGS_ROUTE } )
 			.then( ( payload ) => {
-				const next = {};
-				for ( const field of schema ) {
-					const raw = payload && Object.prototype.hasOwnProperty.call( payload, field.key )
-						? payload[ field.key ]
-						: field.default;
-					next[ field.key ] = normalise( field, raw == null ? field.default : raw );
-				}
+				const next = shapeValues( schema, payload );
 				setValues( next );
 				setInitial( next );
 			} )
@@ -480,18 +485,11 @@ const SettingsApp = ( { tab } ) => {
 	);
 };
 
-/**
- * Wrapper that owns client-side tab switching for the 4 option tabs.
- * The 6-tab strip is rendered in React so flipping between General /
- * Display / Security / Advanced is instant — no page reload, no
- * bundle re-download. The Maintenance and Extensions tabs are
- * PHP-rendered surfaces, so clicking them does a full navigation to
- * their URL (handed in via data-tab-urls on the mount node).
- *
- * Replaces the PHP nav-tab-wrapper when the React bundle is loaded;
- * the PHP nav stays only for the JS-disabled fallback path.
- */
-const SettingsTabs = ( { initialTab, phpTabUrls } ) => {
+const SettingsSection = ( { bootstrap } ) => {
+	const initialTab    = bootstrap?.initialTab || 'general';
+	const phpTabUrls    = bootstrap?.phpTabUrls || {};
+	const initialValues = bootstrap?.initialValues || null;
+
 	const tabs = [
 		{ name: 'general',     title: __( 'General', 'isoft-fm-foundation' ) },
 		{ name: 'display',     title: __( 'Display', 'isoft-fm-foundation' ) },
@@ -502,61 +500,43 @@ const SettingsTabs = ( { initialTab, phpTabUrls } ) => {
 	];
 
 	const onSelect = ( tabName ) => {
-		// PHP tabs need a full navigation — their content isn't in the
-		// React bundle. Returning early would still leave TabPanel's
-		// internal selection in the bad state, but window.location
-		// fires before that visual flicker matters.
 		if ( phpTabUrls[ tabName ] ) {
 			window.location.href = phpTabUrls[ tabName ];
 		}
 	};
 
 	return (
-		<TabPanel
-			className="isoft-fmf-settings-tabs"
-			activeClass="is-active"
-			initialTabName={ initialTab }
-			tabs={ tabs }
-			onSelect={ onSelect }
-		>
-			{ ( tab ) => {
-				// PHP tabs: handled by onSelect's window.location. While the
-				// navigation kicks off, show a Spinner so the area isn't
-				// blank.
-				if ( phpTabUrls[ tab.name ] ) {
-					return (
-						<div style={ { padding: '20px', textAlign: 'center' } }>
-							<Spinner />
-						</div>
-					);
-				}
-				return <SettingsApp tab={ tab.name } />;
-			} }
-		</TabPanel>
+		<div className="isoft-fmf-settings-section">
+			<h1 className="wp-heading-inline">
+				{ __( 'Settings', 'isoft-fm-foundation' ) }
+			</h1>
+			<hr className="wp-header-end" />
+
+			<TabPanel
+				className="isoft-fmf-settings-tabs"
+				activeClass="is-active"
+				initialTabName={ initialTab }
+				tabs={ tabs }
+				onSelect={ onSelect }
+			>
+				{ ( tab ) => {
+					if ( phpTabUrls[ tab.name ] ) {
+						return (
+							<div style={ { padding: '20px', textAlign: 'center' } }>
+								<Spinner />
+							</div>
+						);
+					}
+					// Only hand the inline payload to the initial-tab
+					// mount — a tab switch mid-session refetches so the
+					// values reflect any changes made through other
+					// admin surfaces (WP-CLI, direct DB, other admins).
+					const inline = tab.name === initialTab ? initialValues : null;
+					return <SettingsForm tab={ tab.name } initialPayload={ inline } />;
+				} }
+			</TabPanel>
+		</div>
 	);
 };
 
-const mountNode = document.getElementById( 'isoft-fmf-settings-root' );
-if ( mountNode ) {
-	const initialTab = mountNode.getAttribute( 'data-tab' ) || 'general';
-
-	// PHP-rendered tab URLs come in as a JSON blob in a data attribute
-	// so the React side stays free of admin_url() / current site logic.
-	let phpTabUrls = {};
-	try {
-		phpTabUrls = JSON.parse( mountNode.getAttribute( 'data-php-tab-urls' ) || '{}' );
-	} catch ( e ) {
-		phpTabUrls = {};
-	}
-
-	if ( typeof createRoot === 'function' ) {
-		createRoot( mountNode ).render(
-			<SettingsTabs initialTab={ initialTab } phpTabUrls={ phpTabUrls } />
-		);
-	} else if ( typeof render === 'function' ) {
-		render(
-			<SettingsTabs initialTab={ initialTab } phpTabUrls={ phpTabUrls } />,
-			mountNode
-		);
-	}
-}
+export default SettingsSection;

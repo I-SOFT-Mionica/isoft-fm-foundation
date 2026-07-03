@@ -2,6 +2,67 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.12.7] — unreleased
+
+Perf pass on top of the 0.12.6 SPA shell, addressing structural cost the shell itself couldn't touch. Four backend changes and one small IA move.
+
+This release does NOT ship to WordPress.org SVN. 0.12.x stays GitHub-only until 1.0.0 graduation.
+
+### Perf
+
+- **Lazy per-section bootstrap.** `ISOFT_FMF_Admin_Shell::bootstrap_payload()` now computes only the active section's slice (derived from the enqueue hook_suffix) plus the broken-links badge count (which is already transient-cached). Pre-0.12.7 shape ran 5–8 uncached DB round-trips per shell page load (log rows + downloads-list + broken-file rows + license list + settings + stats), regardless of tab. Post-0.12.7: 1–2. Since the SPA router keeps visited sections alive in the DOM, each section pays its query cost exactly once per session — the first cross-section click gets a ~100ms spinner, everything else is identical.
+- **Persistent-object-cache layer on the category ACL.** `ISOFT_FMF_Category_ACL::get_effective()` now writes to `wp_cache_set` under group `isoft_fmf_acl` (TTL 1 hour) in addition to the existing in-request memo. With Redis / Memcached / APCu backing `wp_cache_*`, the `get_term_children` walk that resolves a restricted user's allowed set only runs when the user's assignment or the term hierarchy changes. Cache is invalidated by `updated_user_meta` / `added_user_meta` / `deleted_user_meta` on the allowed_categories key (per-user flush) and by `edited_isoft_fmf_category` / `created_isoft_fmf_category` / `delete_isoft_fmf_category` (group flush — child moves affect every ancestor's descendant set).
+- **Batched log-retention purge.** `ISOFT_FMF_Download_Logger::purge_old_logs()` now deletes in batches of 5000 rows in a loop instead of one giant `DELETE`. Same net rows deleted; no single query holds a long transaction that blocks concurrent log-writes on busy sites. The admin-post handler caps the loop at 10 batches (50k rows per click) so a manual purge under a huge backlog can't stall the request past PHP's `max_execution_time`; the daily cron runs uncapped and finishes any remainder. The `idx_downloaded_at` index makes each batch's WHERE scan cheap.
+
+### Changed
+
+- **REST controllers moved off `plugins_loaded`.** The seven `ISOFT_FMF_Rest_*` classes are now instantiated on `rest_api_init` instead of every request. Each pre-0.12.7 request paid ~7 file autoloads + constructor cost on the way to running zero REST code; that cost is now scoped to actual REST requests. Test surfaces are unaffected — tests exercise the endpoints via `WP_REST_Server`, not via `register_hooks` / `register_routes` directly.
+- **Admin-only classes tightened.** `ISOFT_FMF_Editor_Sidebar` and `ISOFT_FMF_Export` moved inside the `is_admin()` guard. Editor sidebar is only mounted inside the block editor; export handlers only run for `admin-post.php` requests. Pre-0.12.7 they loaded on every frontend request too.
+
+### IA (small)
+
+- **Licenses submenu now sits under Tags.** Uses the `add_submenu_page` position argument (16) to land Licenses right after the Tags taxonomy submenu (position 15). Content-facing entries (Categories, Tags, Licenses) read as a visual cluster; Tools-facing entries (Statistics, Download Log, Broken Links) follow.
+
+### Version
+
+Bump to **0.12.7-dev**. `readme.txt` `Stable tag:` stays at `0.11.0`. Ships to `dev/0.12.x` only.
+
+## [0.12.6] — unreleased
+
+Phase 7 of the React-admin rewrite: the SPA shell. Ships in response to 5+ second menu-item lag reported on real-world Local installs after 0.12.5. Navigation between the 5 Downloads admin surfaces (Licenses / Statistics / Download Log / Broken Links / Settings) is now client-side.
+
+This release does NOT ship to WordPress.org SVN. 0.12.x stays GitHub-only until 1.0.0 graduation.
+
+### Added
+
+- **`ISOFT_FMF_Admin_Shell`** — single enqueue class that ships `blocks/build/admin-shell.js` on any of the 5 admin-page hook suffixes. Owns the `SECTION_MAP` (hook suffix → React section slug) and computes the JSON `bootstrap_payload()` that admin-shell-mount.php emits as a `data-bootstrap` attr on the mount div.
+- **`blocks/admin-shell/`** entry — one bundle containing five sections (`sections/licenses.js`, `stats.js`, `log.js`, `broken-links.js`, `settings.js`), a tab-strip nav (`nav.js`), a `pushState` router (`router.js`) that hijacks `#adminmenu` clicks pointing at our slugs, and a shared util layer (`util/format.js` — `formatBytes`, `formatDate`, `offsetDay`, `monthLabel`).
+- **`admin/views/admin-shell-mount.php`** — shared partial that every one of the 5 admin views requires with a `$isoft_fmf_section` local. Emits the wrap div, mount div with `data-section` + `data-bootstrap`, and the JS-disabled noscript notice. For section=broken-links, inlines the integrity-check PHP fragment above the mount.
+- **`admin/views/broken-links-integrity-panel.php`** — the PHP integrity-check panel extracted from the pre-0.12.6 broken-links-page.php so admin-shell-mount.php can conditionally include it. Server-side lock state + admin-post.php trigger, not a React port.
+- **`admin/css/admin-shell.css`** — chrome for the shell (nav strip + hidden-section CSS). Sections use `[hidden]` so React state persists across nav.
+
+### Changed
+
+- **All 5 admin views collapse to one-line adapters** — `licenses-page.php`, `stats-dashboard.php`, `log-viewer.php`, `broken-links-page.php`, `settings-page.php` each set `$isoft_fmf_section` and require `admin-shell-mount.php`. Settings page keeps a small pre-mount branch that renders the Maintenance / Extensions PHP tabs directly (no React port for those).
+- **Section state persists across nav.** Sections mount lazily on first visit and stay in the DOM behind `[hidden]` — revisiting Log preserves DataViews search, page, and filter state; Settings preserves its dirty form.
+- **`webpack.config.js`** drops the 5 per-page entries (`licenses-page`, `stats-page`, `log-page`, `broken-links-page`, `settings-page`) and adds `admin-shell`.
+- **Bootstrap** replaces the 5 per-page enqueue class registrations with `( new ISOFT_FMF_Admin_Shell() )->register_hooks()`.
+- **Version bumped to 0.12.6-dev.** `readme.txt` `Stable tag:` stays at `0.11.0` (0.12.x doesn't ship to SVN).
+
+### Removed
+
+- **5 per-page enqueue classes** — `class-licenses-page.php`, `class-stats-page.php`, `class-log-page.php`, `class-broken-links-page.php`, `class-settings-page.php`. Their SCRIPT_HANDLE / PAGE_HOOK_SUFFIX constants moved to `ISOFT_FMF_Admin_Shell::section_map()`.
+- **5 block source directories** — `blocks/licenses-page/`, `blocks/stats-page/`, `blocks/log-page/`, `blocks/broken-links-page/`, `blocks/settings-page/`. Content moved to `blocks/admin-shell/sections/*` with self-mount code stripped (shell owns the mount).
+- **5 old build artefacts** — `blocks/build/{licenses,stats,log,broken-links,settings}-page.js` + `.asset.php`. Regenerated as one `admin-shell.js`.
+
+### Perf
+
+- **~460 KB → 261 KB** of admin JS across the 5 sections. Pre-0.12.6, Log + Broken Links each bundled ~230 KB of `@wordpress/dataviews`; every nav between them re-downloaded the same code. The shell bundles DataViews once.
+- **Sub-500ms client-side nav** between sections after first mount (target — verify on Local). First mount stays bounded by WP admin PHP boot (~1.5-2s); subsequent nav swaps sections without touching the network.
+- **WP #adminmenu click hijack** — anchors pointing at `page=isoft-fmf-*` are intercepted on shell mount; modifier-key clicks (⌘/Ctrl/Shift/Alt) fall through to default browser behaviour. If the hijack doesn't attach (WP re-renders adminmenu after our bundle runs), the fallback is default full nav → shell re-mount → cached bundle serves.
+- **Zero-fetch first paint via inline bootstrap.** `ISOFT_FMF_Admin_Shell::bootstrap_payload()` inlines every section's full initial state (first page of log rows + the downloads filter list, first page of broken-file rows, full license table, full settings option map, cached stats overview) into the `data-bootstrap` blob on the mount div. PHP has all of this in hand at page-render time anyway; the pre-perf-pass shape was making each section wait a REST round-trip after mount before it could show anything. Now the initial render does zero network calls — the classic-admin "one PHP request renders everything visible" property, kept alongside React interactivity for search / filter / pagination / CRUD after mount.
+- **300ms debounce on DataViews view changes** (Log, Broken Links) — a search-as-you-type keystroke no longer fires a REST call per character on slower hosting. Together with **keep-previous-data** on the fetch success path — rows are only replaced on success, not blanked on request start — typing feels responsive instead of collapsing the table between requests.
+
 ## [0.12.5] — unreleased
 
 Phase 6 of the React-admin rewrite: the demolition pass. All PHP surfaces that the 0.12.0-0.12.4 React apps replaced are removed. This is the one-way door — reverting past this point means going back to 0.11.x trunk, not to 0.12.4.

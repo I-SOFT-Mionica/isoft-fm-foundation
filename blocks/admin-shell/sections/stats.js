@@ -1,61 +1,23 @@
 /**
- * React app for the Statistics admin page (Downloads > Statistics).
+ * Statistics section — KPI cards, 30-day bar chart, top-N tables.
  *
- * 0.12.3 scope, sub-PR 1 of 4. Dashboard surface — KPI cards, 30-day
- * bar chart, top-N tables. NOT a DataViews list: a dashboard renders
- * pre-aggregated data, no pagination / filtering needed.
- *
- * Data source: GET /isoft-fm-foundation/v1/stats/overview (the existing
- * endpoint, extended in this PR to return the full dashboard payload
- * the PHP view used to read directly from isoft_fmf_get_stats_overview()).
- * Server-side transient cache (5 min) means the React app's apiFetch
- * is just as cheap as the PHP page-load it replaces.
+ * Ported from blocks/stats-page/index.js in 0.12.6 when the 5 per-page
+ * bundles collapsed into a single admin-shell entry. Content is
+ * unchanged aside from:
+ *   - No self-mount at the bottom (shell owns mounting).
+ *   - Utilities pulled from ../util/format.
+ *   - Bootstrap prop threaded in (unused for Stats — the dashboard is
+ *     entirely REST-driven, no server-precomputed hints needed).
  */
 
-import {
-	Notice,
-	Spinner,
-	Button,
-} from '@wordpress/components';
-import { useState, useEffect, useCallback, createRoot, render } from '@wordpress/element';
+import { Notice, Spinner, Button } from '@wordpress/components';
+import { useState, useEffect, useCallback } from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 
+import { formatBytes, offsetDay, monthLabel } from '../util/format';
+
 const ROUTE = '/isoft-fm-foundation/v1/stats/overview';
-
-const formatBytes = ( bytes ) => {
-	const n = parseInt( bytes, 10 ) || 0;
-	if ( n >= 1073741824 ) {
-		return ( n / 1073741824 ).toFixed( 2 ) + ' GB';
-	}
-	if ( n >= 1048576 ) {
-		return ( n / 1048576 ).toFixed( 2 ) + ' MB';
-	}
-	if ( n >= 1024 ) {
-		return ( n / 1024 ).toFixed( 1 ) + ' KB';
-	}
-	return n + ' B';
-};
-
-/** YYYY-MM-DD for a date offset (in days) from today, UTC-aligned. */
-const offsetDay = ( daysAgo ) => {
-	const d = new Date();
-	d.setUTCDate( d.getUTCDate() - daysAgo );
-	return d.toISOString().slice( 0, 10 );
-};
-
-/** "M YYYY" for a YYYY-MM-DD string. */
-const monthLabel = ( ymd ) => {
-	const d = new Date( ymd + 'T00:00:00Z' );
-	if ( isNaN( d.getTime() ) ) {
-		return ymd;
-	}
-	return d.toLocaleDateString( undefined, {
-		month: 'short',
-		year:  'numeric',
-		timeZone: 'UTC',
-	} );
-};
 
 const StatCard = ( { value, label } ) => (
 	<div className="isoft-fmf-stat-card">
@@ -65,8 +27,6 @@ const StatCard = ( { value, label } ) => (
 );
 
 const DailyBarChart = ( { daily } ) => {
-	// Build a contiguous 30-day window so missing days render as zero
-	// bars (just like the PHP view did with array fill + lookup).
 	const days = [];
 	for ( let i = 29; i >= 0; i-- ) {
 		const date = offsetDay( i );
@@ -181,10 +141,15 @@ const TopTable = ( { rows, title, fallbackNote, getId, getTitle, getCount } ) =>
 	</div>
 );
 
-const StatsApp = () => {
-	const [ data, setData ]         = useState( null );
-	const [ loading, setLoading ]   = useState( false );
-	const [ error, setError ]       = useState( null );
+const StatsSection = ( { bootstrap } ) => {
+	// Server-inlined stats overview — first paint requires zero network
+	// calls. isoft_fmf_get_stats_overview() is 5-min cached on the PHP
+	// side so inlining is free.
+	const initialOverview = bootstrap?.initialOverview || null;
+
+	const [ data, setData ]       = useState( initialOverview );
+	const [ loading, setLoading ] = useState( false );
+	const [ error, setError ]     = useState( null );
 
 	const fetchStats = useCallback( () => {
 		setLoading( true );
@@ -202,9 +167,15 @@ const StatsApp = () => {
 			.finally( () => setLoading( false ) );
 	}, [] );
 
+	// Skip the initial fetch when the shell inlined the overview — the
+	// data-bootstrap blob carries what the pre-perf-pass REST call
+	// used to return.
 	useEffect( () => {
-		fetchStats();
-	}, [ fetchStats ] );
+		if ( null === initialOverview ) {
+			fetchStats();
+		}
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [] );
 
 	if ( error && ! data ) {
 		return (
@@ -309,10 +280,6 @@ const StatsApp = () => {
 					rows={ data.top_30d || [] }
 					title={ top30Label }
 					fallbackNote={ top30Fallback }
-					// top_30d rows come from the daily aggregate via LEFT JOIN
-					// on posts — if the post is deleted, download_id is still
-					// the original FK but post_title is null. Gate the link
-					// on title presence so deleted entries render unclickable.
 					getId={ ( r ) => ( r.post_title ? parseInt( r.download_id, 10 ) : 0 ) || 0 }
 					getTitle={ ( r ) => r.post_title || __( '(deleted)', 'isoft-fm-foundation' ) }
 					getCount={ ( r ) => parseInt( r.count, 10 ) || 0 }
@@ -322,11 +289,4 @@ const StatsApp = () => {
 	);
 };
 
-const mountNode = document.getElementById( 'isoft-fmf-stats-root' );
-if ( mountNode ) {
-	if ( typeof createRoot === 'function' ) {
-		createRoot( mountNode ).render( <StatsApp /> );
-	} else if ( typeof render === 'function' ) {
-		render( <StatsApp />, mountNode );
-	}
-}
+export default StatsSection;
