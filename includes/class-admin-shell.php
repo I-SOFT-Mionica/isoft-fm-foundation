@@ -141,15 +141,16 @@ class ISOFT_FMF_Admin_Shell {
 		// The Log section's filter dropdown lists every download; the
 		// pre-inline shape fetched /downloads?per_page=100. Same shape
 		// here so React can drop the extra fetch.
-		$log_downloads       = get_posts(
+		// get_posts() already defaults suppress_filters to true — no
+		// need (and VIP disallows) an explicit key.
+		$log_downloads = get_posts(
 			array(
-				'post_type'        => 'isoft_fmf_file',
-				'post_status'      => 'any',
-				'posts_per_page'   => 100,
-				'orderby'          => 'title',
-				'order'            => 'ASC',
-				'no_found_rows'    => true,
-				'suppress_filters' => true,
+				'post_type'      => 'isoft_fmf_file',
+				'post_status'    => 'any',
+				'posts_per_page' => 100,
+				'orderby'        => 'title',
+				'order'          => 'ASC',
+				'no_found_rows'  => true,
 			)
 		);
 		$log_downloads_shape = array_map(
