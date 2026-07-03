@@ -19,7 +19,7 @@
 
 import { DataViews } from '@wordpress/dataviews';
 import { Notice, Button } from '@wordpress/components';
-import { useState, useEffect, useMemo } from '@wordpress/element';
+import { useState, useEffect, useMemo, useRef } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 
@@ -50,33 +50,61 @@ const DEFAULT_VIEW = {
 
 const LogSection = ( { bootstrap } ) => {
 	const {
-		exportBaseUrl  = '',
-		purgeUrl       = '',
-		purgeNonce     = '',
-		retentionDays  = 365,
-		loggingEnabled = true,
-		canExport      = false,
-		canPurge       = false,
-		initialTotal   = 0,
-		initialPages   = 0,
+		exportBaseUrl    = '',
+		purgeUrl         = '',
+		purgeNonce       = '',
+		retentionDays    = 365,
+		loggingEnabled   = true,
+		canExport        = false,
+		canPurge         = false,
+		initialTotal     = 0,
+		initialPages     = 0,
+		initialItems     = null,
+		initialDownloads = null,
 	} = bootstrap || {};
 
 	const [ view, setView ]             = useState( DEFAULT_VIEW );
-	const [ rows, setRows ]             = useState( [] );
+	const [ rows, setRows ]             = useState( Array.isArray( initialItems ) ? initialItems : [] );
 	const [ total, setTotal ]           = useState( initialTotal );
 	const [ totalPages, setTotalPages ] = useState( initialPages );
-	const [ loading, setLoading ]       = useState( true );
+	// Start un-loading when we already have server-inlined data; the
+	// spinner + "No results" flash on first paint is what the pre-perf
+	// pass burned to a REST round-trip we didn't need.
+	const [ loading, setLoading ]       = useState( ! Array.isArray( initialItems ) );
 	const [ error, setError ]           = useState( null );
 
-	const [ downloads, setDownloads ] = useState( [] );
+	const [ downloads, setDownloads ] = useState(
+		Array.isArray( initialDownloads ) ? initialDownloads : []
+	);
 
+	// Skip the extra downloads-list fetch when PHP inlined it.
 	useEffect( () => {
+		if ( Array.isArray( initialDownloads ) ) {
+			return;
+		}
 		apiFetch( { path: `${ DOWNLOADS_ROUTE }?per_page=100&orderby=title&order=ASC` } )
 			.then( ( list ) => setDownloads( Array.isArray( list ) ? list : [] ) )
 			.catch( () => setDownloads( [] ) );
+	// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [] );
 
+	// Debounce ANY view change (search, filter, page, perPage) by 300ms
+	// so typing doesn't spam a slow backend. Keep-previous-data pattern:
+	// on new fetch, do NOT clear rows — the visible table stays populated
+	// while the request is in flight, only replaced on success.
+	//
+	// First render: the initial fetch is suppressed when server-inlined
+	// data is present (initialItems). The ref-guarded skip catches the
+	// mount-time effect fire so a view-untouched first paint doesn't
+	// double-fetch what the shell already gave us.
+	const skipFirstFetch = useRef( Array.isArray( initialItems ) );
+
 	useEffect( () => {
+		if ( skipFirstFetch.current ) {
+			skipFirstFetch.current = false;
+			return;
+		}
+
 		const params = new URLSearchParams();
 		params.set( 'per_page', String( view.perPage || 25 ) );
 		params.set( 'page', String( view.page || 1 ) );
@@ -90,25 +118,29 @@ const LogSection = ( { bootstrap } ) => {
 			params.set( 'download_id', String( downloadFilter.value ) );
 		}
 
-		setLoading( true );
-		setError( null );
+		const timer = setTimeout( () => {
+			setLoading( true );
+			setError( null );
 
-		apiFetch( { path: `${ LOGS_ROUTE }?${ params.toString() }` } )
-			.then( ( payload ) => {
-				setRows( Array.isArray( payload?.items ) ? payload.items : [] );
-				setTotal( parseInt( payload?.totalItems || 0, 10 ) );
-				setTotalPages( parseInt( payload?.totalPages || 0, 10 ) );
-			} )
-			.catch( ( err ) => {
-				setError(
-					err?.message ||
-						__( 'Could not load log entries.', 'isoft-fm-foundation' )
-				);
-				setRows( [] );
-				setTotal( 0 );
-				setTotalPages( 0 );
-			} )
-			.finally( () => setLoading( false ) );
+			apiFetch( { path: `${ LOGS_ROUTE }?${ params.toString() }` } )
+				.then( ( payload ) => {
+					// Keep-previous-data: only replace rows on success.
+					if ( Array.isArray( payload?.items ) ) {
+						setRows( payload.items );
+					}
+					setTotal( parseInt( payload?.totalItems || 0, 10 ) );
+					setTotalPages( parseInt( payload?.totalPages || 0, 10 ) );
+				} )
+				.catch( ( err ) => {
+					setError(
+						err?.message ||
+							__( 'Could not load log entries.', 'isoft-fm-foundation' )
+					);
+				} )
+				.finally( () => setLoading( false ) );
+		}, 300 );
+
+		return () => clearTimeout( timer );
 	}, [ view.perPage, view.page, view.search, view.filters ] );
 
 	const fields = useMemo(

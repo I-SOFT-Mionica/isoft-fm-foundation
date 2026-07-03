@@ -102,18 +102,94 @@ class ISOFT_FMF_Admin_Shell {
 	 * hydrated — the tab strip's Broken Links badge is accurate before
 	 * the section itself mounts.
 	 *
+	 * As of the 0.12.6 perf pass, each section also ships its full
+	 * first-paint data (log rows, broken-links list, settings values,
+	 * license table, stats overview) so the initial render does zero
+	 * REST calls. The old classic-admin property — "one PHP request
+	 * renders everything visible" — is restored while React interactive
+	 * behaviour (search, filter, pagination, CRUD) still routes through
+	 * REST after mount.
+	 *
 	 * @return array<string,array<string,mixed>>
 	 */
 	public static function bootstrap_payload(): array {
 		global $wpdb;
 
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- One-shot page-render counts; cheap and always fresh.
-		$log_initial_total    = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}isoft_fmf_download_log" );
-		$broken_initial_total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}isoft_fmf_files WHERE is_missing = 1" );
-		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
-
 		$per_page = 25;
 
+		// -----------------------------------------------------------------
+		// Log — replicates the default view of GET /logs (no filter,
+		// no search, page 1, ORDER BY downloaded_at DESC, LIMIT 25).
+		// -----------------------------------------------------------------
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- One-shot inline-bootstrap read; freshness > cache.
+		$log_initial_total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}isoft_fmf_download_log" );
+		$log_rows          = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT l.id, l.download_id, p.post_title AS download_title,
+				        l.file_id, f.file_name, l.user_id, l.user_login, l.ip_address AS user_ip,
+				        l.user_agent, l.downloaded_at
+				   FROM {$wpdb->prefix}isoft_fmf_download_log l
+				   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
+				   LEFT JOIN {$wpdb->prefix}isoft_fmf_files f ON f.id = l.file_id
+				  ORDER BY l.downloaded_at DESC
+				  LIMIT %d",
+				$per_page
+			)
+		) ?: array();
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		// The Log section's filter dropdown lists every download; the
+		// pre-inline shape fetched /downloads?per_page=100. Same shape
+		// here so React can drop the extra fetch.
+		$log_downloads       = get_posts(
+			array(
+				'post_type'        => 'isoft_fmf_file',
+				'post_status'      => 'any',
+				'posts_per_page'   => 100,
+				'orderby'          => 'title',
+				'order'            => 'ASC',
+				'no_found_rows'    => true,
+				'suppress_filters' => true,
+			)
+		);
+		$log_downloads_shape = array_map(
+			static function ( WP_Post $p ): array {
+				return array(
+					'id'    => $p->ID,
+					'title' => $p->post_title,
+				);
+			},
+			$log_downloads
+		);
+
+		// -----------------------------------------------------------------
+		// Broken links — first 25 rows via the existing service. It
+		// already returns { items, total } and shapes each item exactly
+		// as the REST endpoint does.
+		// -----------------------------------------------------------------
+		$broken_service = new ISOFT_FMF_Broken_Links_Service();
+		$broken_page    = $broken_service->list_broken( 1, $per_page );
+
+		// -----------------------------------------------------------------
+		// Licenses — full table (small; 5-20 rows typical).
+		// -----------------------------------------------------------------
+		$license_items = ( new ISOFT_FMF_License_Service() )->list();
+
+		// -----------------------------------------------------------------
+		// Settings — full options map for the 4 schema tabs.
+		// -----------------------------------------------------------------
+		$settings_values = ( new ISOFT_FMF_Settings_Service() )->get_all();
+
+		// -----------------------------------------------------------------
+		// Stats overview — same payload the /stats/overview REST route
+		// returns. isoft_fmf_get_stats_overview() is cached for 5
+		// minutes so inlining here is free.
+		// -----------------------------------------------------------------
+		$stats_overview = isoft_fmf_get_stats_overview();
+
+		// -----------------------------------------------------------------
+		// Log config + chrome.
+		// -----------------------------------------------------------------
 		$log_export_base    = admin_url( 'edit.php?post_type=isoft_fmf_file&page=isoft-fmf-log' );
 		$log_purge_url      = admin_url( 'admin-post.php' );
 		$log_retention_days = (int) get_option( 'isoft_fmf_log_retention_days', 365 );
@@ -138,29 +214,37 @@ class ISOFT_FMF_Admin_Shell {
 		$settings_initial_tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'general';
 
 		return array(
-			'licenses'     => (object) array(),
-			'stats'        => (object) array(),
+			'licenses'     => array(
+				'initialItems' => $license_items,
+			),
+			'stats'        => array(
+				'initialOverview' => $stats_overview,
+			),
 			'log'          => array(
-				'exportBaseUrl'  => $log_export_base,
-				'purgeUrl'       => $log_purge_url,
-				'purgeNonce'     => $log_purge_nonce,
-				'retentionDays'  => $log_retention_days,
-				'loggingEnabled' => $log_logging_on,
-				'canExport'      => $log_can_export,
-				'canPurge'       => $log_can_purge,
-				'initialTotal'   => $log_initial_total,
-				'initialPages'   => (int) ceil( $log_initial_total / $per_page ),
+				'exportBaseUrl'    => $log_export_base,
+				'purgeUrl'         => $log_purge_url,
+				'purgeNonce'       => $log_purge_nonce,
+				'retentionDays'    => $log_retention_days,
+				'loggingEnabled'   => $log_logging_on,
+				'canExport'        => $log_can_export,
+				'canPurge'         => $log_can_purge,
+				'initialTotal'     => $log_initial_total,
+				'initialPages'     => (int) ceil( $log_initial_total / $per_page ),
+				'initialItems'     => $log_rows,
+				'initialDownloads' => $log_downloads_shape,
 			),
 			'broken-links' => array(
-				'initialTotal' => $broken_initial_total,
-				'initialPages' => (int) ceil( $broken_initial_total / $per_page ),
+				'initialTotal' => (int) $broken_page['total'],
+				'initialPages' => (int) ceil( $broken_page['total'] / $per_page ),
+				'initialItems' => $broken_page['items'],
 			),
 			'settings'     => array(
-				'initialTab' => in_array( $settings_initial_tab, array( 'general', 'display', 'security', 'advanced' ), true ) ? $settings_initial_tab : 'general',
-				'phpTabUrls' => array(
+				'initialTab'    => in_array( $settings_initial_tab, array( 'general', 'display', 'security', 'advanced' ), true ) ? $settings_initial_tab : 'general',
+				'phpTabUrls'    => array(
 					'maintenance' => $settings_tab_urls['maintenance'],
 					'extensions'  => $settings_tab_urls['extensions'],
 				),
+				'initialValues' => $settings_values,
 			),
 		);
 	}

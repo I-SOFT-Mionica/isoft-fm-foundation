@@ -27,7 +27,7 @@ import {
 	TextareaControl,
 	__experimentalNumberControl as NumberControl,
 } from '@wordpress/components';
-import { useState, useEffect, useCallback } from '@wordpress/element';
+import { useState, useEffect, useCallback, useRef } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 
@@ -324,28 +324,53 @@ const FieldControl = ( { field, value, onChange } ) => {
 	}
 };
 
-const SettingsForm = ( { tab } ) => {
+/**
+ * Shape a raw options payload (from bootstrap or /settings) into the
+ * per-tab schema's normalised form. Extracted so both the inline-boot
+ * path and the REST-fetch path use one code path.
+ */
+const shapeValues = ( schema, payload ) => {
+	const next = {};
+	for ( const field of schema ) {
+		const raw = payload && Object.prototype.hasOwnProperty.call( payload, field.key )
+			? payload[ field.key ]
+			: field.default;
+		next[ field.key ] = normalise( field, raw == null ? field.default : raw );
+	}
+	return next;
+};
+
+const SettingsForm = ( { tab, initialPayload } ) => {
 	const schema = TAB_SCHEMAS[ tab ] || [];
 
-	const [ values, setValues ]   = useState( null );
-	const [ initial, setInitial ] = useState( null );
-	const [ loading, setLoading ] = useState( true );
+	const inlined = initialPayload || null;
+
+	const [ values, setValues ]   = useState( () => ( inlined ? shapeValues( schema, inlined ) : null ) );
+	const [ initial, setInitial ] = useState( () => ( inlined ? shapeValues( schema, inlined ) : null ) );
+	const [ loading, setLoading ] = useState( ! inlined );
 	const [ saving, setSaving ]   = useState( false );
 	const [ error, setError ]     = useState( null );
 	const [ notice, setNotice ]   = useState( null );
 
+	// Skip the initial fetch when the shell inlined the full options
+	// map (data-bootstrap). On tab changes within the same session
+	// we still refetch — the payload arrives per-tab-slice via the
+	// schema; the alternative would be to stash `inlined` in a ref
+	// and only skip the very first fetch, but the tab switch is a
+	// single option-scan on the server so a fresh GET keeps the code
+	// path simple and always shows latest values.
+	const skipFirstFetch = useRef( !! inlined );
+
 	useEffect( () => {
+		if ( skipFirstFetch.current ) {
+			skipFirstFetch.current = false;
+			return;
+		}
 		setLoading( true );
 		setError( null );
 		apiFetch( { path: SETTINGS_ROUTE } )
 			.then( ( payload ) => {
-				const next = {};
-				for ( const field of schema ) {
-					const raw = payload && Object.prototype.hasOwnProperty.call( payload, field.key )
-						? payload[ field.key ]
-						: field.default;
-					next[ field.key ] = normalise( field, raw == null ? field.default : raw );
-				}
+				const next = shapeValues( schema, payload );
 				setValues( next );
 				setInitial( next );
 			} )
@@ -461,8 +486,9 @@ const SettingsForm = ( { tab } ) => {
 };
 
 const SettingsSection = ( { bootstrap } ) => {
-	const initialTab = bootstrap?.initialTab || 'general';
-	const phpTabUrls = bootstrap?.phpTabUrls || {};
+	const initialTab    = bootstrap?.initialTab || 'general';
+	const phpTabUrls    = bootstrap?.phpTabUrls || {};
+	const initialValues = bootstrap?.initialValues || null;
 
 	const tabs = [
 		{ name: 'general',     title: __( 'General', 'isoft-fm-foundation' ) },
@@ -501,7 +527,12 @@ const SettingsSection = ( { bootstrap } ) => {
 							</div>
 						);
 					}
-					return <SettingsForm tab={ tab.name } />;
+					// Only hand the inline payload to the initial-tab
+					// mount — a tab switch mid-session refetches so the
+					// values reflect any changes made through other
+					// admin surfaces (WP-CLI, direct DB, other admins).
+					const inline = tab.name === initialTab ? initialValues : null;
+					return <SettingsForm tab={ tab.name } initialPayload={ inline } />;
 				} }
 			</TabPanel>
 		</div>

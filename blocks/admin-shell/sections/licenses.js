@@ -39,8 +39,15 @@ const emptyLicense = () => ( {
 	sort_order:  0,
 } );
 
-const LicensesSection = () => {
-	const [ licenses, setLicenses ]   = useState( null );
+const LicensesSection = ( { bootstrap } ) => {
+	// Server-inlined initial payload — first paint requires zero
+	// network calls. Post-mutation refetches keep the /licenses REST
+	// endpoint as the source of truth.
+	const initialItems = Array.isArray( bootstrap?.initialItems )
+		? bootstrap.initialItems
+		: null;
+
+	const [ licenses, setLicenses ]   = useState( initialItems );
 	const [ loadError, setLoadError ] = useState( null );
 
 	const [ editing, setEditing ]     = useState( null );
@@ -70,9 +77,15 @@ const LicensesSection = () => {
 			} );
 	}, [] );
 
+	// Skip the initial fetch when the shell inlined the license table
+	// into data-bootstrap — the classic-admin "first paint is instant"
+	// property that the extra REST round-trip broke.
 	useEffect( () => {
-		fetchLicenses();
-	}, [ fetchLicenses ] );
+		if ( null === initialItems ) {
+			fetchLicenses();
+		}
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [] );
 
 	const openCreate = () => {
 		setSaveError( null );

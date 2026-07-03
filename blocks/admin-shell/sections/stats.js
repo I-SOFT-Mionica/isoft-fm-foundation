@@ -141,8 +141,13 @@ const TopTable = ( { rows, title, fallbackNote, getId, getTitle, getCount } ) =>
 	</div>
 );
 
-const StatsSection = () => {
-	const [ data, setData ]       = useState( null );
+const StatsSection = ( { bootstrap } ) => {
+	// Server-inlined stats overview — first paint requires zero network
+	// calls. isoft_fmf_get_stats_overview() is 5-min cached on the PHP
+	// side so inlining is free.
+	const initialOverview = bootstrap?.initialOverview || null;
+
+	const [ data, setData ]       = useState( initialOverview );
 	const [ loading, setLoading ] = useState( false );
 	const [ error, setError ]     = useState( null );
 
@@ -162,9 +167,15 @@ const StatsSection = () => {
 			.finally( () => setLoading( false ) );
 	}, [] );
 
+	// Skip the initial fetch when the shell inlined the overview — the
+	// data-bootstrap blob carries what the pre-perf-pass REST call
+	// used to return.
 	useEffect( () => {
-		fetchStats();
-	}, [ fetchStats ] );
+		if ( null === initialOverview ) {
+			fetchStats();
+		}
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [] );
 
 	if ( error && ! data ) {
 		return (

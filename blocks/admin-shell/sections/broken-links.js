@@ -23,7 +23,7 @@ import {
 	Button,
 	Modal,
 } from '@wordpress/components';
-import { useState, useEffect, useMemo, useCallback } from '@wordpress/element';
+import { useState, useEffect, useMemo, useCallback, useRef } from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 
@@ -279,16 +279,21 @@ const BrokenLinksSection = ( { bootstrap } ) => {
 	const {
 		initialTotal = 0,
 		initialPages = 0,
+		initialItems = null,
 	} = bootstrap || {};
 
 	const [ view, setView ]             = useState( DEFAULT_VIEW );
-	const [ rows, setRows ]             = useState( [] );
+	const [ rows, setRows ]             = useState( Array.isArray( initialItems ) ? initialItems : [] );
 	const [ total, setTotal ]           = useState( initialTotal );
 	const [ totalPages, setTotalPages ] = useState( initialPages );
-	const [ loading, setLoading ]       = useState( true );
+	const [ loading, setLoading ]       = useState( ! Array.isArray( initialItems ) );
 	const [ error, setError ]           = useState( null );
 	const [ recovering, setRecovering ] = useState( null );
 	const [ notice, setNotice ]         = useState( null );
+
+	// Debounce + keep-previous-data on view changes. See log.js for the
+	// full rationale.
+	const skipFirstFetch = useRef( Array.isArray( initialItems ) );
 
 	const fetchList = useCallback( () => {
 		const params = new URLSearchParams();
@@ -296,9 +301,11 @@ const BrokenLinksSection = ( { bootstrap } ) => {
 		params.set( 'page', String( view.page || 1 ) );
 		setLoading( true );
 		setError( null );
-		apiFetch( { path: `${ LIST_ROUTE }?${ params.toString() }` } )
+		return apiFetch( { path: `${ LIST_ROUTE }?${ params.toString() }` } )
 			.then( ( payload ) => {
-				setRows( Array.isArray( payload?.items ) ? payload.items : [] );
+				if ( Array.isArray( payload?.items ) ) {
+					setRows( payload.items );
+				}
 				setTotal( parseInt( payload?.totalItems || 0, 10 ) );
 				setTotalPages( parseInt( payload?.totalPages || 0, 10 ) );
 			} )
@@ -307,15 +314,17 @@ const BrokenLinksSection = ( { bootstrap } ) => {
 					err?.message ||
 						__( 'Could not load broken-links list.', 'isoft-fm-foundation' )
 				);
-				setRows( [] );
-				setTotal( 0 );
-				setTotalPages( 0 );
 			} )
 			.finally( () => setLoading( false ) );
 	}, [ view.perPage, view.page ] );
 
 	useEffect( () => {
-		fetchList();
+		if ( skipFirstFetch.current ) {
+			skipFirstFetch.current = false;
+			return;
+		}
+		const timer = setTimeout( fetchList, 300 );
+		return () => clearTimeout( timer );
 	}, [ fetchList ] );
 
 	const onRecoverSuccess = useCallback( ( message ) => {
