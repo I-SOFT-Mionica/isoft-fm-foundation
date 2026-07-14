@@ -1,28 +1,20 @@
 /**
  * Client-side router for the admin shell.
  *
- * 0.12.8: the routing state is now `{ top, sub }`. `top` is one of
- * licenses|tools|settings; `sub` is which sub-tab is active inside
- * that top (e.g. tools.stats, settings.general). Licenses has no
- * sub-tabs so its sub is always null.
+ * 0.12.9 scope reduction: routing is intra-page only. Each top
+ * section (Licenses / Tools / Settings) is its own admin page — the
+ * router owns sub-tab nav within the currently-active top (Tools'
+ * Stats/Log/BrokenLinks strip, Settings' vertical sidebar). Clicking
+ * a WP admin sidebar link to a different top page goes through the
+ * WP admin's normal full navigation.
  *
- * URL mapping (the shape browsers see):
- *   ?page=isoft-fmf-licenses                       → { top: licenses, sub: null }
- *   ?page=isoft-fmf-tools                          → { top: tools, sub: stats }
- *   ?page=isoft-fmf-stats                          → { top: tools, sub: stats } (legacy)
- *   ?page=isoft-fmf-log                            → { top: tools, sub: log } (legacy)
- *   ?page=isoft-fmf-broken-links                   → { top: tools, sub: broken-links } (legacy)
- *   ?page=isoft-fmf-settings&tab=general           → { top: settings, sub: general }
- *
- * The legacy sub-URLs still resolve on the server (see
- * ISOFT_FMF_Settings::register_menu — they stay registered even after
- * consolidate_tools_menu removes them from the sidebar) so bookmarks
- * and inbound links keep working; the shell just enters with the
- * right sub-tab active.
+ * Sub-tab URL mapping:
+ *   - Licenses has no sub-tabs.
+ *   - Tools sub → page slug: stats→isoft-fmf-stats, log→isoft-fmf-log,
+ *     broken-links→isoft-fmf-broken-links. (?page=isoft-fmf-tools also
+ *     resolves and lands on stats by default.)
+ *   - Settings sub → ?tab= param on ?page=isoft-fmf-settings.
  */
-
-/** Top-level sections the router owns. */
-export const TOPS = [ 'licenses', 'tools', 'settings' ];
 
 /** Valid sub-tabs per top section. */
 export const SUBS_BY_TOP = {
@@ -39,8 +31,8 @@ const TOOLS_URL_TO_SUB = {
 };
 
 /**
- * Parse a URL into a {top, sub} pair. Returns null when the URL isn't
- * one of ours (WP core admin pages, external links, etc.).
+ * Parse a URL into `{ top, sub }`. Returns null when the URL isn't
+ * one of ours.
  */
 export const routeFromUrl = ( url ) => {
 	try {
@@ -65,14 +57,13 @@ export const routeFromUrl = ( url ) => {
 	}
 };
 
-/** Build the canonical URL for a {top, sub} pair. */
+/** Build the canonical URL for a { top, sub } pair. */
 export const urlForRoute = ( top, sub ) => {
 	const u = new URL( window.location.href );
 	u.searchParams.set( 'post_type', 'isoft_fmf_file' );
 
-	// Wipe non-owned params — the sub-tab is either encoded in `page`
-	// (for tools legacy URLs) or in `tab` (settings). Everything else
-	// leaks across sections.
+	// Wipe non-owned params so state doesn't leak between sub-tab
+	// swaps.
 	[ ...u.searchParams.keys() ]
 		.filter( ( k ) => k !== 'post_type' )
 		.forEach( ( k ) => u.searchParams.delete( k ) );
@@ -85,9 +76,6 @@ export const urlForRoute = ( top, sub ) => {
 			u.searchParams.set( 'tab', sub );
 		}
 	} else if ( 'tools' === top ) {
-		// Route Tools sub-tabs through the legacy page slugs so the
-		// URL still hits a real submenu callback. Bookmarks land on
-		// the same shell either way.
 		if ( 'log' === sub ) {
 			u.searchParams.set( 'page', 'isoft-fmf-log' );
 		} else if ( 'broken-links' === sub ) {
@@ -101,16 +89,22 @@ export const urlForRoute = ( top, sub ) => {
 };
 
 /**
- * Wire up the router. Returns an unsubscribe function via .destroy().
+ * Wire up the router for a specific top page. Returns an object with
+ * `navigate(top, sub)` for sub-tab swaps and `destroy()` to unsubscribe.
  *
- * @param {(top: string, sub: ?string) => void} onNavigate Fired on every route change.
+ * The router only handles routes whose `top` matches `activeTop` —
+ * anything else is a cross-page navigation and gets ignored so
+ * default WP admin behaviour (full navigation) takes over.
+ *
+ * @param {string}                                activeTop   Which top section this page renders.
+ * @param {(top: string, sub: ?string) => void}   onNavigate  Fired on every intra-top route change.
  */
-export const attachRouter = ( onNavigate ) => {
+export const attachRouter = ( activeTop, onNavigate ) => {
 	const listeners = [];
 
 	const onPopState = () => {
 		const route = routeFromUrl( window.location.href );
-		if ( route ) {
+		if ( route && route.top === activeTop ) {
 			onNavigate( route.top, route.sub );
 		}
 	};
@@ -118,7 +112,10 @@ export const attachRouter = ( onNavigate ) => {
 	listeners.push( () => window.removeEventListener( 'popstate', onPopState ) );
 
 	const navigate = ( top, sub ) => {
-		if ( ! TOPS.includes( top ) ) {
+		if ( top !== activeTop ) {
+			// Cross-page nav goes through WP admin's normal full
+			// navigation; the caller should just let the browser
+			// follow the anchor href.
 			return;
 		}
 		const target = urlForRoute( top, sub );
@@ -127,30 +124,6 @@ export const attachRouter = ( onNavigate ) => {
 		}
 		onNavigate( top, sub );
 	};
-
-	// Hijack WP #adminmenu links that point at one of our pages, so
-	// switching sidebars doesn't do a full navigation. Modifier-key
-	// clicks (⌘/Ctrl/Shift/Alt) fall through to default behaviour so
-	// users who want a new tab still get one.
-	const hijack = ( anchor ) => {
-		const onClick = ( e ) => {
-			if ( e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0 ) {
-				return;
-			}
-			const route = routeFromUrl( anchor.href );
-			if ( ! route ) {
-				return;
-			}
-			e.preventDefault();
-			navigate( route.top, route.sub );
-		};
-		anchor.addEventListener( 'click', onClick );
-		listeners.push( () => anchor.removeEventListener( 'click', onClick ) );
-	};
-
-	document
-		.querySelectorAll( '#adminmenu a[href*="page=isoft-fmf-"]' )
-		.forEach( hijack );
 
 	return {
 		navigate,

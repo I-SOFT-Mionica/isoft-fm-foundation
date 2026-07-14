@@ -1,25 +1,11 @@
 /*
- * Admin shell chrome — top nav strip, hidden-section container, Tools
- * sub-nav strip, and the Settings vertical sidebar card.
+ * Admin shell chrome — intra-page sub-nav strips only.
+ *
+ * 0.12.9 scope reduction: no more top-level tab strip joining
+ * Licenses/Tools/Settings — each is its own admin page. This file
+ * only styles the Tools horizontal sub-nav and the Settings vertical
+ * sidebar card.
  */
-
-.isoft-fmf-shell-nav {
-	margin-top: 0;
-}
-
-.isoft-fmf-shell__body {
-	margin-top: 12px;
-}
-
-/*
- * Hide inactive sections via [hidden] attribute (native HTML). The
- * default UA style is `display: none`, which unmounts nothing — the
- * React tree stays mounted and its state (DataViews search, Settings
- * dirty form, ...) survives round-trips through other sections.
- */
-.isoft-fmf-shell__section[hidden] {
-	display: none;
-}
 
 .isoft-fmf-broken-badge {
 	margin-left: 4px;
@@ -28,7 +14,7 @@
 /* ---------- Tools sub-nav strip ---------- */
 
 .isoft-fmf-tools-nav {
-	margin-top: 0;
+	margin-top:    0;
 	margin-bottom: 12px;
 }
 
@@ -39,64 +25,64 @@
 /* ---------- Settings vertical sidebar card ---------- */
 
 .isoft-fmf-settings-card {
-	display:          flex;
-	gap:              0;
-	background:       #fff;
-	border:           1px solid #c3c4c7;
-	border-radius:    4px;
-	margin-top:       12px;
-	min-height:       520px;
-	overflow:         hidden;
+	display:       flex;
+	gap:           0;
+	background:    #fff;
+	border:        1px solid #c3c4c7;
+	border-radius: 4px;
+	margin-top:    12px;
+	min-height:    520px;
+	overflow:      hidden;
 }
 
 .isoft-fmf-settings-sidebar {
-	width:            220px;
-	border-right:     1px solid #dcdcde;
-	background:       #f6f7f7;
-	flex-shrink:      0;
+	width:        220px;
+	border-right: 1px solid #dcdcde;
+	background:   #f6f7f7;
+	flex-shrink:  0;
 }
 
 .isoft-fmf-settings-sidebar ul {
-	list-style:       none;
-	margin:           0;
-	padding:          0;
+	list-style: none;
+	margin:     0;
+	padding:    0;
 }
 
 .isoft-fmf-settings-sidebar li {
-	margin:           0;
+	margin: 0;
 }
 
 .isoft-fmf-settings-sidebar a {
-	display:          block;
-	padding:          10px 16px;
-	color:            #1d2327;
-	text-decoration:  none;
-	border-left:      3px solid transparent;
-	font-size:        14px;
-	line-height:      1.4;
+	display:         block;
+	padding:         10px 16px;
+	color:           #1d2327;
+	text-decoration: none;
+	border-left:     3px solid transparent;
+	font-size:       14px;
+	line-height:     1.4;
 }
 
 .isoft-fmf-settings-sidebar a:hover,
 .isoft-fmf-settings-sidebar a:focus {
-	background:       #fff;
-	color:            #2271b1;
+	background: #fff;
+	color:      #2271b1;
 }
 
 .isoft-fmf-settings-sidebar a.is-active {
-	background:       #fff;
-	color:            #2271b1;
+	background:        #fff;
+	color:             #2271b1;
 	border-left-color: #2271b1;
-	font-weight:      600;
+	font-weight:       600;
 }
 
 .isoft-fmf-settings-body {
-	flex:             1;
-	padding:          20px 24px;
-	min-width:        0;  /* let flex child shrink for long form controls */
+	flex:      1;
+	padding:   20px 24px;
+	min-width: 0;  /* let flex child shrink for long form controls */
 }
 
 .isoft-fmf-settings-body h2 {
-	margin-top:       0;
+	margin-top: 0;
 }
 
 /* Narrow viewports: stack the sidebar above the body. */
@@ -106,20 +92,20 @@
 	}
 
 	.isoft-fmf-settings-sidebar {
-		width:            auto;
-		border-right:     none;
-		border-bottom:    1px solid #dcdcde;
+		width:         auto;
+		border-right:  none;
+		border-bottom: 1px solid #dcdcde;
 	}
 
 	.isoft-fmf-settings-sidebar ul {
-		display:          flex;
-		flex-wrap:        wrap;
+		display:   flex;
+		flex-wrap: wrap;
 	}
 
 	.isoft-fmf-settings-sidebar a {
-		border-left:      none;
-		border-bottom:    3px solid transparent;
-		padding:          10px 12px;
+		border-left:   none;
+		border-bottom: 3px solid transparent;
+		padding:       10px 12px;
 	}
 
 	.isoft-fmf-settings-sidebar a.is-active {

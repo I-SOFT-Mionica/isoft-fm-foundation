@@ -1,19 +1,25 @@
 /**
  * Admin shell — SPA entry point for the Downloads > * admin pages.
  *
- * 0.12.8: three top-level sections (Licenses / Tools / Settings). Tools
- * houses Statistics / Download Log / Broken Links as horizontal sub-
- * tabs; Settings houses General / Display / Security / Advanced /
- * Maintenance / Extensions as a vertical sidebar card.
+ * 0.12.9: Each top section (Licenses, Tools, Settings) is its own
+ * standalone admin page — no top-level tab strip joins them. The
+ * shared bundle still exists (one webpack entry containing all three
+ * section components), but each page load only renders the section
+ * corresponding to `bootstrap.active.top`. Cross-page navigation is
+ * whatever WordPress does natively (a full page reload); the bundle
+ * is browser-cached so subsequent loads only pay PHP boot + parse-
+ * cached-bundle + hydrate the active section.
+ *
+ * Within a page, sub-tab nav (Tools' Stats/Log/BrokenLinks strip,
+ * Settings' vertical sidebar) IS client-side — router.js handles
+ * pushState + popstate for `?tab=` / `?page=isoft-fmf-<sub>` URL
+ * shape changes so back/forward and reload behave sanely.
  *
  * The PHP shell (class-admin-shell.php + admin/views/admin-shell-mount.php)
- * emits one mount div with `data-bootstrap` carrying:
- *   - active = { top, sub }: initial routing state
- *   - badgeCount: broken-links count (drives both the top nav Tools
- *     badge and the Tools sub-nav Broken Links badge)
+ * emits one mount div carrying `data-bootstrap` with:
+ *   - active = { top, sub }: which top section to render + initial sub
+ *   - badgeCount: broken-links count (drives the Tools sub-nav badge)
  *   - one slice for the active top section
- *
- * See docs/architecture.md for the full sequence.
  */
 
 import {
@@ -22,12 +28,10 @@ import {
 	useState,
 	useEffect,
 	useCallback,
-	useMemo,
 	useRef,
 } from '@wordpress/element';
 
-import { SectionNav } from './nav';
-import { attachRouter, TOPS } from './router';
+import { attachRouter } from './router';
 
 import LicensesSection from './sections/licenses';
 import ToolsSection    from './sections/tools';
@@ -40,99 +44,52 @@ const SECTION_COMPONENTS = {
 };
 
 const Shell = ( { initialActive, bootstrap } ) => {
-	const [ activeTop, setActiveTop ] = useState( initialActive.top );
-	const [ activeSubByTop, setActiveSubByTop ] = useState( () => ( {
-		licenses: null,
-		tools:    'tools' === initialActive.top ? initialActive.sub : 'stats',
-		settings: 'settings' === initialActive.top ? initialActive.sub : 'general',
-	} ) );
-
-	// Sections mount lazily on first visit and stay in the tree behind
-	// [hidden] so revisits preserve React state (DataViews search,
-	// Settings dirty form, ...).
-	const [ visited, setVisited ] = useState( () => new Set( [ initialActive.top ] ) );
+	const activeTop = initialActive.top;
+	const [ activeSub, setActiveSub ] = useState( initialActive.sub );
 
 	const routerRef = useRef( null );
 
 	const handleNavigate = useCallback( ( top, sub ) => {
-		if ( ! TOPS.includes( top ) ) {
+		// The router only fires with top === activeTop for this page —
+		// cross-top navigation goes through the WP admin sidebar (full
+		// page reload), not client-side.
+		if ( top !== activeTop ) {
 			return;
 		}
-		setActiveTop( top );
 		if ( sub != null ) {
-			setActiveSubByTop( ( prev ) => ( { ...prev, [ top ]: sub } ) );
+			setActiveSub( sub );
 		}
-		setVisited( ( prev ) => {
-			if ( prev.has( top ) ) {
-				return prev;
-			}
-			const next = new Set( prev );
-			next.add( top );
-			return next;
-		} );
-	}, [] );
+	}, [ activeTop ] );
 
 	useEffect( () => {
-		routerRef.current = attachRouter( handleNavigate );
+		routerRef.current = attachRouter( activeTop, handleNavigate );
 		return () => {
 			routerRef.current?.destroy();
 			routerRef.current = null;
 		};
-	}, [ handleNavigate ] );
+	}, [ activeTop, handleNavigate ] );
 
-	const onSelectTop = useCallback( ( top ) => {
-		routerRef.current?.navigate( top, activeSubByTop[ top ] );
-	}, [ activeSubByTop ] );
-
-	const onSelectSub = useCallback( ( top, sub ) => {
-		routerRef.current?.navigate( top, sub );
-	}, [] );
+	const onSelectSub = useCallback( ( sub ) => {
+		routerRef.current?.navigate( activeTop, sub );
+	}, [ activeTop ] );
 
 	const brokenCount = parseInt( bootstrap?.badgeCount, 10 ) || 0;
 
-	const mountedTops = useMemo( () => Array.from( visited ), [ visited ] );
+	const Component = SECTION_COMPONENTS[ activeTop ];
+	if ( ! Component ) {
+		return null;
+	}
 
-	// Bootstrap slices per top section. `bootstrap[top]` is the slice
-	// the PHP side computed for the active top; sibling tops receive
-	// an empty object and hydrate over REST on first visit.
-	const perTopBootstrap = useMemo(
-		() => ( {
-			licenses: bootstrap?.licenses || {},
-			tools:    bootstrap?.tools    || {},
-			settings: bootstrap?.settings || {},
-		} ),
-		[ bootstrap ]
-	);
+	const topBootstrap = bootstrap?.[ activeTop ] || {};
 
 	return (
 		<div className="isoft-fmf-shell">
-			<SectionNav
-				activeTop={ activeTop }
-				onSelect={ onSelectTop }
+			<Component
+				bootstrap={ topBootstrap }
+				activeSub={ activeSub }
+				onSelectSub={ onSelectSub }
 				brokenCount={ brokenCount }
 			/>
-			<div className="isoft-fmf-shell__body">
-				{ mountedTops.map( ( top ) => {
-					const Component = SECTION_COMPONENTS[ top ];
-					if ( ! Component ) {
-						return null;
-					}
-					return (
-						<div
-							key={ top }
-							className="isoft-fmf-shell__section"
-							hidden={ top !== activeTop }
-						>
-							<Component
-								bootstrap={ perTopBootstrap[ top ] }
-								activeSub={ activeSubByTop[ top ] }
-								onSelectSub={ ( sub ) => onSelectSub( top, sub ) }
-								brokenCount={ brokenCount }
-							/>
-						</div>
-					);
-				} ) }
-			</div>
 		</div>
 	);
 };
