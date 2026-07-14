@@ -494,8 +494,8 @@ const SUB_TABS = [
 ];
 
 const SettingsSection = ( { bootstrap, activeSub, onSelectSub } ) => {
-	const initialTab   = bootstrap?.initialTab || 'general';
-	const initialValues = bootstrap?.initialValues || null;
+	const initialTab      = bootstrap?.initialTab || 'general';
+	const initialValues   = bootstrap?.initialValues || null;
 	const maintenanceHtml = bootstrap?.maintenanceHtml || '';
 	const extensionsHtml  = bootstrap?.extensionsHtml  || '';
 
@@ -508,33 +508,35 @@ const SettingsSection = ( { bootstrap, activeSub, onSelectSub } ) => {
 	};
 
 	return (
-		<div className="isoft-fmf-settings-card">
-			<nav className="isoft-fmf-settings-sidebar" aria-label={ __( 'Settings navigation', 'isoft-fm-foundation' ) }>
-				<ul>
-					{ SUB_TABS.map( ( sub ) => {
-						const isActive = sub.id === effectiveSub;
-						return (
-							<li key={ sub.id }>
-								<a
-									href={ `?post_type=isoft_fmf_file&page=isoft-fmf-settings&tab=${ sub.id }` }
-									className={ isActive ? 'is-active' : '' }
-									onClick={ ( e ) => {
-										if ( e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0 ) {
-											return;
-										}
-										e.preventDefault();
-										handleSelect( sub.id );
-									} }
-								>
-									{ sub.label() }
-								</a>
-							</li>
-						);
-					} ) }
-				</ul>
+		<div className="isoft-fmf-settings">
+			<h1 className="wp-heading-inline">
+				{ __( 'Settings', 'isoft-fm-foundation' ) }
+			</h1>
+			<hr className="wp-header-end" />
+
+			<nav className="nav-tab-wrapper isoft-fmf-settings-nav" style={ { marginTop: 0 } }>
+				{ SUB_TABS.map( ( sub ) => {
+					const isActive = sub.id === effectiveSub;
+					return (
+						<a
+							key={ sub.id }
+							href={ `?post_type=isoft_fmf_file&page=isoft-fmf-settings&tab=${ sub.id }` }
+							className={ `nav-tab ${ isActive ? 'nav-tab-active' : '' }` }
+							onClick={ ( e ) => {
+								if ( e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0 ) {
+									return;
+								}
+								e.preventDefault();
+								handleSelect( sub.id );
+							} }
+						>
+							{ sub.label() }
+						</a>
+					);
+				} ) }
 			</nav>
 
-			<div className="isoft-fmf-settings-body">
+			<div className="isoft-fmf-settings__body" style={ { marginTop: '16px' } }>
 				{ SCHEMA_TABS.includes( effectiveSub ) && (
 					<SettingsForm
 						tab={ effectiveSub }

@@ -88,6 +88,53 @@ class ISOFT_FMF_Admin_Shell {
 		return self::$active;
 	}
 
+	/**
+	 * Fallback route derivation from $_GET['page'] — used by
+	 * bootstrap_payload() when self::$active hasn't been set yet.
+	 * Mirrors the JS router's routeFromUrl logic so the client and
+	 * server agree on which page a URL resolves to.
+	 *
+	 * @return array{top:string,sub:?string}
+	 */
+	private static function route_from_query_string(): array {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only URL routing; page slug is validated below.
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+
+		$tools_pages = array(
+			'isoft-fmf-tools'        => 'stats',
+			'isoft-fmf-stats'        => 'stats',
+			'isoft-fmf-log'          => 'log',
+			'isoft-fmf-broken-links' => 'broken-links',
+		);
+
+		if ( 'isoft-fmf-licenses' === $page ) {
+			return array(
+				'top' => 'licenses',
+				'sub' => null,
+			);
+		}
+		if ( 'isoft-fmf-settings' === $page ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only tab selector.
+			$tab   = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'general';
+			$valid = array( 'general', 'display', 'security', 'advanced', 'maintenance', 'extensions' );
+			return array(
+				'top' => 'settings',
+				'sub' => in_array( $tab, $valid, true ) ? $tab : 'general',
+			);
+		}
+		if ( isset( $tools_pages[ $page ] ) ) {
+			return array(
+				'top' => 'tools',
+				'sub' => $tools_pages[ $page ],
+			);
+		}
+
+		return array(
+			'top' => 'licenses',
+			'sub' => null,
+		);
+	}
+
 	public function enqueue( string $hook_suffix ): void {
 		$section = self::section_map()[ $hook_suffix ] ?? null;
 		if ( null === $section ) {
@@ -174,10 +221,14 @@ class ISOFT_FMF_Admin_Shell {
 	 * @return array<string,mixed>
 	 */
 	public static function bootstrap_payload(): array {
-		$active = self::$active ?? array(
-			'top' => 'licenses',
-			'sub' => null,
-		);
+		// Prefer the value stashed by enqueue() — that's the
+		// authoritative hook_suffix-driven answer. Fall back to
+		// deriving from $_GET['page'] if enqueue() didn't fire (some
+		// admin-page render paths can execute before the enqueue
+		// hook, e.g. when a submenu callback runs directly during
+		// admin.php dispatch and admin_enqueue_scripts fires later).
+		// Absent both, default to licenses.
+		$active = self::$active ?? self::route_from_query_string();
 
 		$payload = array(
 			'active'     => $active,

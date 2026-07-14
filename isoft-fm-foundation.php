@@ -151,8 +151,15 @@ add_action(
 		if ( is_admin() ) {
 			( new ISOFT_FMF_Admin_Meta_Boxes() )->register_hooks();
 			( new ISOFT_FMF_Admin_Columns() )->register_hooks();
-			( new ISOFT_FMF_Settings() )->register_hooks();
+			// License_Manager registers its admin submenu on
+			// admin_menu at priority 10. It's instantiated BEFORE
+			// Settings (which also hooks admin_menu at 10) so its
+			// add_submenu_page fires first and Licenses lands
+			// adjacent to the taxonomy submenus, ahead of Tools /
+			// Settings. Reordering these two lines is load-bearing
+			// for the WP admin sidebar order.
 			( new ISOFT_FMF_License_Manager() )->register_hooks();
+			( new ISOFT_FMF_Settings() )->register_hooks();
 			// One admin-shell class replaces the five per-page enqueue
 			// classes (Licenses_Page, Stats_Page, Log_Page,
 			// Broken_Links_Page, Settings_Page) retired in 0.12.6.
