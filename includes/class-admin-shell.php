@@ -89,14 +89,16 @@ class ISOFT_FMF_Admin_Shell {
 	}
 
 	/**
-	 * Fallback route derivation from $_GET['page'] — used by
-	 * bootstrap_payload() when self::$active hasn't been set yet.
-	 * Mirrors the JS router's routeFromUrl logic so the client and
-	 * server agree on which page a URL resolves to.
+	 * Derive the {top, sub} route from $_GET['page']. Returns null when
+	 * the URL doesn't match any known shell page — the caller falls
+	 * back to whatever enqueue() stashed, or the licenses default.
 	 *
-	 * @return array{top:string,sub:?string}
+	 * Mirrors the JS router's routeFromUrl so client and server agree
+	 * on which page a URL resolves to.
+	 *
+	 * @return array{top:string,sub:?string}|null
 	 */
-	private static function route_from_query_string(): array {
+	private static function route_from_query_string(): ?array {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only URL routing; page slug is validated below.
 		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
 
@@ -129,10 +131,7 @@ class ISOFT_FMF_Admin_Shell {
 			);
 		}
 
-		return array(
-			'top' => 'licenses',
-			'sub' => null,
-		);
+		return null;
 	}
 
 	public function enqueue( string $hook_suffix ): void {
@@ -221,14 +220,17 @@ class ISOFT_FMF_Admin_Shell {
 	 * @return array<string,mixed>
 	 */
 	public static function bootstrap_payload(): array {
-		// Prefer the value stashed by enqueue() — that's the
-		// authoritative hook_suffix-driven answer. Fall back to
-		// deriving from $_GET['page'] if enqueue() didn't fire (some
-		// admin-page render paths can execute before the enqueue
-		// hook, e.g. when a submenu callback runs directly during
-		// admin.php dispatch and admin_enqueue_scripts fires later).
-		// Absent both, default to licenses.
-		$active = self::$active ?? self::route_from_query_string();
+		// $_GET is the authoritative source: the URL is the page.
+		// self::$active (set by enqueue()) is used only when $_GET
+		// doesn't resolve to a known shell page — that can happen if
+		// this method is invoked from a context outside the normal
+		// submenu render pipeline (unlikely, but harmless to defend
+		// against). If both fail, default to licenses.
+		$route  = self::route_from_query_string();
+		$active = $route ?? self::$active ?? array(
+			'top' => 'licenses',
+			'sub' => null,
+		);
 
 		$payload = array(
 			'active'     => $active,
