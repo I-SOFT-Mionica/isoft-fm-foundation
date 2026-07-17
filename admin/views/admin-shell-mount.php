@@ -47,24 +47,32 @@ $isoft_fmf_show_integrity_panel = 'tools' === $isoft_fmf_bootstrap['active']['to
 
 	<?php
 	// Settings' Maintenance and Extensions sub-tabs are PHP-rendered
-	// forms — the shell injects their raw HTML into React via
-	// dangerouslySetInnerHTML. We can NOT pack them through the
-	// data-bootstrap JSON attribute because the JSON → esc_attr →
-	// JSON.parse round-trip can break on some characters in the
-	// captured HTML. So emit them as sibling <script type="text/html">
-	// blocks that React reads directly by id.
+	// forms — the shell needs to inject their raw HTML somewhere React
+	// can pick it up.
 	//
-	// script type="text/html" is inert (browsers don't execute it as
-	// JS), and its text content survives verbatim without any
-	// intermediate escaping.
+	// Two shapes rejected on the way here:
+	// - Packing the HTML into the data-bootstrap JSON attribute broke
+	//   the JSON → esc_attr → JSON.parse round-trip on some characters
+	//   in the captured HTML (SyntaxError at col 1786 of a 9098-char
+	//   blob on a real install).
+	// - Emitting as <script type="text/html"> + textContent +
+	//   dangerouslySetInnerHTML tripped CodeQL's js/xss-through-dom
+	//   rule (correctly — it's a footgun pattern even when the source
+	//   is server-authored).
+	//
+	// The right container for inert HTML fragments is <template>: the
+	// browser parses the content as DOM nodes into template.content
+	// but doesn't render or execute them. React clones the node tree
+	// via cloneNode(true) — no text-to-HTML reinterpretation, no XSS
+	// surface.
 	if ( 'settings' === $isoft_fmf_bootstrap['active']['top'] ) :
 		?>
-		<script type="text/html" id="isoft-fmf-tab-maintenance">
+		<template id="isoft-fmf-tab-maintenance">
 			<?php echo ISOFT_FMF_Admin_Shell::settings_php_tab_html( 'maintenance' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Already-escaped HTML captured from a plugin view file. ?>
-		</script>
-		<script type="text/html" id="isoft-fmf-tab-extensions">
+		</template>
+		<template id="isoft-fmf-tab-extensions">
 			<?php echo ISOFT_FMF_Admin_Shell::settings_php_tab_html( 'extensions' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Already-escaped HTML captured from a plugin view file. ?>
-		</script>
+		</template>
 		<?php
 	endif;
 	?>

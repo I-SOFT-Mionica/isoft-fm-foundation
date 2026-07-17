@@ -471,19 +471,6 @@ const SettingsForm = ( { tab, initialPayload } ) => {
 	);
 };
 
-const RawHtmlPanel = ( { html, label } ) => {
-	if ( ! html ) {
-		return (
-			<p className="description">
-				{ label } { __( '— content unavailable.', 'isoft-fm-foundation' ) }
-			</p>
-		);
-	}
-	// PHP already escaped its output via esc_* / wp_kses_post at
-	// render time, so injecting the string directly is safe.
-	return <div dangerouslySetInnerHTML={ { __html: html } } />;
-};
-
 const SUB_TABS = [
 	{ id: 'general',     label: () => __( 'General',     'isoft-fm-foundation' ) },
 	{ id: 'display',     label: () => __( 'Display',     'isoft-fm-foundation' ) },
@@ -494,21 +481,42 @@ const SUB_TABS = [
 ];
 
 /**
- * Read a PHP-rendered tab's HTML from the sibling <script type="text/html">
- * blocks emitted by admin-shell-mount.php. Returns '' if the block
- * isn't present (shell mounted on a non-Settings URL, or PHP failed
- * to capture the view).
+ * Renders a PHP-authored tab's markup from the sibling <template>
+ * emitted by admin-shell-mount.php. Reads DOM nodes (not text) and
+ * clones them into a container — never reinterprets text as HTML,
+ * so CodeQL's js/xss-through-dom rule is satisfied and there's no
+ * escaping-layer surface between PHP and the DOM.
  */
-const readTabHtml = ( tab ) => {
-	const el = document.getElementById( `isoft-fmf-tab-${ tab }` );
-	return el ? el.textContent : '';
+const PhpTabPanel = ( { tab, label } ) => {
+	const containerRef = useRef( null );
+
+	useEffect( () => {
+		const template = document.getElementById( `isoft-fmf-tab-${ tab }` );
+		const container = containerRef.current;
+		if ( ! container ) {
+			return;
+		}
+		// Clear previous content on tab re-mount.
+		while ( container.firstChild ) {
+			container.removeChild( container.firstChild );
+		}
+		if ( template && template.content ) {
+			container.appendChild( template.content.cloneNode( true ) );
+		} else {
+			// Server didn't emit the template — very defensive fallback.
+			const p = document.createElement( 'p' );
+			p.className = 'description';
+			p.textContent = `${ label } — content unavailable.`;
+			container.appendChild( p );
+		}
+	}, [ tab, label ] );
+
+	return <div ref={ containerRef } />;
 };
 
 const SettingsSection = ( { bootstrap, activeSub, onSelectSub } ) => {
 	const initialTab    = bootstrap?.initialTab || 'general';
 	const initialValues = bootstrap?.initialValues || null;
-	const maintenanceHtml = readTabHtml( 'maintenance' );
-	const extensionsHtml  = readTabHtml( 'extensions' );
 
 	const [ localSub, setLocalSub ] = useState( initialTab );
 	const effectiveSub = activeSub || localSub;
@@ -555,10 +563,10 @@ const SettingsSection = ( { bootstrap, activeSub, onSelectSub } ) => {
 					/>
 				) }
 				{ 'maintenance' === effectiveSub && (
-					<RawHtmlPanel html={ maintenanceHtml } label={ __( 'Maintenance', 'isoft-fm-foundation' ) } />
+					<PhpTabPanel tab="maintenance" label={ __( 'Maintenance', 'isoft-fm-foundation' ) } />
 				) }
 				{ 'extensions' === effectiveSub && (
-					<RawHtmlPanel html={ extensionsHtml } label={ __( 'Extensions', 'isoft-fm-foundation' ) } />
+					<PhpTabPanel tab="extensions" label={ __( 'Extensions', 'isoft-fm-foundation' ) } />
 				) }
 			</div>
 		</div>
