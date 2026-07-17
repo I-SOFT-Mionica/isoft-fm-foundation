@@ -46,25 +46,27 @@ $isoft_fmf_show_integrity_panel = 'tools' === $isoft_fmf_bootstrap['active']['to
 	></div>
 
 	<?php
-	// Settings' Maintenance and Extensions sub-tabs are PHP-rendered
-	// forms — the shell needs to inject their raw HTML somewhere React
-	// can pick it up.
-	//
-	// Two shapes rejected on the way here:
-	// - Packing the HTML into the data-bootstrap JSON attribute broke
-	//   the JSON → esc_attr → JSON.parse round-trip on some characters
-	//   in the captured HTML (SyntaxError at col 1786 of a 9098-char
-	//   blob on a real install).
-	// - Emitting as <script type="text/html"> + textContent +
-	//   dangerouslySetInnerHTML tripped CodeQL's js/xss-through-dom
-	//   rule (correctly — it's a footgun pattern even when the source
-	//   is server-authored).
-	//
-	// The right container for inert HTML fragments is <template>: the
-	// browser parses the content as DOM nodes into template.content
-	// but doesn't render or execute them. React clones the node tree
-	// via cloneNode(true) — no text-to-HTML reinterpretation, no XSS
-	// surface.
+	/*
+	 * Settings' Maintenance and Extensions sub-tabs are PHP-rendered
+	 * forms — the shell needs to inject their raw HTML somewhere React
+	 * can pick it up.
+	 *
+	 * Two shapes rejected on the way here:
+	 * - Packing the HTML into the data-bootstrap JSON attribute broke
+	 *   the JSON → esc_attr → JSON.parse round-trip on some characters
+	 *   in the captured HTML (SyntaxError at col 1786 of a 9098-char
+	 *   blob on a real install).
+	 * - Emitting as <script type="text/html"> + textContent +
+	 *   dangerouslySetInnerHTML tripped CodeQL's js/xss-through-dom
+	 *   rule (correctly — it's a footgun pattern even when the source
+	 *   is server-authored).
+	 *
+	 * The right container for inert HTML fragments is <template>: the
+	 * browser parses the content as DOM nodes into template.content
+	 * but doesn't render or execute them. React clones the node tree
+	 * via cloneNode(true) — no text-to-HTML reinterpretation, no XSS
+	 * surface.
+	 */
 	if ( 'settings' === $isoft_fmf_bootstrap['active']['top'] ) :
 		?>
 		<template id="isoft-fmf-tab-maintenance">
