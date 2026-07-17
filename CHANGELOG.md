@@ -2,311 +2,50 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
-## [0.12.8] — unreleased
+## [0.12.0] — 2026-07-17
 
-Information architecture rework. The admin sidebar collapses from 8 Downloads entries to 5, the shell's top nav goes from 5 tabs to 3, and the Settings tab strip becomes a Site-Health-style vertical sidebar card. No perf changes — this is pure UX.
+The React admin rewrite. Every I-Soft File Manager: Foundation admin screen (Statistics, Download Log, Broken Links, Settings, Licenses) is now a Gutenberg-native React app running on a shared REST API. The result: instant navigation between the Downloads pages after first load, a redesigned Downloads sidebar (Licenses, Tools, Settings), a rebuilt Broken Links recovery flow, and a lot less code churning in the background on every request.
 
-This release does NOT ship to WordPress.org SVN. 0.12.x stays GitHub-only until 1.0.0 graduation.
+If you're coming from 0.11.0, nothing in your data changes. Existing downloads, categories, files, licenses, logs, and per-user category permissions are preserved. The upgrade runs a one-shot database migration to reduce every multi-category download to its oldest assignment (the filesystem-as-source-of-truth architecture only ever honoured the first category); the migration logs its result count and is idempotent.
 
-### Changed
+### New
 
-- **Admin sidebar** now shows 5 Downloads entries instead of 8: All Downloads, Add New, Categories, Tags, Licenses, **Tools**, Settings. Statistics / Download Log / Broken Links are consolidated under Tools; their submenus stay registered (URLs still resolve for bookmarks) but `remove_submenu_page` hides them from the sidebar.
-- **Shell top nav** goes from 5 tabs to 3: Licenses / **Tools** / Settings. The pre-0.12.8 flat strip listing every section side-by-side is gone.
-- **Tools section** is new — a card that houses Statistics / Download Log / Broken Links as horizontal sub-tabs (WP-native `.nav-tab-wrapper` style). Broken-links badge appears on the Tools sub-tab AND on the top nav Tools tab so it's discoverable without opening Tools.
-- **Settings section** is rewritten to a vertical sidebar card layout (Site Health / WooCommerce Settings pattern). Six sub-tabs (General, Display, Security, Advanced, **Maintenance**, **Extensions**) live in the left rail; content renders on the right inside one card.
-- **Maintenance and Extensions** now render inside the shell instead of jumping to a legacy PHP page. Their existing PHP HTML is captured server-side via `ob_start()` in `ISOFT_FMF_Admin_Shell::capture_view()` and inlined into `data-bootstrap`; React injects it via `dangerouslySetInnerHTML`. The forms' `options.php` / `admin-post.php` handlers still process submissions unchanged — the browser reloads to the shell after submit.
+- **Reorganised Downloads menu.** Sidebar collapses to: All Downloads, Add New, Categories, Tags, Licenses, **Tools**, Settings. Statistics, Download Log, and Broken Links move under a single **Tools** page as horizontal tabs. Old direct URLs (, , ) still resolve so bookmarks and inbound links keep working.
+- **Editor sidebar for downloads.** The download post-edit screen now runs on the block editor. Version, license, changelog, author, agreement gate, and access role live in a right-hand sidebar. The classic multi-category checkbox picker is replaced by a single-select dropdown (matches the one-folder-per-download filesystem model).
+- **DataViews-powered Download Log and Broken Links.** Server-side pagination, per-download filter, live search, sortable columns, and 300 ms debounced typing so the table stays responsive under load.
+- **Broken Links recovery modal.** Per-row Recover action opens a modal with the same seven paths that existed before (relink, move back, reassign, split, reupload, detach) but on a clearer flow that shows where the file was found vs. where it was expected, and closes immediately on success.
+- **Statistics dashboard rewrite.** Same KPI cards, 30-day bar chart, and Top-N tables, now with a Refresh button and a five-minute cached backend.
+- **Schema-driven Settings.** Six sub-tabs (General, Display, Security, Advanced, Maintenance, Extensions) on a horizontal tab strip. Per-tab Save Changes button, dirty-diff guard, and only-changed-fields writes.
+- **Category icons.** Category admin gets a small icon picker (dashicon name, image URL, or  shortcode) and the front-end category grid renders whichever is set, falling back to a bundled default SVG.
+- **Public REST API.** Every admin surface reads and writes through . Extensions and integrations can now consume or replace the entire admin without touching WordPress hooks.
+- **Batched log-retention purge.** Cleanup runs in 5,000-row batches so a large delete no longer locks the log table on busy sites.
 
-### Added
+### Faster
 
-- **`ISOFT_FMF_Settings::consolidate_tools_menu()`** — hooked on `admin_menu` at priority 999. Calls `remove_submenu_page` for the three legacy Tools sub-URLs so they don't appear in the sidebar. Their `$_registered_pages` entries survive, so `admin.php?page=isoft-fmf-stats` etc. still resolves.
-- **`ISOFT_FMF_Admin_Shell::capture_view()`** — buffered-output helper. Runs a PHP view file and returns its rendered HTML as a string.
-- **New Tools view** at `admin/views/tools-page.php` — thin adapter, mounts the shell with `$isoft_fmf_section = 'tools'`.
-- **`blocks/admin-shell/sections/tools.js`** — new React section. Owns the horizontal sub-nav strip; child components (`StatsSection`, `LogSection`, `BrokenLinksSection`) are re-parented from the pre-0.12.8 top-level shell.
-
-### Router / URL model
-
-- Routing state is now `{ top, sub }`. `top ∈ { licenses, tools, settings }`, `sub` names the active inner tab (or null for Licenses). The router derives `{top, sub}` from either the new URL (`?page=isoft-fmf-tools`) or the legacy sub-URLs (`?page=isoft-fmf-log` → `{ tools, log }`), and pushState writes the canonical URL for the current pair. `?tab=general` continues to be Settings' sub-tab discriminator so deep-links stay stable.
-- The `#adminmenu` click hijack now understands the top+sub mapping — clicking a sidebar link to any of our pages routes client-side to the correct top and sub together.
-
-### PHP
-
-- **`ISOFT_FMF_Admin_Shell::section_map()`** now returns `{ top, sub }` tuples instead of section slugs.
-- **`bootstrap_payload()`** shape: `{ active: { top, sub }, badgeCount, licenses: {…}, tools: {…}, settings: {…} }`. Only the active top's slice is populated; sibling tops receive an empty object and hydrate over REST on first visit.
-- **`tools_slice()`** is analogous to the pre-0.12.8 per-section slices — it computes only the active sub-tab's slice (stats overview, log rows, or broken-file rows) and leaves siblings for post-mount fetch.
-
-### Fixed (mid-branch)
-
-- **Settings URL rendered Licenses content.** The pre-fix Settings slice packed ~10 KB of PHP-rendered HTML (Maintenance + Extensions tabs) into the JSON `data-bootstrap` attribute. On the real install this broke the JSON→HTML-attr→`JSON.parse` round-trip at column 1786 of a 9098-char blob. The parse failure was caught silently, `bootstrap` became `{}`, `bootstrap.active` was `undefined`, and the `|| { top: 'licenses' }` default kicked in — so every Settings-URL visit rendered LicensesSection while the server-side data was correct. Fix: the two PHP tab HTML strings ship as sibling `<script type="text/html" id="isoft-fmf-tab-maintenance|extensions">…</script>` blocks emitted by admin-shell-mount.php. `script[type="text/html"]` is inert (not executed as JS) and its `textContent` survives verbatim without any escaping-layer round-trip. React reads them by id via `document.getElementById().textContent`. Lesson: never pack arbitrary HTML into a `data-` JSON attribute — use a dedicated inert `<script>` block.
-- **Bootstrap routing is URL-authoritative.** `bootstrap_payload()` derives `{top, sub}` from `$_GET['page']` first; falls back to the enqueue-stashed value only if the URL doesn't match a known shell page. Prevents any future enqueue-timing mismatch from silently defaulting to Licenses.
-- **Shell top nav removed.** Per user feedback that the pre-fix "Licenses / Tools / Settings" tab strip made the three pages read as a joined nested UI. Each top section is now a standalone WP admin page; the WP admin sidebar is the top-level nav. Sub-nav (Tools' Stats/Log/BrokenLinks, Settings' 6 sub-tabs) stays as horizontal `.nav-tab-wrapper` strips inside each page.
-- **Settings vertical sidebar reverted to horizontal tabs** matching Tools' pattern.
-- **Menu order** — swapped bootstrap so License_Manager instantiates before Settings; Licenses now lands at position 16 (right after Tags) as intended.
-
-### Version
-
-Bump to **0.12.8-dev**. `readme.txt` `Stable tag:` stays at `0.11.0`.
-
-## [0.12.7] — unreleased
-
-Perf pass on top of the 0.12.6 SPA shell, addressing structural cost the shell itself couldn't touch. Four backend changes and one small IA move.
-
-This release does NOT ship to WordPress.org SVN. 0.12.x stays GitHub-only until 1.0.0 graduation.
-
-### Perf
-
-- **Lazy per-section bootstrap.** `ISOFT_FMF_Admin_Shell::bootstrap_payload()` now computes only the active section's slice (derived from the enqueue hook_suffix) plus the broken-links badge count (which is already transient-cached). Pre-0.12.7 shape ran 5–8 uncached DB round-trips per shell page load (log rows + downloads-list + broken-file rows + license list + settings + stats), regardless of tab. Post-0.12.7: 1–2. Since the SPA router keeps visited sections alive in the DOM, each section pays its query cost exactly once per session — the first cross-section click gets a ~100ms spinner, everything else is identical.
-- **Persistent-object-cache layer on the category ACL.** `ISOFT_FMF_Category_ACL::get_effective()` now writes to `wp_cache_set` under group `isoft_fmf_acl` (TTL 1 hour) in addition to the existing in-request memo. With Redis / Memcached / APCu backing `wp_cache_*`, the `get_term_children` walk that resolves a restricted user's allowed set only runs when the user's assignment or the term hierarchy changes. Cache is invalidated by `updated_user_meta` / `added_user_meta` / `deleted_user_meta` on the allowed_categories key (per-user flush) and by `edited_isoft_fmf_category` / `created_isoft_fmf_category` / `delete_isoft_fmf_category` (group flush — child moves affect every ancestor's descendant set).
-- **Batched log-retention purge.** `ISOFT_FMF_Download_Logger::purge_old_logs()` now deletes in batches of 5000 rows in a loop instead of one giant `DELETE`. Same net rows deleted; no single query holds a long transaction that blocks concurrent log-writes on busy sites. The admin-post handler caps the loop at 10 batches (50k rows per click) so a manual purge under a huge backlog can't stall the request past PHP's `max_execution_time`; the daily cron runs uncapped and finishes any remainder. The `idx_downloaded_at` index makes each batch's WHERE scan cheap.
+- **Single admin bundle.** All React admin surfaces load from one JavaScript file instead of five per-page bundles.  is bundled once, not twice.
+- **Zero-fetch first paint.** Every page load ships its initial data inline (log rows, license table, current setting values, stats overview) — no extra REST round-trip before the screen renders.
+- **Lazy per-section hydration.** Only the section you land on computes its data server-side; sibling sections load on first visit.
+- **Lighter frontend.** REST controllers, admin classes, and legacy handlers only load when they're actually needed. Frontend requests no longer pay for the admin layer.
+- **Object-cache-aware access control.** The per-user category permission set is cached under  group; with Redis / Memcached / APCu it survives across requests.
 
 ### Changed
 
-- **REST controllers moved off `plugins_loaded`.** The seven `ISOFT_FMF_Rest_*` classes are now instantiated on `rest_api_init` instead of every request. Each pre-0.12.7 request paid ~7 file autoloads + constructor cost on the way to running zero REST code; that cost is now scoped to actual REST requests. Test surfaces are unaffected — tests exercise the endpoints via `WP_REST_Server`, not via `register_hooks` / `register_routes` directly.
-- **Admin-only classes tightened.** `ISOFT_FMF_Editor_Sidebar` and `ISOFT_FMF_Export` moved inside the `is_admin()` guard. Editor sidebar is only mounted inside the block editor; export handlers only run for `admin-post.php` requests. Pre-0.12.7 they loaded on every frontend request too.
-
-### IA (small)
-
-- **Licenses submenu now sits under Tags.** Uses the `add_submenu_page` position argument (16) to land Licenses right after the Tags taxonomy submenu (position 15). Content-facing entries (Categories, Tags, Licenses) read as a visual cluster; Tools-facing entries (Statistics, Download Log, Broken Links) follow.
-
-### Version
-
-Bump to **0.12.7-dev**. `readme.txt` `Stable tag:` stays at `0.11.0`. Ships to `dev/0.12.x` only.
-
-## [0.12.6] — unreleased
-
-Phase 7 of the React-admin rewrite: the SPA shell. Ships in response to 5+ second menu-item lag reported on real-world Local installs after 0.12.5. Navigation between the 5 Downloads admin surfaces (Licenses / Statistics / Download Log / Broken Links / Settings) is now client-side.
-
-This release does NOT ship to WordPress.org SVN. 0.12.x stays GitHub-only until 1.0.0 graduation.
-
-### Added
-
-- **`ISOFT_FMF_Admin_Shell`** — single enqueue class that ships `blocks/build/admin-shell.js` on any of the 5 admin-page hook suffixes. Owns the `SECTION_MAP` (hook suffix → React section slug) and computes the JSON `bootstrap_payload()` that admin-shell-mount.php emits as a `data-bootstrap` attr on the mount div.
-- **`blocks/admin-shell/`** entry — one bundle containing five sections (`sections/licenses.js`, `stats.js`, `log.js`, `broken-links.js`, `settings.js`), a tab-strip nav (`nav.js`), a `pushState` router (`router.js`) that hijacks `#adminmenu` clicks pointing at our slugs, and a shared util layer (`util/format.js` — `formatBytes`, `formatDate`, `offsetDay`, `monthLabel`).
-- **`admin/views/admin-shell-mount.php`** — shared partial that every one of the 5 admin views requires with a `$isoft_fmf_section` local. Emits the wrap div, mount div with `data-section` + `data-bootstrap`, and the JS-disabled noscript notice. For section=broken-links, inlines the integrity-check PHP fragment above the mount.
-- **`admin/views/broken-links-integrity-panel.php`** — the PHP integrity-check panel extracted from the pre-0.12.6 broken-links-page.php so admin-shell-mount.php can conditionally include it. Server-side lock state + admin-post.php trigger, not a React port.
-- **`admin/css/admin-shell.css`** — chrome for the shell (nav strip + hidden-section CSS). Sections use `[hidden]` so React state persists across nav.
-
-### Changed
-
-- **All 5 admin views collapse to one-line adapters** — `licenses-page.php`, `stats-dashboard.php`, `log-viewer.php`, `broken-links-page.php`, `settings-page.php` each set `$isoft_fmf_section` and require `admin-shell-mount.php`. Settings page keeps a small pre-mount branch that renders the Maintenance / Extensions PHP tabs directly (no React port for those).
-- **Section state persists across nav.** Sections mount lazily on first visit and stay in the DOM behind `[hidden]` — revisiting Log preserves DataViews search, page, and filter state; Settings preserves its dirty form.
-- **`webpack.config.js`** drops the 5 per-page entries (`licenses-page`, `stats-page`, `log-page`, `broken-links-page`, `settings-page`) and adds `admin-shell`.
-- **Bootstrap** replaces the 5 per-page enqueue class registrations with `( new ISOFT_FMF_Admin_Shell() )->register_hooks()`.
-- **Version bumped to 0.12.6-dev.** `readme.txt` `Stable tag:` stays at `0.11.0` (0.12.x doesn't ship to SVN).
+- **Licenses admin.** The Licenses submenu sits under Tags (was appended at the bottom of the Downloads menu). Category, Tags, and Licenses now read as a visual group.
+- **Files metabox stays.** The file management UI on the download edit screen is unchanged in this release — the jQuery-based uploader with drag-reorder and inline edit continues to work exactly as before.
+- **Category assignment is single-select.** The 0.11.0 known issue where the checkbox UI let admins pick multiple categories but the filesystem only honoured the first is resolved. Existing multi-category downloads are migrated to their oldest assignment on upgrade.
+- **PDF thumbnails now default off.** Turn on per-install after confirming Imagick is available on your host.
+- **Broken Links integrity panel** stays as a PHP fragment above the React table (server-side lock state and admin-post trigger; not a REST/list surface).
 
 ### Removed
 
-- **5 per-page enqueue classes** — `class-licenses-page.php`, `class-stats-page.php`, `class-log-page.php`, `class-broken-links-page.php`, `class-settings-page.php`. Their SCRIPT_HANDLE / PAGE_HOOK_SUFFIX constants moved to `ISOFT_FMF_Admin_Shell::section_map()`.
-- **5 block source directories** — `blocks/licenses-page/`, `blocks/stats-page/`, `blocks/log-page/`, `blocks/broken-links-page/`, `blocks/settings-page/`. Content moved to `blocks/admin-shell/sections/*` with self-mount code stripped (shell owns the mount).
-- **5 old build artefacts** — `blocks/build/{licenses,stats,log,broken-links,settings}-page.js` + `.asset.php`. Regenerated as one `admin-shell.js`.
+- All 14 legacy admin AJAX handlers, the classic-editor TinyMCE shortcode inserter, two  subclasses, and the pre-React PHP fallback forms. Everything now flows through REST.
+- The classic-editor meta boxes for Version & License and Statistics on the download edit screen — the editor sidebar owns those.
 
-### Perf
+### Upgrade notes
 
-- **~460 KB → 261 KB** of admin JS across the 5 sections. Pre-0.12.6, Log + Broken Links each bundled ~230 KB of `@wordpress/dataviews`; every nav between them re-downloaded the same code. The shell bundles DataViews once.
-- **Sub-500ms client-side nav** between sections after first mount (target — verify on Local). First mount stays bounded by WP admin PHP boot (~1.5-2s); subsequent nav swaps sections without touching the network.
-- **WP #adminmenu click hijack** — anchors pointing at `page=isoft-fmf-*` are intercepted on shell mount; modifier-key clicks (⌘/Ctrl/Shift/Alt) fall through to default browser behaviour. If the hijack doesn't attach (WP re-renders adminmenu after our bundle runs), the fallback is default full nav → shell re-mount → cached bundle serves.
-- **Zero-fetch first paint via inline bootstrap.** `ISOFT_FMF_Admin_Shell::bootstrap_payload()` inlines every section's full initial state (first page of log rows + the downloads filter list, first page of broken-file rows, full license table, full settings option map, cached stats overview) into the `data-bootstrap` blob on the mount div. PHP has all of this in hand at page-render time anyway; the pre-perf-pass shape was making each section wait a REST round-trip after mount before it could show anything. Now the initial render does zero network calls — the classic-admin "one PHP request renders everything visible" property, kept alongside React interactivity for search / filter / pagination / CRUD after mount.
-- **300ms debounce on DataViews view changes** (Log, Broken Links) — a search-as-you-type keystroke no longer fires a REST call per character on slower hosting. Together with **keep-previous-data** on the fetch success path — rows are only replaced on success, not blanked on request start — typing feels responsive instead of collapsing the table between requests.
-
-## [0.12.5] — unreleased
-
-Phase 6 of the React-admin rewrite: the demolition pass. All PHP surfaces that the 0.12.0-0.12.4 React apps replaced are removed. This is the one-way door — reverting past this point means going back to 0.11.x trunk, not to 0.12.4.
-
-This release does NOT ship to WordPress.org SVN. 0.12.x stays GitHub-only until 1.0.0 graduation.
-
-### Removed
-
-- **6 broken-links AJAX handlers** — `class-broken-links-ajax.php` (probe, move_back, reassign, split, reupload, detach). The React recovery modal drives everything through `POST /broken-links/{id}/recover` now.
-- **1 TinyMCE AJAX handler** — `class-tinymce.php` (isoft_fmf_tmce_search). The classic-editor shortcode inserter is retired; block editor users have the Download List block and downloads shortcodes work in any editor.
-- **2 `WP_List_Table` subclasses** — `class-log-table.php` and `class-broken-links-table.php`. Both surfaces are DataViews-driven React apps since 0.12.3.
-- **Legacy jQuery admin JS** — `admin/js/broken-links.js` (recovery dialog) and `admin/js/tinymce-plugin.js`.
-- **Sidebar-replaced meta boxes** — `admin/views/meta-box-version-info.php`, `admin/views/meta-box-stats.php`, plus their `render_version_info` / `render_stats` callbacks. The editor sidebar's VersionLicensePanel + StatsPanel own these surfaces since 0.12.1.
-- **PHP fallback forms** in the five admin pages that are React apps — the Licenses page's edit/list form, the Statistics dashboard's PHP chart + top-N tables, the Download Log's WP_List_Table view, the Broken Links page's WP_List_Table fallback + hidden recovery dialog template, and the Settings page's four schema-tab forms (General / Display / Security / Advanced). Each view is now a mount node + noscript notice; server-rendered PHP for the four Maintenance/Extensions surfaces stays because those are action/marketing pages, not option forms.
-- **Legacy license-form handler** — `ISOFT_FMF_License_Manager::handle_form_actions()` and its `admin_init` hook, plus the `handle_save` / `handle_delete` / `handle_restore_seeds` helpers. `ISOFT_FMF_Rest_Licenses` is the sole write path.
-- **Legacy meta save handler** — `ISOFT_FMF_Admin_Meta_Boxes::save()` and its `save_post_isoft_fmf_file` hook, plus the `isoft_fmf_meta_nonce` field on the Files meta box. Every meta field is registered `show_in_rest:true` and written by the editor sidebar via `useEntityProp`.
-
-### Kept
-
-- **Files meta box + `admin/js/admin-script.js` + 7 file-management AJAX handlers** (delete_file, save_file_order, add_external, update_file_meta, upload_file, browse_category, import_file). The editor sidebar's FilesPanel is a compact summary that scrolls to this meta box, not a replacement. Retiring this surface is a pre-1.0.0 perf/UX exercise, not a demolition item.
-- **The `admin-post.php` integrity-check trigger + Broken Links integrity panel PHP** — server-side lock state and admin-post action, not a list/CRUD surface.
-- **License Manager service delegators** (`get`, `get_all`, `install_missing_seeds`, `seed_defaults`, `bust_cache`) — external call sites still route through them.
-
-### Changed
-
-- **`class-settings.php::enqueue`** no longer registers the `isoft-fmf-broken-links` jQuery handle (the file it pointed at is gone). Screen-scoping stays wired for `admin-style.css`.
-- **`class-broken-links-page.php` script handle** comment updated to reflect that the collision it worked around is now demolished; the `-page` suffix stays for consistency with the other 0.12.x React entries.
-- **Version bumped to 0.12.5-dev.** `readme.txt` `Stable tag:` stays at 0.11.0 (0.12.x doesn't ship to SVN).
-
-## [0.12.4] — unreleased
-
-Phase 5 of the React-admin rewrite. Sub-PR 1 of 3: the per-user category ACL on the WordPress profile screens becomes a React app. Subsequent sub-PRs cover the taxonomy add/edit form (icon picker + access role) and the admin list-table enhancer (quick-edit popovers, inline status toggles).
-
-This release does NOT ship to WordPress.org SVN. 0.12.x stays GitHub-only until the full rewrite graduates to 1.0.0.
-
-### Added (sub-PR 1 — Profile ACL)
-
-- **React per-user category ACL** — the "Allowed Categories" section on profile.php and user-edit.php is now rendered by a React app. Hierarchical checkbox tree with depth-based indent, type-to-filter search, and auto-expand for any branch containing a selected node. Save button is gated on a dirty-diff so an unchanged form can't accidentally write. Selection persists through a new `POST /users/{id}/category-acl` endpoint instead of riding on the user-edit form's `$_POST` submission, so the save no longer requires submitting the entire user profile form.
-- **`ISOFT_FMF_Rest_Users`** — new REST controller at `/isoft-fm-foundation/v1/users/{id}/category-acl`. GET returns the explicit (not effective) category-id list; POST replaces it. Permission gate is `manage_options` — same as the legacy `render_profile_field` / `save_profile_field` flow that this endpoint replaces.
-- **`ISOFT_FMF_Profile_ACL_Page`** — enqueues `blocks/build/profile-acl.js` on profile.php / user-edit.php only, and only when the current user has `manage_options` (the legacy field was already admin-only). Handle suffixed `-page` per the collision-prevention convention.
-- **Profile ACL webpack entry** (`blocks/profile-acl/index.js`, built via `npm run build` to `blocks/build/profile-acl.js`).
-
-### Changed (sub-PR 1 — Profile ACL)
-
-- **`ISOFT_FMF_Category_ACL::render_profile_field()`** branches on `wp_script_is( ISOFT_FMF_Profile_ACL_Page::SCRIPT_HANDLE, 'enqueued' )`: when the React bundle is loaded, the section renders as a single `<div id="isoft-fmf-profile-acl-root" data-user-id="…">` mount node; when the bundle is missing, the original `<details>` checkbox tree renders unchanged. The existing `save_profile_field` action stays wired so the no-JS fallback's form submission still works.
-- **Version bumped to 0.12.4-dev.**
-
-### Added (sub-PR 2 — Taxonomy form icon picker)
-
-- **WP media-library icon picker** on the Downloads → Categories add/edit screens. The existing free-text Icon field gains a "Select from media library" button (opens the WP media modal via `@wordpress/media-utils`'s `MediaUpload`), a live 32×32 preview that renders dashicon glyphs OR pasted/picked image URLs, and a Clear button. The native `<input name="isoft_fmf_cat_icon">` stays as the source of truth that ships to `$_POST` — React keeps it in sync with its own state but doesn't replace the input, so the existing `save_term_fields` handler keeps working unchanged.
-- **`ISOFT_FMF_Taxonomy_Form_Page`** — new class that enqueues `blocks/build/taxonomy-form.js` on `edit-tags.php` and `term.php` only when `taxonomy=isoft_fmf_category` and the user has `manage_categories`. Calls `wp_enqueue_media()` so the underlying `wp.media()` modal is registered. Handle suffixed `-page` per convention.
-- **Taxonomy-form webpack entry** (`blocks/taxonomy-form/index.js`, built to `blocks/build/taxonomy-form.js`).
-
-### Scope cut
-
-- **Access role / default license selects** stay as their PHP dropdowns. Already functional, no UX gain from a React port.
-- **License inheritance preview** ("show what license a download would inherit from this category's nearest ancestor") deferred — fits better on the editor sidebar where it actually previews effective resolution for the specific download being edited, not on the category form where it's an abstract demonstration.
-
-## [0.12.3] — 2026-06-23
-
-Phase 4 of the React-admin rewrite. Sub-PR 1 of 4: the Statistics dashboard becomes a React app. Sub-PR 2 of 4: the Download Log becomes a React app on top of `@wordpress/dataviews`. Sub-PR 3 of 4: the Broken Links page becomes a React app on top of DataViews + a `Modal`-based recovery dialog. Sub-PR 4 of 4: the Settings page becomes a React app for the 4 option-driven tabs (General, Display, Security, Advanced); Maintenance and Extensions stay PHP — they're action/marketing surfaces with no benefit from a React port.
-
-### Added (sub-PR 4 — Settings)
-
-- **React Settings page** — Downloads → Settings renders as a React app for the 4 option-driven tabs (General, Display, Security, Advanced). Each tab is driven by a per-tab schema that maps option key → control type (`ToggleControl` / `SelectControl` / `TextControl` / `TextareaControl` / `NumberControl`) + label + help text + default. The schema mirrors the PHP form controls one-for-one so admins switching between React and the fallback see identical fields in the same order. Per-tab "Save Changes" button with a dirty-state guard; POSTs only the changed keys so a one-toggle edit doesn't write 30 options.
-- **`ISOFT_FMF_Settings_Page`** — new class that enqueues `blocks/build/settings-page.js` on the Settings admin screen only (hook suffix `isoft_fmf_file_page_isoft-fmf-settings`). Handle suffixed `-page` per the collision lesson saved from PR #50.
-- **Settings page webpack entry** (`blocks/settings-page/index.js`, built via `npm run build` to `blocks/build/settings-page.js`).
-
-### Changed (sub-PR 4 — Settings)
-
-- **`admin/views/settings-page.php`** branches per tab. The nav-tab-wrapper stays PHP-rendered. For the 4 React tabs, the page renders a `<div id="isoft-fmf-settings-root" data-tab="…">` mount node; the React app reads `data-tab` to pick which schema to render. Maintenance and Extensions tabs still go through their existing `require` for the legacy PHP. Bundle Cache clear, Flush Rewrite, and integrity-check Run Now buttons keep using their `admin-post.php` endpoints — nonced server-side and not a fit for the option-save flow.
-
-This release does NOT ship to WordPress.org SVN. 0.12.x stays GitHub-only until the full rewrite graduates to 1.0.0.
-
-### Added
-
-- **React Statistics dashboard** — Downloads → Statistics is now rendered as a React app. Reuses the existing `.isoft-fmf-stat-cards` / `.isoft-fmf-bar-chart` CSS so the visual treatment is identical to the PHP version; gains a "Refresh" button that re-hits the cached endpoint without a full page reload. Logging-disabled warning and the all-time-fallback note on the 30-day panel are both preserved.
-- **`ISOFT_FMF_Stats_Page`** — new class that enqueues `blocks/build/stats-page.js` on the Statistics admin screen only (hook suffix `isoft_fmf_file_page_isoft-fmf-stats`).
-- **Stats page webpack entry** (`blocks/stats-page/index.js`, built via `npm run build` to `blocks/build/stats-page.js`) registered alongside the existing block bundles.
-
-### Changed
-
-- **`GET /isoft-fm-foundation/v1/stats/overview` response extended** to include the full dashboard payload: `top_alltime` (10 rows), full `top_30d` (10 rows), `top_30d_window` ('30d' or 'alltime'), `daily_30d` (date => count map for the chart), and `logging_enabled` (boolean). Existing `top_downloads_30d` field (5 rows) preserved for any third-party consumer of the pre-0.12.3 shape — purely additive change. Underlying `isoft_fmf_get_stats_overview()` helper unchanged, so the 5-minute transient cache covers both the React payload and any remaining PHP call sites with no extra query cost.
-- **`admin/views/stats-dashboard.php`** branches on `wp_script_is( ISOFT_FMF_Stats_Page::SCRIPT_HANDLE, 'enqueued' )`: when the React bundle is loaded, the page renders as a single `<div id="isoft-fmf-stats-root">` mount node; when the bundle is missing, the original PHP markup renders unchanged.
-
-### Fixed
-
-- **Uninstall handler now drops `wp_isoft_fmf_download_daily`.** The aggregate table that feeds the "Top Downloads (Last 30 Days)" panel was missing from `uninstall.php`'s DROP TABLE list since the table was introduced; it survived deletion of the plugin even with "Delete all plugin data" enabled. Subsequent reinstalls would see stale rows from the prior install paired with fresh rows at identical counts (the daily-cron pipeline re-aggregated for the new post IDs), surfacing as `(deleted)` entries on the dashboard. Existing installs that already have orphan rows will not be cleaned retroactively — the next clean uninstall + reinstall is the lifecycle that fixes it.
-- **Deleted-post rows in the React Stats Top-30d panel no longer render as clickable links.** They show as `(deleted)` in italic, matching the PHP version's behaviour. The daily-aggregate query retains the original `download_id` FK even after the post is gone, so the React row's `download_id` is a positive number — the link guard now checks `post_title` presence (null when the join failed) instead of the FK presence.
-- **Dashboard "Top Downloads (Last 30 Days)" no longer surfaces orphan rows at all.** `isoft_fmf_get_stats_overview()`'s top-30d query switches from `LEFT JOIN` to `INNER JOIN` against the posts table, so daily-aggregate rows whose parent post has been deleted are excluded from the result. Defensive: the new `before_delete_post` cleanup below sweeps orphans as posts are deleted going forward, but the INNER JOIN keeps the display honest even when a row escapes that cleanup path.
-- **Permanent post deletion now sweeps the stats trail for that download.** New `ISOFT_FMF_Post_Type::cleanup_stats_on_delete()` hook on `before_delete_post` removes the post's rows from `wp_isoft_fmf_download_daily` and `wp_isoft_fmf_download_log`, and busts the 5-minute stats transient. Scoped to `isoft_fmf_file` so unrelated post deletions don't touch our tables. Closes the root cause of the orphan-rows-on-dashboard issue.
-- **PDF thumbnail Imagick warning is silent when the feature is disabled in settings.** `ISOFT_FMF_Pdf_Thumbnail::maybe_show_notice()` previously rendered the "Imagick extension is not available" notice on every admin page whenever Imagick was missing, regardless of whether the admin had opted into PDF thumbnail generation. Now it bails when `enable_pdf_thumbnails` is off. Admins who don't want PDF thumbnails no longer get nagged about a missing extension they don't need.
-
-### Added (sub-PR 2 — Download Log)
-
-- **React Download Log page** — Downloads → Download Log is now rendered with `@wordpress/dataviews`. Server-side pagination, filtering by download, and search across title / file / IP all driven by the existing `/isoft-fm-foundation/v1/logs` endpoint. Columns: When (locale-formatted datetime), Download (linked when post exists, italic `(deleted)` otherwise), File, User (`#id` linked to user-edit, italic `Guest` for anonymous), IP. Logging-disabled warning and Export CSV / Export JSON / Purge buttons all preserved from the PHP version. Capability gating for export and purge surfaces in the React UI via `data-*` attributes on the mount node so the JS bundle stays free of PHP coupling.
-- **`ISOFT_FMF_Log_Page`** — new class that enqueues `blocks/build/log-page.js` on the Download Log admin screen only (hook suffix `isoft_fmf_file_page_isoft-fmf-log`). Also enqueues `wp-dataviews` style which the `@wordpress/scripts` dependency extractor doesn't auto-attach for the script.
-- **Log page webpack entry** (`blocks/log-page/index.js`, built via `npm run build` to `blocks/build/log-page.js`).
-- **`GET /isoft-fm-foundation/v1/logs` gains a `search` parameter** matching against `post_title`, `file_name`, and `user_ip` (LIKE). The query expands to four explicit literal-prepare branches (`{none, search, download, download+search}`) to keep WPCS happy with the no-concatenated-SQL convention the file already follows. `X-WP-Total` / `X-WP-TotalPages` headers cover both the existing and new branches.
-
-### Changed (sub-PR 2 — Download Log)
-
-- **`admin/views/log-viewer.php`** branches on `wp_script_is( ISOFT_FMF_Log_Page::SCRIPT_HANDLE, 'enqueued' )`: when the React bundle is loaded, the page renders as a single `<div id="isoft-fmf-log-root">` mount node with `data-*` attributes carrying server-side state; when the bundle is missing, the original `WP_List_Table`-backed markup renders unchanged.
-
-### Added (sub-PR 3 — Broken Links)
-
-- **React Broken Links page** — Downloads → Broken Links is now rendered with `@wordpress/dataviews` for the broken-files list plus a `@wordpress/components` `Modal` for the recovery dialog. Each row has a single "Recover" action that opens the modal; the modal hits `/broken-links/{file_id}/probe` to classify the situation (cross-category vs. lost entirely) and reveals the relevant action buttons (`move_back`, `reassign`, `split`, `reupload`, `detach`). Successful actions close the modal, refresh the list, and surface a success notice in one motion. Closes the "modal hangs after action" UX issue carried over from the 0.11.x jQuery dialog (deferred under 0.12.1).
-- **`ISOFT_FMF_Broken_Links_Page`** — new class that enqueues `blocks/build/broken-links-page.js` on the Broken Links admin screen only (hook suffix `isoft_fmf_file_page_isoft-fmf-broken-links`).
-- **Broken Links page webpack entry** (`blocks/broken-links-page/index.js`, built via `npm run build` to `blocks/build/broken-links-page.js`).
-- **`admin/css/dataviews-table.css`** — shared style sheet that gives DataViews the wp-list-table look (borders, zebra striping, full-width container). Renamed from `log-page.css` and rewritten around the `isoft-fmf-dataviews-table` wrapper class so both the Log and Broken Links pages pick up the treatment from one file.
-
-### Changed (sub-PR 3 — Broken Links)
-
-- **`admin/views/broken-links-page.php`** keeps the PHP-rendered integrity-check panel at the top (server-side lock state + admin-post action — not a list/CRUD concern) but branches on `wp_script_is( ISOFT_FMF_Broken_Links_Page::SCRIPT_HANDLE, 'enqueued' )` for the list section. React mount node when the bundle is loaded; the original `WP_List_Table` + jQuery modal fallback otherwise.
-- **`GET /isoft-fm-foundation/v1/broken-links` response shape** switches to the envelope `{ items, totalItems, totalPages }` (matching `/logs` from sub-PR 2). Drops the `X-WP-Total` / `X-WP-TotalPages` headers — those required the brittle `apiFetch( { parse: false } ) + response.json()` pattern on the React side, which broke on body-stream consumption inside the middleware chain.
-- **`@wordpress/dataviews` is bundled inside the log-page entry, not externalised.** WP core registers the `wp-dataviews` script handle only inside specific editor contexts (post / site editor) — outside those screens an enqueue depending on it triggers the WP 6.9.1+ "dependencies that are not registered" notice. Bundling adds ~220 KB to entries that use DataViews (currently log-page; later broken-links-page) but ships a working admin screen instead of a half-broken one. Revisit if WP core promotes `wp-dataviews` to a globally-registered handle.
-
-## [0.12.2] — 2026-06-22
-
-Phase 3 of the React-admin rewrite. The Licenses admin page becomes the first fully-React standalone screen, proving the mount-and-fallback pattern that the larger 0.12.3 (Settings + Stats + Log + Broken Links) will reuse.
-
-This release does NOT ship to WordPress.org SVN. 0.12.x stays GitHub-only until the full rewrite graduates to 1.0.0.
-
-### Added
-
-- **React Licenses page** — Downloads → Licenses is now rendered as a React app. List uses a hand-rolled `.wp-list-table` for native admin styling; create/edit happens in a `@wordpress/components` `Modal` with `TextControl` / `TextareaControl` / `ToggleControl`; delete and restore-seeds confirms run through `ConfirmDialog`. All CRUD hits the `/isoft-fm-foundation/v1/licenses` REST endpoints landed in 0.12.0; success states surface as dismissible `<Notice>` banners and the list refetches after each mutation. `<DataViews>` deliberately skipped — license tables are typically <20 rows and don't need pagination/filtering scaffolding; DataViews lands in 0.12.3 for the pages that do.
-- **`ISOFT_FMF_Licenses_Page`** — new class that enqueues `blocks/build/licenses-page.js` on the Licenses admin screen only (hook suffix `isoft_fmf_file_page_isoft-fmf-licenses`). Pulls in `wp-components` styles so the Modal / ConfirmDialog render with the proper backdrop and layout.
-- **Licenses page webpack entry** (`blocks/licenses-page/index.js`, built via `npm run build` to `blocks/build/licenses-page.js`) registered alongside the existing block bundles.
-
-### Changed
-
-- **`admin/views/licenses-page.php`** branches on `wp_script_is( ISOFT_FMF_Licenses_Page::SCRIPT_HANDLE, 'enqueued' )`: when the React bundle is loaded, the page renders as a single `<div id="isoft-fmf-licenses-root">` mount node and React owns the surface; when the bundle is missing (build artefact absent, malformed deploy, or future revert), the original PHP form renders unchanged and `ISOFT_FMF_License_Manager::handle_form_actions` processes submissions through the existing admin-post pipeline. The fallback path is the safety net for the entire 0.12.x range — flipping the React mount off is a one-line revert.
-
-## [0.12.1] — 2026-06-22
-
-Phase 2 of the React-admin rewrite. The block editor takes over on download edit screens, and the long-standing multi-category-per-download UI bug from 0.11.0 is finally resolved.
-
-This release does NOT ship to WordPress.org SVN. 0.12.x stays GitHub-only until the full rewrite graduates to 1.0.0.
-
-### Added
-
-- **Block editor enabled for `isoft_fmf_file`.** The `use_block_editor_for_post_type` filter now returns true for our CPT. Legacy classic-editor `post_content` for existing downloads renders fine as a single "Classic" block — no auto-conversion required, opt-in per post.
-- **`ISOFT_FMF_Editor_Sidebar`** — new class that enqueues `blocks/build/editor-sidebar.js` on the block-editor screen for downloads. Screen-scoped both at PHP enqueue time (post_type check) and inside the JS via a `ScopedSidebar` wrapper that bails on other post types.
-- **Editor-sidebar JS entry** (`blocks/editor-sidebar/index.js`, built via `npm run build` to `blocks/build/editor-sidebar.js`) registers a `PluginDocumentSettingPanel` for category selection and hides the standard multi-checkbox panel (`removeEditorPanel('taxonomy-panel-isoft_fmf_category')`). Future 0.12.1 sub-PRs add panels for Files / Version-License / Stats and move access-role into `PluginPostStatusInfo`.
-- **Single-select Category panel.** Replaces WP's standard taxonomy checkbox panel for `isoft_fmf_category`. Hierarchical terms render with indent levels matching parent depth. `'core/editor'.editPost({ isoft_fmf_category: [id] })` writes the single-element array — the filesystem layer (`class-category-folders.php`) was already only honoring the first assignment, so the UI now matches the data invariant.
-- **Data migration: multi-category trim.** First activation under 0.12.1 walks every `isoft_fmf_file` post with >1 `isoft_fmf_category` assignment, keeps the oldest (lowest term_taxonomy_id), and removes the rest via `wp_set_object_terms`. Touched post IDs + removed-assignment count land in the `isoft_fmf_migration_0_12_1` transient (1 month TTL) for the Maintenance tab to surface. Idempotent — second run is a no-op because the SELECT only finds posts with >1 assignment.
-- **`Migration_0_12_1_Test`** — PHPUnit coverage for the data migration: single-category posts untouched, multi-category posts trimmed, second run produces identical state and skips the transient write, transient lists touched IDs and removed count.
-- **Files summary panel** in the document sidebar — compact at-a-glance widget showing total file count, local/external breakdown, and total size for local files. "Manage files" button scrolls to the existing rich Files meta box below the canvas (which stays as the primary file UI through 0.12.5). Fetches from `GET /downloads/{id}/files` via `apiFetch`; manual Refresh button picks up changes made through the meta box without requiring a post save.
-- **Version & License sidebar panel** — full replacement for the Version & License meta box. Renders Version / Changelog / Featured / External-only / License select / Require-agreement / Agreement text / Author name / Author URL / Date published using `@wordpress/components` controls (`TextControl`, `TextareaControl`, `SelectControl`, `CheckboxControl`). License options pulled from `GET /licenses` via `apiFetch`. License-change warning text re-appears in red when the user picks a different license and the post already has `_isoft_fmf_download_count > 0` — same legal-irrevocability note the meta box carried. All meta read/written via `editPost({ meta: { ... } })` against the entity layer; no separate REST calls.
-- **`usePostMeta` hook** — small helper in `editor-sidebar/index.js` that wraps `useSelect`/`useDispatch` for a single meta key. Returns `[value, setter]` pair, used by every field in the Version & License panel.
-- **Statistics sidebar panel** — replaces the Statistics side meta box. Shows the total download count (large number from `_isoft_fmf_download_count` meta), per-file count breakdown (title + count, with text-overflow ellipsis for narrow sidebar width), and a "View full download log →" link to the existing log admin page filtered for this post. Defaults to collapsed (`initialOpen={false}`). Per-file counts come from the same `GET /downloads/{id}/files` endpoint the Files panel uses — `download_count` and `is_missing` columns were added to the REST response shape in this PR.
-- **Broken-files badge** on the Files summary panel — surfaces the count of files flagged `is_missing` on disk in red below the size line. Source: the new `is_missing` field on `GET /downloads/{id}/files`.
-
-### Changed
-
-- **Webpack config** gains an `editor-sidebar` entry alongside the three existing blocks. Build pipeline unchanged otherwise — same `@wordpress/scripts` chain.
-- **`isoft-fm-foundation.php` bootstrap** wires `ISOFT_FMF_Editor_Sidebar` alongside the existing Blocks registration.
-- **Version & License meta box registers only when block editor is off** — `add_meta_box` is gated on `! use_block_editor_for_post_type('isoft_fmf_file')`. The render method stays in place so a third-party plugin forcing classic editor back on still gets the full classic UI as a fallback.
-- **Legacy save handler in `class-admin-meta-boxes::save`** gates every Version & License meta write on `isset($_POST[$key])`. Block-editor saves write the meta via REST (entity layer), not `$_POST`, so without the guards every save would clobber every field back to empty / default. Classic-editor saves still go through `$_POST` so the isset checks short-circuit to true and the old behaviour is preserved.
-- **Statistics meta box registers only when block editor is off** — same `! use_block_editor_for_post_type('isoft_fmf_file')` gate as Version & License. Render method stays as classic-editor fallback.
-- **`GET /downloads/{id}/files` response gains `download_count` and `is_missing`** — one extra column each on the underlying SELECT; consumed by both the Stats panel (per-file counts) and the Files panel (broken badge).
-
-### Resolved
-
-- **The 0.11.0 multi-category-per-download UI bug.** WP's standard category metabox no longer renders for downloads; the single-select sidebar panel takes over, matching the filesystem-as-source-of-truth invariant the data layer was already enforcing. Existing multi-assigned rows are reconciled by the activation migration above.
-
-## [0.12.0] — 2026-06-22
-
-Phase 1 of the React-admin rewrite. No user-visible behaviour change. All work is the REST + service foundation that the 0.12.1+ phases will mount React UIs on top of — every admin operation now has a canonical service class and a `isoft-fm-foundation/v1` REST route, with the legacy AJAX / admin-post handlers thinned to nonce + permission + service-call.
-
-This release does NOT ship to WordPress.org SVN. The 0.12.x line is GitHub-only until the full rewrite graduates to 1.0.0; the WP.org `Stable tag` stays at 0.11.0 throughout. See the [dev/0.12.x branch](https://github.com/I-SOFT-Mionica/isoft-fm-foundation/tree/dev/0.12.x) for the phase plan.
-
-### Added
-
-- **`ISOFT_FMF_License_Service`** — pure data layer for the licenses table. CRUD, single-default invariant, seed install idempotency, `wp_kses_post` / `esc_url_raw` sanitization. `ISOFT_FMF_License_Manager` retained as a thin delegator so existing callers (resolver, shortcodes, templates, activator, taxonomy form, meta box) keep working unchanged. Demolition of the delegator deferred to 0.12.5.
-- **`ISOFT_FMF_Rest_Licenses`** — `GET`/`POST` `/licenses`, `GET`/`PUT`/`DELETE` `/licenses/{id}`, `POST` `/licenses/restore-seeds`. Read perm `edit_posts` (the editor-sidebar picker in 0.12.1 needs this for contributors), write perm `isoft_fmf_manage_settings` — parity with the legacy admin-post handler.
-- **`ISOFT_FMF_Settings_Service`** — owns the canonical (group → key → sanitizer) schema. `ISOFT_FMF_Settings::register_settings()` now loops the service's schema instead of inlining the 33-option map. The two custom sanitizers (`sanitize_time`, `sanitize_link_target`) move to the service with thin delegators preserved on the legacy class.
-- **`ISOFT_FMF_Rest_Settings`** — `GET`/`POST` `/settings` (partial update, unknown-keys 400 en-masse), `GET` `/settings/schema` (for React tab rendering), `POST` `/settings/flush-rewrite` (replaces the Advanced-tab button). Read and write both gated on `isoft_fmf_manage_settings`.
-- **`ISOFT_FMF_Files_Service`** — composes the existing `ISOFT_FMF_File_Manager` data layer with the orchestration flows previously inline in the 7 AJAX handlers: upload pipeline (filename sanitization, collision check, `wp_handle_upload`, magic-byte mime, hash), browse-category cross-reference, import-from-disk with path-traversal guard.
-- **`ISOFT_FMF_Rest_Files`** — `POST` `/downloads/{id}/files` (multipart upload), `POST` `/files/external`, `POST` `/files/import`, `POST` `/files/order`, `GET` `/files/browse-category`, `PUT` and `DELETE` on individual `/files/{file_id}`. Every route checks `edit_post` on the parent download_id.
-- **`ISOFT_FMF_Broken_Links_Service`** — extracts the 6 recovery flows (probe, move_back, reassign, split, reupload, detach) plus a `list_broken()` reader. Each op returns array on success or `WP_Error` with HTTP-status hint. The static helpers (`find_term_by_folder_path`, `relativize`, `download_category_id`, `refresh_inode`, `mark_healthy`, `wp_fs`) move to the service so they're reachable from REST + tests. `class-broken-links-ajax.php` collapses 559 → ~90 lines.
-- **`ISOFT_FMF_Rest_Broken_Links`** — `GET` `/broken-links` (paginated, `X-WP-Total` header), `GET` `/{file_id}/probe`, `POST` `/{file_id}/recover` (JSON body, enum-validated action), `POST` `/{file_id}/reupload` (multipart).
-- **`ISOFT_FMF_Maintenance_Service`** — facades demo install/remove, bundle cache clear, integrity scan trigger, log purge, and CSV/JSON exports. Export string generation lives here; the AJAX/REST adapter sets headers and emits.
-- **`ISOFT_FMF_Rest_Maintenance`** — `POST` `/maintenance/demo-content` (`{action: install|remove}`), `DELETE` `/maintenance/bundle-cache`, `POST` `/maintenance/integrity`, `DELETE` `/maintenance/log-purge`, `GET` `/maintenance/export` (`?format=csv|json` — streams). Settings ops gated on `isoft_fmf_manage_settings`; export on `isoft_fmf_export_logs`.
-- **`tests/RestPermissionsTest`** — capability parity matrix that asserts every 0.12.0 REST route × every WP role returns the right status (200/400 allowed, 401/403 denied). Catches drift from the AJAX-era cap checks even when a single controller's `permission_callback` is edited in isolation.
-- **Per-service unit + REST integration test suites** (`LicenseServiceTest`, `RestLicensesTest`, `SettingsServiceTest`, `RestSettingsTest`, `FilesServiceTest`, `RestFilesTest`, `BrokenLinksServiceTest`, `RestBrokenLinksTest`, `MaintenanceServiceTest`, `RestMaintenanceTest`). Tests target the canonical service home, not the delegators — they survive the 0.12.5 demolition unchanged.
-- **`LicenseServiceCacheTest`** replaces the pre-0.12.0 `LicenseManagerCacheTest`. New coverage adds the post-create / post-update / post-delete bust assertions that the old test couldn't exercise (Manager's CRUD was tied to `$_POST` and unreachable from unit tests).
-- **CI workflows now fire on `dev/0.12.x` PRs** in addition to `main` (`phpcs.yml`, `phpunit.yml`, `plugin-check.yml`). Without this every phase PR would skip CI.
-
-### Changed
-
-- **`_isoft_fmf_cat_sort_order` term meta now `show_in_rest: true`** — the only one of four category term meta keys still hidden from REST. The 0.12.1 editor-sidebar category panel needs it for ordering.
-- **All 14 legacy AJAX handlers** (`class-admin-meta-boxes.php` × 7, `class-broken-links-ajax.php` × 6, `class-tinymce.php` × 1) shrink to thin nonce-permission-service wrappers. Wire format unchanged — `admin/js/admin-script.js` and `admin/js/broken-links.js` keep working until the React phases retire them in 0.12.1 and 0.12.3 respectively.
-- **`Demo_Content::remove_silent()`** added as a public twin of `install_cli()` so the service can run removal without going through the redirect-wrapped admin-post handler.
-
-### Deferred
-
-- **0.12.3:** Broken Links recovery dialog post-action UX. Currently the modal hangs with all action buttons still clickable after a successful action. The React rewrite of the Broken Links page will replace the dialog with a confirmation/undo state or close cleanly.
-- **0.12.5:** "Add Link" button triggers a `beforeunload` navigation warning. Fix lives in `admin/js/admin-script.js`, which gets deleted in 0.12.5 entirely.
-- **0.12.5:** Optional "Also delete file from server" checkbox when deleting a tracked file row. Currently the row is removed but the disk file stays.
+- **Backup before upgrading.** This is a large rework of the admin layer. Existing data and settings are preserved, but a rollback to 0.11.0 is a full downgrade — please install on a staging site first if you can.
+- **Database migration runs on activation.** Multi-category downloads collapse to the oldest assignment. The migration is idempotent and logged to a transient visible on the Maintenance tab.
+- **New minimum: WordPress 6.7 and PHP 8.4.** Unchanged from 0.11.0.
 
 ## [0.11.0] — 2026-06-21
 
