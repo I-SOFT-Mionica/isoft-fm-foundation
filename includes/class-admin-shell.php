@@ -371,12 +371,36 @@ class ISOFT_FMF_Admin_Shell {
 			$initial_tab = 'general';
 		}
 
+		// Note: maintenanceHtml / extensionsHtml are NOT included in
+		// the JSON payload. Packing ~10 KB of PHP-rendered HTML
+		// (nonce fields, form markup, translated text) through the
+		// JSON → esc_attr → JSON.parse round-trip broke on certain
+		// characters (verified: 9098-char blob threw
+		// SyntaxError at column 1786 on a real install).
+		//
+		// admin-shell-mount.php emits them separately as
+		// <script type="text/html" id="isoft-fmf-tab-maintenance">…</script>
+		// blocks, which React reads directly by id — no JSON layer.
 		return array(
-			'initialTab'      => $initial_tab,
-			'initialValues'   => ( new ISOFT_FMF_Settings_Service() )->get_all(),
-			'maintenanceHtml' => self::capture_view( 'maintenance-tab.php' ),
-			'extensionsHtml'  => self::capture_view( 'extensions-tab.php' ),
+			'initialTab'    => $initial_tab,
+			'initialValues' => ( new ISOFT_FMF_Settings_Service() )->get_all(),
 		);
+	}
+
+	/**
+	 * Public accessor for admin-shell-mount.php — captures a PHP tab
+	 * view (maintenance-tab.php / extensions-tab.php) into an HTML
+	 * string. Emitted into a separate <script type="text/html"> block
+	 * alongside the mount div (see settings_slice for rationale).
+	 */
+	public static function settings_php_tab_html( string $tab ): string {
+		if ( 'maintenance' === $tab ) {
+			return self::capture_view( 'maintenance-tab.php' );
+		}
+		if ( 'extensions' === $tab ) {
+			return self::capture_view( 'extensions-tab.php' );
+		}
+		return '';
 	}
 
 	/**

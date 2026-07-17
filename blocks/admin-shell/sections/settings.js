@@ -493,11 +493,22 @@ const SUB_TABS = [
 	{ id: 'extensions',  label: () => __( 'Extensions',  'isoft-fm-foundation' ) },
 ];
 
+/**
+ * Read a PHP-rendered tab's HTML from the sibling <script type="text/html">
+ * blocks emitted by admin-shell-mount.php. Returns '' if the block
+ * isn't present (shell mounted on a non-Settings URL, or PHP failed
+ * to capture the view).
+ */
+const readTabHtml = ( tab ) => {
+	const el = document.getElementById( `isoft-fmf-tab-${ tab }` );
+	return el ? el.textContent : '';
+};
+
 const SettingsSection = ( { bootstrap, activeSub, onSelectSub } ) => {
-	const initialTab      = bootstrap?.initialTab || 'general';
-	const initialValues   = bootstrap?.initialValues || null;
-	const maintenanceHtml = bootstrap?.maintenanceHtml || '';
-	const extensionsHtml  = bootstrap?.extensionsHtml  || '';
+	const initialTab    = bootstrap?.initialTab || 'general';
+	const initialValues = bootstrap?.initialValues || null;
+	const maintenanceHtml = readTabHtml( 'maintenance' );
+	const extensionsHtml  = readTabHtml( 'extensions' );
 
 	const [ localSub, setLocalSub ] = useState( initialTab );
 	const effectiveSub = activeSub || localSub;

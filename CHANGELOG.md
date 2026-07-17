@@ -34,6 +34,14 @@ This release does NOT ship to WordPress.org SVN. 0.12.x stays GitHub-only until 
 - **`bootstrap_payload()`** shape: `{ active: { top, sub }, badgeCount, licenses: {…}, tools: {…}, settings: {…} }`. Only the active top's slice is populated; sibling tops receive an empty object and hydrate over REST on first visit.
 - **`tools_slice()`** is analogous to the pre-0.12.8 per-section slices — it computes only the active sub-tab's slice (stats overview, log rows, or broken-file rows) and leaves siblings for post-mount fetch.
 
+### Fixed (mid-branch)
+
+- **Settings URL rendered Licenses content.** The pre-fix Settings slice packed ~10 KB of PHP-rendered HTML (Maintenance + Extensions tabs) into the JSON `data-bootstrap` attribute. On the real install this broke the JSON→HTML-attr→`JSON.parse` round-trip at column 1786 of a 9098-char blob. The parse failure was caught silently, `bootstrap` became `{}`, `bootstrap.active` was `undefined`, and the `|| { top: 'licenses' }` default kicked in — so every Settings-URL visit rendered LicensesSection while the server-side data was correct. Fix: the two PHP tab HTML strings ship as sibling `<script type="text/html" id="isoft-fmf-tab-maintenance|extensions">…</script>` blocks emitted by admin-shell-mount.php. `script[type="text/html"]` is inert (not executed as JS) and its `textContent` survives verbatim without any escaping-layer round-trip. React reads them by id via `document.getElementById().textContent`. Lesson: never pack arbitrary HTML into a `data-` JSON attribute — use a dedicated inert `<script>` block.
+- **Bootstrap routing is URL-authoritative.** `bootstrap_payload()` derives `{top, sub}` from `$_GET['page']` first; falls back to the enqueue-stashed value only if the URL doesn't match a known shell page. Prevents any future enqueue-timing mismatch from silently defaulting to Licenses.
+- **Shell top nav removed.** Per user feedback that the pre-fix "Licenses / Tools / Settings" tab strip made the three pages read as a joined nested UI. Each top section is now a standalone WP admin page; the WP admin sidebar is the top-level nav. Sub-nav (Tools' Stats/Log/BrokenLinks, Settings' 6 sub-tabs) stays as horizontal `.nav-tab-wrapper` strips inside each page.
+- **Settings vertical sidebar reverted to horizontal tabs** matching Tools' pattern.
+- **Menu order** — swapped bootstrap so License_Manager instantiates before Settings; Licenses now lands at position 16 (right after Tags) as intended.
+
 ### Version
 
 Bump to **0.12.8-dev**. `readme.txt` `Stable tag:` stays at `0.11.0`.
