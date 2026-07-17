@@ -3,7 +3,7 @@
  * Plugin Name: I-Soft File Manager: Foundation
  * Plugin URI:  https://github.com/I-SOFT-Mionica/isoft-fm-foundation
  * Description: Hierarchical file download manager — categories, multi-file entries, secure download handler, audit logging, and role-based access control.
- * Version:     0.12.7-dev
+ * Version:     0.12.8-dev
  * Author:      I-SOFT Mionica
  * Author URI:  https://github.com/I-SOFT-Mionica
  * License:     GPL v2 or later
@@ -16,7 +16,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-const ISOFT_FMF_VERSION = '0.12.7-dev';
+const ISOFT_FMF_VERSION = '0.12.8-dev';
 define( 'ISOFT_FMF_PLUGIN_FILE', __FILE__ );
 define( 'ISOFT_FMF_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'ISOFT_FMF_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -151,8 +151,15 @@ add_action(
 		if ( is_admin() ) {
 			( new ISOFT_FMF_Admin_Meta_Boxes() )->register_hooks();
 			( new ISOFT_FMF_Admin_Columns() )->register_hooks();
-			( new ISOFT_FMF_Settings() )->register_hooks();
+			// License_Manager registers its admin submenu on
+			// admin_menu at priority 10. It's instantiated BEFORE
+			// Settings (which also hooks admin_menu at 10) so its
+			// add_submenu_page fires first and Licenses lands
+			// adjacent to the taxonomy submenus, ahead of Tools /
+			// Settings. Reordering these two lines is load-bearing
+			// for the WP admin sidebar order.
 			( new ISOFT_FMF_License_Manager() )->register_hooks();
+			( new ISOFT_FMF_Settings() )->register_hooks();
 			// One admin-shell class replaces the five per-page enqueue
 			// classes (Licenses_Page, Stats_Page, Log_Page,
 			// Broken_Links_Page, Settings_Page) retired in 0.12.6.

@@ -1,112 +1,129 @@
 /**
  * Client-side router for the admin shell.
  *
- * Solves the 5+ second WP admin-nav lag: instead of full page reloads
- * between Downloads > Licenses / Stats / Log / Broken Links / Settings,
- * every navigation is a client-side section swap. Full reload only
- * happens on first entry to the shell or when a user hits a WP
- * admin-menu link and the click hijack fails.
+ * 0.12.9 scope reduction: routing is intra-page only. Each top
+ * section (Licenses / Tools / Settings) is its own admin page — the
+ * router owns sub-tab nav within the currently-active top (Tools'
+ * Stats/Log/BrokenLinks strip, Settings' vertical sidebar). Clicking
+ * a WP admin sidebar link to a different top page goes through the
+ * WP admin's normal full navigation.
  *
- * Two navigation surfaces:
- *   1. Internal tab strip inside the shell (React nav.js) — always
- *      client-side; pushes state via history.pushState.
- *   2. WP #adminmenu links pointing to our 5 pages — hijacked on
- *      shell mount; if the hijack fires, same client-side swap.
- *      Fallback: default WP full-page nav happens, shell re-mounts,
- *      cached bundle serves. Still faster than pre-0.12.6.
+ * Sub-tab URL mapping:
+ *   - Licenses has no sub-tabs.
+ *   - Tools sub → page slug: stats→isoft-fmf-stats, log→isoft-fmf-log,
+ *     broken-links→isoft-fmf-broken-links. (?page=isoft-fmf-tools also
+ *     resolves and lands on stats by default.)
+ *   - Settings sub → ?tab= param on ?page=isoft-fmf-settings.
  */
 
-/** Sections the router owns. Kept in sync with SECTION_MAP on the PHP side. */
-export const SECTIONS = [
-	'licenses',
-	'stats',
-	'log',
-	'broken-links',
-	'settings',
-];
+/** Valid sub-tabs per top section. */
+export const SUBS_BY_TOP = {
+	licenses: [],
+	tools:    [ 'stats', 'log', 'broken-links' ],
+	settings: [ 'general', 'display', 'security', 'advanced', 'maintenance', 'extensions' ],
+};
 
-/** Map section slug -> URL params. All 5 live under the isoft_fmf_file CPT admin menu. */
-export const sectionSlug = ( section ) => `isoft-fmf-${ section }`;
+const TOOLS_URL_TO_SUB = {
+	'isoft-fmf-tools':        'stats',
+	'isoft-fmf-stats':        'stats',
+	'isoft-fmf-log':          'log',
+	'isoft-fmf-broken-links': 'broken-links',
+};
 
-export const sectionFromUrl = ( url ) => {
+/**
+ * Parse a URL into `{ top, sub }`. Returns null when the URL isn't
+ * one of ours.
+ */
+export const routeFromUrl = ( url ) => {
 	try {
 		const u    = new URL( url, window.location.origin );
 		const page = u.searchParams.get( 'page' ) || '';
-		const match = page.match( /^isoft-fmf-(licenses|stats|log|broken-links|settings)$/ );
-		return match ? match[ 1 ] : null;
+		if ( 'isoft-fmf-licenses' === page ) {
+			return { top: 'licenses', sub: null };
+		}
+		if ( 'isoft-fmf-settings' === page ) {
+			const tab = u.searchParams.get( 'tab' ) || 'general';
+			return {
+				top: 'settings',
+				sub: SUBS_BY_TOP.settings.includes( tab ) ? tab : 'general',
+			};
+		}
+		if ( TOOLS_URL_TO_SUB[ page ] ) {
+			return { top: 'tools', sub: TOOLS_URL_TO_SUB[ page ] };
+		}
+		return null;
 	} catch ( _err ) {
 		return null;
 	}
 };
 
-export const urlForSection = ( section ) => {
+/** Build the canonical URL for a { top, sub } pair. */
+export const urlForRoute = ( top, sub ) => {
 	const u = new URL( window.location.href );
 	u.searchParams.set( 'post_type', 'isoft_fmf_file' );
-	u.searchParams.set( 'page', sectionSlug( section ) );
-	// Preserve nothing else — section-specific query params (?tab=,
-	// ?filter_download=) would leak between sections and confuse
-	// bootstrap payload consumers. Sections that want deep-linking
-	// can push their own state after mount.
+
+	// Wipe non-owned params so state doesn't leak between sub-tab
+	// swaps.
 	[ ...u.searchParams.keys() ]
-		.filter( ( k ) => k !== 'post_type' && k !== 'page' )
+		.filter( ( k ) => k !== 'post_type' )
 		.forEach( ( k ) => u.searchParams.delete( k ) );
+
+	if ( 'licenses' === top ) {
+		u.searchParams.set( 'page', 'isoft-fmf-licenses' );
+	} else if ( 'settings' === top ) {
+		u.searchParams.set( 'page', 'isoft-fmf-settings' );
+		if ( sub && SUBS_BY_TOP.settings.includes( sub ) ) {
+			u.searchParams.set( 'tab', sub );
+		}
+	} else if ( 'tools' === top ) {
+		if ( 'log' === sub ) {
+			u.searchParams.set( 'page', 'isoft-fmf-log' );
+		} else if ( 'broken-links' === sub ) {
+			u.searchParams.set( 'page', 'isoft-fmf-broken-links' );
+		} else {
+			u.searchParams.set( 'page', 'isoft-fmf-stats' );
+		}
+	}
+
 	return u.pathname + u.search;
 };
 
 /**
- * Wire up the router. Returns an unsubscribe function.
+ * Wire up the router for a specific top page. Returns an object with
+ * `navigate(top, sub)` for sub-tab swaps and `destroy()` to unsubscribe.
  *
- * @param {(section: string) => void} onNavigate Called whenever the active section changes.
+ * The router only handles routes whose `top` matches `activeTop` —
+ * anything else is a cross-page navigation and gets ignored so
+ * default WP admin behaviour (full navigation) takes over.
+ *
+ * @param {string}                                activeTop   Which top section this page renders.
+ * @param {(top: string, sub: ?string) => void}   onNavigate  Fired on every intra-top route change.
  */
-export const attachRouter = ( onNavigate ) => {
+export const attachRouter = ( activeTop, onNavigate ) => {
 	const listeners = [];
 
-	// History back/forward.
 	const onPopState = () => {
-		const section = sectionFromUrl( window.location.href );
-		if ( section ) {
-			onNavigate( section );
+		const route = routeFromUrl( window.location.href );
+		if ( route && route.top === activeTop ) {
+			onNavigate( route.top, route.sub );
 		}
 	};
 	window.addEventListener( 'popstate', onPopState );
 	listeners.push( () => window.removeEventListener( 'popstate', onPopState ) );
 
-	// WP admin-menu click hijack. Query on attach — WP renders the
-	// menu server-side so all anchors exist by the time our bundle
-	// runs. If a plugin re-renders adminmenu later, the hijack won't
-	// cover the new anchors; the fallback (default nav → shell
-	// re-mount → cached bundle) still applies.
-	const hijack = ( anchor ) => {
-		const onClick = ( e ) => {
-			// Respect modifier keys — user probably wants a new tab.
-			if ( e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0 ) {
-				return;
-			}
-			const section = sectionFromUrl( anchor.href );
-			if ( ! section ) {
-				return;
-			}
-			e.preventDefault();
-			navigate( section );
-		};
-		anchor.addEventListener( 'click', onClick );
-		listeners.push( () => anchor.removeEventListener( 'click', onClick ) );
-	};
-
-	const navigate = ( section ) => {
-		if ( ! SECTIONS.includes( section ) ) {
+	const navigate = ( top, sub ) => {
+		if ( top !== activeTop ) {
+			// Cross-page nav goes through WP admin's normal full
+			// navigation; the caller should just let the browser
+			// follow the anchor href.
 			return;
 		}
-		const target = urlForSection( section );
+		const target = urlForRoute( top, sub );
 		if ( target !== window.location.pathname + window.location.search ) {
-			window.history.pushState( { section }, '', target );
+			window.history.pushState( { top, sub }, '', target );
 		}
-		onNavigate( section );
+		onNavigate( top, sub );
 	};
-
-	document
-		.querySelectorAll( '#adminmenu a[href*="page=isoft-fmf-"]' )
-		.forEach( hijack );
 
 	return {
 		navigate,

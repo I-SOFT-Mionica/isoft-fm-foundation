@@ -25,17 +25,45 @@ class ISOFT_FMF_Admin_Shell {
 	public const SCRIPT_HANDLE = 'isoft-fmf-admin-shell';
 
 	/**
-	 * Map of admin-page hook suffix -> React section slug.
+	 * Map of admin-page hook suffix -> React top+sub section tuple.
 	 *
-	 * @return array<string,string>
+	 * As of 0.12.8, the shell has 3 top-level sections (Licenses,
+	 * Tools, Settings). Tools houses Statistics / Download Log /
+	 * Broken Links as sub-tabs; Settings houses General / Display /
+	 * Security / Advanced / Maintenance / Extensions. The legacy
+	 * per-URL slugs (?page=isoft-fmf-stats etc.) still resolve — they
+	 * enter the shell with the correct top+sub pre-selected — but
+	 * they're hidden from the WP admin sidebar (see
+	 * ISOFT_FMF_Settings::consolidate_tools_menu).
+	 *
+	 * @return array<string,array{top:string,sub:?string}>
 	 */
 	public static function section_map(): array {
 		return array(
-			'isoft_fmf_file_page_isoft-fmf-licenses'     => 'licenses',
-			'isoft_fmf_file_page_isoft-fmf-stats'        => 'stats',
-			'isoft_fmf_file_page_isoft-fmf-log'          => 'log',
-			'isoft_fmf_file_page_isoft-fmf-broken-links' => 'broken-links',
-			'isoft_fmf_file_page_isoft-fmf-settings'     => 'settings',
+			'isoft_fmf_file_page_isoft-fmf-licenses'     => array(
+				'top' => 'licenses',
+				'sub' => null,
+			),
+			'isoft_fmf_file_page_isoft-fmf-tools'        => array(
+				'top' => 'tools',
+				'sub' => 'stats',
+			),
+			'isoft_fmf_file_page_isoft-fmf-stats'        => array(
+				'top' => 'tools',
+				'sub' => 'stats',
+			),
+			'isoft_fmf_file_page_isoft-fmf-log'          => array(
+				'top' => 'tools',
+				'sub' => 'log',
+			),
+			'isoft_fmf_file_page_isoft-fmf-broken-links' => array(
+				'top' => 'tools',
+				'sub' => 'broken-links',
+			),
+			'isoft_fmf_file_page_isoft-fmf-settings'     => array(
+				'top' => 'settings',
+				'sub' => null,
+			),
 		);
 	}
 
@@ -44,17 +72,66 @@ class ISOFT_FMF_Admin_Shell {
 	}
 
 	/**
-	 * Stashes the active section derived from hook_suffix so
+	 * Stashes the active {top, sub} pair derived from hook_suffix so
 	 * bootstrap_payload() knows which slice to compute. The alternative
 	 * — re-deriving from $_GET['page'] inside bootstrap_payload — is
 	 * fragile because the mount partial runs from inside a submenu
 	 * callback, not the admin_enqueue_scripts hook, and $_GET is the
 	 * same but there's no coupling guarantee.
+	 *
+	 * @var array{top:string,sub:?string}|null
 	 */
-	private static ?string $active_section = null;
+	private static ?array $active = null;
 
-	public static function active_section(): ?string {
-		return self::$active_section;
+	/** @return array{top:string,sub:?string}|null */
+	public static function active_section(): ?array {
+		return self::$active;
+	}
+
+	/**
+	 * Derive the {top, sub} route from $_GET['page']. Returns null when
+	 * the URL doesn't match any known shell page — the caller falls
+	 * back to whatever enqueue() stashed, or the licenses default.
+	 *
+	 * Mirrors the JS router's routeFromUrl so client and server agree
+	 * on which page a URL resolves to.
+	 *
+	 * @return array{top:string,sub:?string}|null
+	 */
+	private static function route_from_query_string(): ?array {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only URL routing; page slug is validated below.
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+
+		$tools_pages = array(
+			'isoft-fmf-tools'        => 'stats',
+			'isoft-fmf-stats'        => 'stats',
+			'isoft-fmf-log'          => 'log',
+			'isoft-fmf-broken-links' => 'broken-links',
+		);
+
+		if ( 'isoft-fmf-licenses' === $page ) {
+			return array(
+				'top' => 'licenses',
+				'sub' => null,
+			);
+		}
+		if ( 'isoft-fmf-settings' === $page ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only tab selector.
+			$tab   = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'general';
+			$valid = array( 'general', 'display', 'security', 'advanced', 'maintenance', 'extensions' );
+			return array(
+				'top' => 'settings',
+				'sub' => in_array( $tab, $valid, true ) ? $tab : 'general',
+			);
+		}
+		if ( isset( $tools_pages[ $page ] ) ) {
+			return array(
+				'top' => 'tools',
+				'sub' => $tools_pages[ $page ],
+			);
+		}
+
+		return null;
 	}
 
 	public function enqueue( string $hook_suffix ): void {
@@ -62,7 +139,7 @@ class ISOFT_FMF_Admin_Shell {
 		if ( null === $section ) {
 			return;
 		}
-		self::$active_section = $section;
+		self::$active = $section;
 
 		$asset_path = ISOFT_FMF_PLUGIN_DIR . 'blocks/build/admin-shell.asset.php';
 		if ( ! file_exists( $asset_path ) ) {
@@ -124,49 +201,51 @@ class ISOFT_FMF_Admin_Shell {
 	 * Compute the bootstrap blob that admin-shell-mount.php emits as
 	 * `data-bootstrap` on the mount div.
 	 *
-	 * As of the 0.12.7 perf pass, this is LAZY: only the active
-	 * section's slice is computed on page load. The other four
-	 * sections receive an empty placeholder (broken-links keeps the
-	 * badge count, which drives the tab strip). When the user
-	 * navigates to another section, that section's normal post-mount
-	 * REST fetch fires — since the SPA router keeps visited sections
-	 * alive in the DOM, each section pays its query cost exactly once
-	 * per session instead of all five paying on every page load.
+	 * The shape carries the initial {top, sub} routing state plus one
+	 * slice — the data the active sub-section needs to first-paint
+	 * without any REST round-trip. Other sub-sections mount lazily on
+	 * first visit; the SPA router keeps visited ones alive, so each
+	 * pays its query cost at most once per session.
 	 *
-	 * Pre-0.12.7 shape: ~5-8 uncached DB round-trips per shell page
-	 * load (log rows + downloads-list + broken-file rows + license
-	 * list + settings + stats), regardless of which tab the user is
-	 * actually on. Post-0.12.7: 1-2 (badge + active section's slice),
-	 * with the balance amortised across sessions.
+	 * The broken-links badge count is always inlined — it drives the
+	 * WP admin menu badge AND the sub-nav badge inside Tools.
 	 *
-	 * @return array<string,array<string,mixed>>
+	 * When the active top is Settings, `settingsHtml` also carries
+	 * server-rendered HTML for the Maintenance and Extensions
+	 * sub-tabs — they're PHP forms with admin-post handlers, so the
+	 * shell injects their existing markup into the Settings body
+	 * instead of forcing a full navigation the way the pre-0.12.8
+	 * settings-page.php did.
+	 *
+	 * @return array<string,mixed>
 	 */
 	public static function bootstrap_payload(): array {
-		$section = self::$active_section ?? 'licenses';
-
-		$payload = array(
-			'licenses'     => (object) array(),
-			'stats'        => (object) array(),
-			'log'          => (object) array(),
-			'broken-links' => array( 'badgeCount' => self::badge_count() ),
-			'settings'     => (object) array(),
+		// $_GET is the authoritative source: the URL is the page.
+		// self::$active (set by enqueue()) is used only when $_GET
+		// doesn't resolve to a known shell page — that can happen if
+		// this method is invoked from a context outside the normal
+		// submenu render pipeline (unlikely, but harmless to defend
+		// against). If both fail, default to licenses.
+		$route  = self::route_from_query_string();
+		$active = $route ?? self::$active ?? array(
+			'top' => 'licenses',
+			'sub' => null,
 		);
 
-		switch ( $section ) {
+		$payload = array(
+			'active'     => $active,
+			'badgeCount' => self::badge_count(),
+			'licenses'   => (object) array(),
+			'tools'      => (object) array(),
+			'settings'   => (object) array(),
+		);
+
+		switch ( $active['top'] ) {
 			case 'licenses':
 				$payload['licenses'] = self::licenses_slice();
 				break;
-			case 'stats':
-				$payload['stats'] = self::stats_slice();
-				break;
-			case 'log':
-				$payload['log'] = self::log_slice();
-				break;
-			case 'broken-links':
-				$payload['broken-links'] = array_merge(
-					$payload['broken-links'],
-					self::broken_links_slice()
-				);
+			case 'tools':
+				$payload['tools'] = self::tools_slice( $active['sub'] ?? 'stats' );
 				break;
 			case 'settings':
 				$payload['settings'] = self::settings_slice();
@@ -174,6 +253,30 @@ class ISOFT_FMF_Admin_Shell {
 		}
 
 		return $payload;
+	}
+
+	/**
+	 * Inline slice for Tools — only the active sub-tab's data ships.
+	 * Sibling sub-tabs hydrate over REST when the user clicks them.
+	 * The badge count sits at the top level (see bootstrap_payload)
+	 * so it's available before Tools is visited.
+	 */
+	private static function tools_slice( string $sub ): array {
+		$out = array(
+			'initialSub' => in_array( $sub, array( 'stats', 'log', 'broken-links' ), true ) ? $sub : 'stats',
+		);
+		switch ( $out['initialSub'] ) {
+			case 'stats':
+				$out['stats'] = self::stats_slice();
+				break;
+			case 'log':
+				$out['log'] = self::log_slice();
+				break;
+			case 'broken-links':
+				$out['brokenLinks'] = self::broken_links_slice();
+				break;
+		}
+		return $out;
 	}
 
 	private static function licenses_slice(): array {
@@ -262,28 +365,63 @@ class ISOFT_FMF_Admin_Shell {
 	}
 
 	private static function settings_slice(): array {
-		$tabs     = array( 'general', 'display', 'security', 'advanced', 'maintenance', 'extensions' );
-		$tab_urls = array();
-		foreach ( $tabs as $tab ) {
-			$tab_urls[ $tab ] = add_query_arg(
-				array(
-					'page'      => 'isoft-fmf-settings',
-					'post_type' => 'isoft_fmf_file',
-					'tab'       => $tab,
-				),
-				admin_url( 'edit.php' )
-			);
-		}
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only tab selector; nonce belongs on form submit, not nav.
 		$initial_tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'general';
+		if ( ! in_array( $initial_tab, array( 'general', 'display', 'security', 'advanced', 'maintenance', 'extensions' ), true ) ) {
+			$initial_tab = 'general';
+		}
 
+		// Note: maintenanceHtml / extensionsHtml are NOT included in
+		// the JSON payload. Packing ~10 KB of PHP-rendered HTML
+		// (nonce fields, form markup, translated text) through the
+		// JSON → esc_attr → JSON.parse round-trip broke on certain
+		// characters (verified: 9098-char blob threw
+		// SyntaxError at column 1786 on a real install).
+		//
+		// admin-shell-mount.php emits them separately as
+		// <script type="text/html" id="isoft-fmf-tab-maintenance">…</script>
+		// blocks, which React reads directly by id — no JSON layer.
 		return array(
-			'initialTab'    => in_array( $initial_tab, array( 'general', 'display', 'security', 'advanced' ), true ) ? $initial_tab : 'general',
-			'phpTabUrls'    => array(
-				'maintenance' => $tab_urls['maintenance'],
-				'extensions'  => $tab_urls['extensions'],
-			),
+			'initialTab'    => $initial_tab,
 			'initialValues' => ( new ISOFT_FMF_Settings_Service() )->get_all(),
 		);
+	}
+
+	/**
+	 * Public accessor for admin-shell-mount.php — captures a PHP tab
+	 * view (maintenance-tab.php / extensions-tab.php) into an HTML
+	 * string. Emitted into a separate <script type="text/html"> block
+	 * alongside the mount div (see settings_slice for rationale).
+	 */
+	public static function settings_php_tab_html( string $tab ): string {
+		if ( 'maintenance' === $tab ) {
+			return self::capture_view( 'maintenance-tab.php' );
+		}
+		if ( 'extensions' === $tab ) {
+			return self::capture_view( 'extensions-tab.php' );
+		}
+		return '';
+	}
+
+	/**
+	 * Render a PHP view file into an HTML string. Used to inline the
+	 * Maintenance and Extensions sub-tabs into the shell so they
+	 * appear in the same sidebar UX as the 4 schema tabs — no full
+	 * navigation, no jumping between shell and legacy PHP.
+	 *
+	 * The captured HTML is emitted into the React tree via
+	 * dangerouslySetInnerHTML. The forms inside still POST to
+	 * options.php / admin-post.php — those go through their normal
+	 * WordPress handlers, then the browser reloads and re-enters the
+	 * shell. No React state to manage on either sub-tab.
+	 */
+	private static function capture_view( string $file ): string {
+		$path = ISOFT_FMF_PLUGIN_DIR . 'admin/views/' . $file;
+		if ( ! file_exists( $path ) ) {
+			return '';
+		}
+		ob_start();
+		require $path;
+		return (string) ob_get_clean();
 	}
 }

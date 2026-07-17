@@ -1,26 +1,23 @@
 /**
- * Settings section — schema-driven form for the 4 option tabs
- * (General / Display / Security / Advanced), backed by /settings.
+ * Settings section — vertical sub-nav card layout.
  *
- * Ported from blocks/settings-page/index.js in 0.12.6 when the 5
- * per-page bundles collapsed into a single admin-shell entry. Content
- * is unchanged aside from:
- *   - Renamed SettingsApp -> SettingsForm, SettingsTabs -> SettingsSection.
- *   - Removed self-mount code at the bottom (shell owns mounting).
- *   - Bootstrap payload arrives as one `bootstrap` prop (initialTab +
- *     phpTabUrls destructured inside).
+ * 0.12.8 rewrite: the horizontal TabPanel from earlier phases is gone.
+ * WP-native pattern (Site Health, WooCommerce Settings) puts sub-nav
+ * items in a left sidebar with content on the right inside one card.
+ * All six sub-tabs live in the same UX now — General / Display /
+ * Security / Advanced share the schema-driven form; Maintenance /
+ * Extensions render server-inlined PHP HTML via
+ * dangerouslySetInnerHTML.
  *
- * The Maintenance and Extensions tabs still trigger `window.location`
- * navigation to their PHP-rendered admin URLs — they aren't part of the
- * SPA (server-side action handlers + marketing surface, no benefit
- * from a React port).
+ * The Maintenance and Extensions forms POST to options.php /
+ * admin-post.php as they always did. After a form submit the browser
+ * reloads to the shell — no React state to manage on either sub-tab.
  */
 
 import {
 	Notice,
 	Spinner,
 	Button,
-	TabPanel,
 	ToggleControl,
 	SelectControl,
 	TextControl,
@@ -241,6 +238,8 @@ const TAB_SCHEMAS = {
 	],
 };
 
+const SCHEMA_TABS = [ 'general', 'display', 'security', 'advanced' ];
+
 const normalise = ( field, raw ) => {
 	if ( field.type === 'toggle' ) {
 		return !! parseInt( raw, 10 );
@@ -259,6 +258,17 @@ const serialise = ( field, value ) => {
 		return parseInt( value, 10 ) || 0;
 	}
 	return value == null ? '' : String( value );
+};
+
+const shapeValues = ( schema, payload ) => {
+	const next = {};
+	for ( const field of schema ) {
+		const raw = payload && Object.prototype.hasOwnProperty.call( payload, field.key )
+			? payload[ field.key ]
+			: field.default;
+		next[ field.key ] = normalise( field, raw == null ? field.default : raw );
+	}
+	return next;
 };
 
 const FieldControl = ( { field, value, onChange } ) => {
@@ -324,25 +334,8 @@ const FieldControl = ( { field, value, onChange } ) => {
 	}
 };
 
-/**
- * Shape a raw options payload (from bootstrap or /settings) into the
- * per-tab schema's normalised form. Extracted so both the inline-boot
- * path and the REST-fetch path use one code path.
- */
-const shapeValues = ( schema, payload ) => {
-	const next = {};
-	for ( const field of schema ) {
-		const raw = payload && Object.prototype.hasOwnProperty.call( payload, field.key )
-			? payload[ field.key ]
-			: field.default;
-		next[ field.key ] = normalise( field, raw == null ? field.default : raw );
-	}
-	return next;
-};
-
 const SettingsForm = ( { tab, initialPayload } ) => {
-	const schema = TAB_SCHEMAS[ tab ] || [];
-
+	const schema  = TAB_SCHEMAS[ tab ] || [];
 	const inlined = initialPayload || null;
 
 	const [ values, setValues ]   = useState( () => ( inlined ? shapeValues( schema, inlined ) : null ) );
@@ -352,13 +345,6 @@ const SettingsForm = ( { tab, initialPayload } ) => {
 	const [ error, setError ]     = useState( null );
 	const [ notice, setNotice ]   = useState( null );
 
-	// Skip the initial fetch when the shell inlined the full options
-	// map (data-bootstrap). On tab changes within the same session
-	// we still refetch — the payload arrives per-tab-slice via the
-	// schema; the alternative would be to stash `inlined` in a ref
-	// and only skip the very first fetch, but the tab switch is a
-	// single option-scan on the server so a fresh GET keeps the code
-	// path simple and always shows latest values.
 	const skipFirstFetch = useRef( !! inlined );
 
 	useEffect( () => {
@@ -426,7 +412,7 @@ const SettingsForm = ( { tab, initialPayload } ) => {
 
 	if ( loading || ! values ) {
 		return (
-			<div style={ { marginTop: '16px' } }>
+			<div>
 				{ error
 					? <Notice status="error" isDismissible={ false }>{ error }</Notice>
 					: <p><Spinner /></p>
@@ -436,7 +422,7 @@ const SettingsForm = ( { tab, initialPayload } ) => {
 	}
 
 	return (
-		<div style={ { marginTop: '16px', maxWidth: '720px' } }>
+		<div style={ { maxWidth: '720px' } }>
 			{ notice && (
 				<Notice
 					status={ notice.status }
@@ -485,56 +471,96 @@ const SettingsForm = ( { tab, initialPayload } ) => {
 	);
 };
 
-const SettingsSection = ( { bootstrap } ) => {
+const RawHtmlPanel = ( { html, label } ) => {
+	if ( ! html ) {
+		return (
+			<p className="description">
+				{ label } { __( '— content unavailable.', 'isoft-fm-foundation' ) }
+			</p>
+		);
+	}
+	// PHP already escaped its output via esc_* / wp_kses_post at
+	// render time, so injecting the string directly is safe.
+	return <div dangerouslySetInnerHTML={ { __html: html } } />;
+};
+
+const SUB_TABS = [
+	{ id: 'general',     label: () => __( 'General',     'isoft-fm-foundation' ) },
+	{ id: 'display',     label: () => __( 'Display',     'isoft-fm-foundation' ) },
+	{ id: 'security',    label: () => __( 'Security',    'isoft-fm-foundation' ) },
+	{ id: 'advanced',    label: () => __( 'Advanced',    'isoft-fm-foundation' ) },
+	{ id: 'maintenance', label: () => __( 'Maintenance', 'isoft-fm-foundation' ) },
+	{ id: 'extensions',  label: () => __( 'Extensions',  'isoft-fm-foundation' ) },
+];
+
+/**
+ * Read a PHP-rendered tab's HTML from the sibling <script type="text/html">
+ * blocks emitted by admin-shell-mount.php. Returns '' if the block
+ * isn't present (shell mounted on a non-Settings URL, or PHP failed
+ * to capture the view).
+ */
+const readTabHtml = ( tab ) => {
+	const el = document.getElementById( `isoft-fmf-tab-${ tab }` );
+	return el ? el.textContent : '';
+};
+
+const SettingsSection = ( { bootstrap, activeSub, onSelectSub } ) => {
 	const initialTab    = bootstrap?.initialTab || 'general';
-	const phpTabUrls    = bootstrap?.phpTabUrls || {};
 	const initialValues = bootstrap?.initialValues || null;
+	const maintenanceHtml = readTabHtml( 'maintenance' );
+	const extensionsHtml  = readTabHtml( 'extensions' );
 
-	const tabs = [
-		{ name: 'general',     title: __( 'General', 'isoft-fm-foundation' ) },
-		{ name: 'display',     title: __( 'Display', 'isoft-fm-foundation' ) },
-		{ name: 'security',    title: __( 'Security', 'isoft-fm-foundation' ) },
-		{ name: 'advanced',    title: __( 'Advanced', 'isoft-fm-foundation' ) },
-		{ name: 'maintenance', title: __( 'Maintenance', 'isoft-fm-foundation' ) },
-		{ name: 'extensions',  title: __( 'Extensions', 'isoft-fm-foundation' ) },
-	];
+	const [ localSub, setLocalSub ] = useState( initialTab );
+	const effectiveSub = activeSub || localSub;
 
-	const onSelect = ( tabName ) => {
-		if ( phpTabUrls[ tabName ] ) {
-			window.location.href = phpTabUrls[ tabName ];
-		}
+	const handleSelect = ( sub ) => {
+		setLocalSub( sub );
+		onSelectSub?.( sub );
 	};
 
 	return (
-		<div className="isoft-fmf-settings-section">
+		<div className="isoft-fmf-settings">
 			<h1 className="wp-heading-inline">
 				{ __( 'Settings', 'isoft-fm-foundation' ) }
 			</h1>
 			<hr className="wp-header-end" />
 
-			<TabPanel
-				className="isoft-fmf-settings-tabs"
-				activeClass="is-active"
-				initialTabName={ initialTab }
-				tabs={ tabs }
-				onSelect={ onSelect }
-			>
-				{ ( tab ) => {
-					if ( phpTabUrls[ tab.name ] ) {
-						return (
-							<div style={ { padding: '20px', textAlign: 'center' } }>
-								<Spinner />
-							</div>
-						);
-					}
-					// Only hand the inline payload to the initial-tab
-					// mount — a tab switch mid-session refetches so the
-					// values reflect any changes made through other
-					// admin surfaces (WP-CLI, direct DB, other admins).
-					const inline = tab.name === initialTab ? initialValues : null;
-					return <SettingsForm tab={ tab.name } initialPayload={ inline } />;
-				} }
-			</TabPanel>
+			<nav className="nav-tab-wrapper isoft-fmf-settings-nav" style={ { marginTop: 0 } }>
+				{ SUB_TABS.map( ( sub ) => {
+					const isActive = sub.id === effectiveSub;
+					return (
+						<a
+							key={ sub.id }
+							href={ `?post_type=isoft_fmf_file&page=isoft-fmf-settings&tab=${ sub.id }` }
+							className={ `nav-tab ${ isActive ? 'nav-tab-active' : '' }` }
+							onClick={ ( e ) => {
+								if ( e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0 ) {
+									return;
+								}
+								e.preventDefault();
+								handleSelect( sub.id );
+							} }
+						>
+							{ sub.label() }
+						</a>
+					);
+				} ) }
+			</nav>
+
+			<div className="isoft-fmf-settings__body" style={ { marginTop: '16px' } }>
+				{ SCHEMA_TABS.includes( effectiveSub ) && (
+					<SettingsForm
+						tab={ effectiveSub }
+						initialPayload={ effectiveSub === initialTab ? initialValues : null }
+					/>
+				) }
+				{ 'maintenance' === effectiveSub && (
+					<RawHtmlPanel html={ maintenanceHtml } label={ __( 'Maintenance', 'isoft-fm-foundation' ) } />
+				) }
+				{ 'extensions' === effectiveSub && (
+					<RawHtmlPanel html={ extensionsHtml } label={ __( 'Extensions', 'isoft-fm-foundation' ) } />
+				) }
+			</div>
 		</div>
 	);
 };
