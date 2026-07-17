@@ -50,6 +50,36 @@
 /* Establish the query container on the shortcode wrapper. Both the list/grid
  * shortcode and any direct .isoft-fmf-grid render become query containers. */
 .isoft-fmf-list-wrap,
+/* Category card icon — sized for both the bundled default SVG (intrinsic
+ * 800x800), pasted image URLs, dashicon spans, and third-party shortcode
+ * SVG output. Centred 64x64 box; svg / img scales contained, dashicon
+ * spans get an explicit font-size since dashicons render at their parent
+ * font-size by default. */
+.isoft-fmf-category-card__icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 64px;
+	height: 64px;
+	margin: 0 auto 0.5rem;
+}
+.isoft-fmf-category-card__icon img,
+.isoft-fmf-category-card__icon svg {
+	max-width: 100%;
+	max-height: 100%;
+	width: auto;
+	height: auto;
+}
+.isoft-fmf-category-card__icon .dashicons {
+	font-size: 48px;
+	width: 48px;
+	height: 48px;
+	color: var( --isoft-fmf-meta-color, #555 );
+}
+.isoft-fmf-category-card__icon-img--default {
+	opacity: 0.6;
+}
+
 .isoft-fmf-grid,
 .isoft-fmf-category-grid {
 	container-type: inline-size;

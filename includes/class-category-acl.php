@@ -20,6 +20,16 @@ class ISOFT_FMF_Category_ACL {
 
 	private const string USER_META_KEY = '_isoft_fmf_allowed_categories';
 
+	/**
+	 * Persistent-cache group for the resolved (expanded) allowed-category
+	 * sets per user. When Redis / Memcached / APCu backs wp_cache_*, this
+	 * survives across requests — the expensive `get_term_children` walk
+	 * only runs when a user's assignment or the term hierarchy changes.
+	 * Without a persistent backend, the group is per-request and the
+	 * in-request static memo below still applies.
+	 */
+	public const CACHE_GROUP = 'isoft_fmf_acl';
+
 	/** In-request memoization of effective (expanded) allowed sets per user. */
 	private static array $effective_cache = array();
 
@@ -53,6 +63,57 @@ class ISOFT_FMF_Category_ACL {
 
 		// Enqueue tree CSS on the user profile screen.
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_profile_assets' ) );
+
+		// Cache invalidation: any change to a user's allowed_categories
+		// meta OR any term-hierarchy change flushes the resolved
+		// per-user set. Term hierarchy is a coarse-grained flush
+		// (delete the whole group) because a moved child affects every
+		// parent's descendant set.
+		add_action( 'updated_user_meta', array( __CLASS__, 'on_user_meta_change' ), 10, 3 );
+		add_action( 'added_user_meta', array( __CLASS__, 'on_user_meta_change' ), 10, 3 );
+		add_action( 'deleted_user_meta', array( __CLASS__, 'on_user_meta_change' ), 10, 3 );
+		add_action( 'edited_isoft_fmf_category', array( __CLASS__, 'flush_group' ) );
+		add_action( 'created_isoft_fmf_category', array( __CLASS__, 'flush_group' ) );
+		add_action( 'delete_isoft_fmf_category', array( __CLASS__, 'flush_group' ) );
+	}
+
+	/**
+	 * Meta-change hook — flush the user's resolved cache entry when
+	 * their allowed_categories assignment changes.
+	 *
+	 * @param int|int[] $meta_id  Unused.
+	 * @param int       $user_id  The affected user.
+	 * @param string    $meta_key The meta key that changed.
+	 */
+	public static function on_user_meta_change( $meta_id, int $user_id, string $meta_key ): void {
+		unset( $meta_id );
+		if ( self::USER_META_KEY !== $meta_key ) {
+			return;
+		}
+		self::flush_user( $user_id );
+	}
+
+	/** Flush a single user's resolved-set cache entry. */
+	public static function flush_user( int $user_id ): void {
+		unset( self::$effective_cache[ $user_id ] );
+		wp_cache_delete( "effective_{$user_id}", self::CACHE_GROUP );
+	}
+
+	/**
+	 * Flush every resolved set. Called when the term hierarchy shifts,
+	 * because child moves change every ancestor's descendant set. Uses
+	 * wp_cache_flush_group when available (WP 6.1+); otherwise bumps
+	 * an in-group version key so stale entries fall through.
+	 */
+	public static function flush_group(): void {
+		self::$effective_cache = array();
+		if ( function_exists( 'wp_cache_flush_group' ) ) {
+			wp_cache_flush_group( self::CACHE_GROUP );
+			return;
+		}
+		// Fallback: bump a namespace version; readers include it in
+		// their cache key so old entries become inaccessible.
+		wp_cache_set( 'version', microtime( true ), self::CACHE_GROUP );
 	}
 
 	// -------------------------------------------------------------------------
@@ -84,6 +145,12 @@ class ISOFT_FMF_Category_ACL {
 			return self::$effective_cache[ $user_id ];
 		}
 
+		$cached = wp_cache_get( "effective_{$user_id}", self::CACHE_GROUP );
+		if ( is_array( $cached ) ) {
+			self::$effective_cache[ $user_id ] = $cached;
+			return $cached;
+		}
+
 		$explicit = self::get_explicit( $user_id );
 		$set      = array();
 		foreach ( $explicit as $term_id ) {
@@ -97,6 +164,7 @@ class ISOFT_FMF_Category_ACL {
 		}
 
 		self::$effective_cache[ $user_id ] = $set;
+		wp_cache_set( "effective_{$user_id}", $set, self::CACHE_GROUP, HOUR_IN_SECONDS );
 		return $set;
 	}
 
@@ -428,19 +496,40 @@ class ISOFT_FMF_Category_ACL {
 			return;
 		}
 
-		$explicit = self::get_explicit( $user->ID );
-		$selected = array_flip( $explicit );
-		$tree     = $this->build_category_tree();
-
 		?>
 		<h2><?php esc_html_e( 'I-Soft File Manager: Foundation — Allowed Categories', 'isoft-fm-foundation' ); ?></h2>
 		<p class="description">
 			<?php esc_html_e( 'This user can create, edit and delete downloads in the selected categories and all their descendants. Leave empty to restrict them completely (admins are always unrestricted).', 'isoft-fm-foundation' ); ?>
 		</p>
-		<div class="isoft-fmf-acl-tree">
-			<?php $this->render_tree_nodes( $tree, $selected ); ?>
-		</div>
+
 		<?php
+		// 0.12.4+: when the React bundle loads, hand the surface over to
+		// it via a mount node + data-user-id. The React app reads/writes
+		// through the new REST /users/{id}/category-acl endpoint so the
+		// save no longer rides on the user-edit form's $_POST. Fallback
+		// to the PHP <details> checkbox tree when JS is unavailable.
+		if ( wp_script_is( ISOFT_FMF_Profile_ACL_Page::SCRIPT_HANDLE, 'enqueued' ) ) :
+			?>
+			<div
+				id="isoft-fmf-profile-acl-root"
+				data-user-id="<?php echo esc_attr( (string) $user->ID ); ?>"
+			></div>
+			<noscript>
+				<div class="notice notice-warning inline">
+					<p><?php esc_html_e( 'The category ACL editor requires JavaScript. Please enable JavaScript in your browser, or revert to the previous plugin version.', 'isoft-fm-foundation' ); ?></p>
+				</div>
+			</noscript>
+			<?php
+		else :
+			$explicit = self::get_explicit( $user->ID );
+			$selected = array_flip( $explicit );
+			$tree     = $this->build_category_tree();
+			?>
+			<div class="isoft-fmf-acl-tree">
+				<?php $this->render_tree_nodes( $tree, $selected ); ?>
+			</div>
+			<?php
+		endif;
 	}
 
 	public function save_profile_field( int $user_id ): void {
@@ -461,10 +550,10 @@ class ISOFT_FMF_Category_ACL {
 		$raw = isset( $_POST['isoft_fmf_allowed_categories'] ) ? $_POST['isoft_fmf_allowed_categories'] : array();
 		$ids = is_array( $raw ) ? array_map( 'absint', $raw ) : array();
 		$ids = array_values( array_filter( $ids, fn( int $i ): bool => $i > 0 ) );
+		// update_user_meta triggers `updated_user_meta` which our
+		// on_user_meta_change() handler consumes to flush both the
+		// in-request and persistent cache — no manual unset needed.
 		update_user_meta( $user_id, self::USER_META_KEY, $ids );
-
-		// Invalidate the in-request cache for this user.
-		unset( self::$effective_cache[ $user_id ] );
 	}
 
 	// -------------------------------------------------------------------------

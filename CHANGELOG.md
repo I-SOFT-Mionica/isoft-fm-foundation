@@ -2,6 +2,51 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.12.0] — 2026-07-17
+
+The React admin rewrite. Every I-Soft File Manager: Foundation admin screen (Statistics, Download Log, Broken Links, Settings, Licenses) is now a Gutenberg-native React app running on a shared REST API. The result: instant navigation between the Downloads pages after first load, a redesigned Downloads sidebar (Licenses, Tools, Settings), a rebuilt Broken Links recovery flow, and a lot less code churning in the background on every request.
+
+If you're coming from 0.11.0, nothing in your data changes. Existing downloads, categories, files, licenses, logs, and per-user category permissions are preserved. The upgrade runs a one-shot database migration to reduce every multi-category download to its oldest assignment (the filesystem-as-source-of-truth architecture only ever honoured the first category); the migration logs its result count and is idempotent.
+
+### New
+
+- **Reorganised Downloads menu.** Sidebar collapses to: All Downloads, Add New, Categories, Tags, Licenses, **Tools**, Settings. Statistics, Download Log, and Broken Links move under a single **Tools** page as horizontal tabs. Old direct URLs (, , ) still resolve so bookmarks and inbound links keep working.
+- **Editor sidebar for downloads.** The download post-edit screen now runs on the block editor. Version, license, changelog, author, agreement gate, and access role live in a right-hand sidebar. The classic multi-category checkbox picker is replaced by a single-select dropdown (matches the one-folder-per-download filesystem model).
+- **DataViews-powered Download Log and Broken Links.** Server-side pagination, per-download filter, live search, sortable columns, and 300 ms debounced typing so the table stays responsive under load.
+- **Broken Links recovery modal.** Per-row Recover action opens a modal with the same seven paths that existed before (relink, move back, reassign, split, reupload, detach) but on a clearer flow that shows where the file was found vs. where it was expected, and closes immediately on success.
+- **Statistics dashboard rewrite.** Same KPI cards, 30-day bar chart, and Top-N tables, now with a Refresh button and a five-minute cached backend.
+- **Schema-driven Settings.** Six sub-tabs (General, Display, Security, Advanced, Maintenance, Extensions) on a horizontal tab strip. Per-tab Save Changes button, dirty-diff guard, and only-changed-fields writes.
+- **Category icons.** Category admin gets a small icon picker (dashicon name, image URL, or  shortcode) and the front-end category grid renders whichever is set, falling back to a bundled default SVG.
+- **Public REST API.** Every admin surface reads and writes through . Extensions and integrations can now consume or replace the entire admin without touching WordPress hooks.
+- **Batched log-retention purge.** Cleanup runs in 5,000-row batches so a large delete no longer locks the log table on busy sites.
+
+### Faster
+
+- **Single admin bundle.** All React admin surfaces load from one JavaScript file instead of five per-page bundles.  is bundled once, not twice.
+- **Zero-fetch first paint.** Every page load ships its initial data inline (log rows, license table, current setting values, stats overview) — no extra REST round-trip before the screen renders.
+- **Lazy per-section hydration.** Only the section you land on computes its data server-side; sibling sections load on first visit.
+- **Lighter frontend.** REST controllers, admin classes, and legacy handlers only load when they're actually needed. Frontend requests no longer pay for the admin layer.
+- **Object-cache-aware access control.** The per-user category permission set is cached under  group; with Redis / Memcached / APCu it survives across requests.
+
+### Changed
+
+- **Licenses admin.** The Licenses submenu sits under Tags (was appended at the bottom of the Downloads menu). Category, Tags, and Licenses now read as a visual group.
+- **Files metabox stays.** The file management UI on the download edit screen is unchanged in this release — the jQuery-based uploader with drag-reorder and inline edit continues to work exactly as before.
+- **Category assignment is single-select.** The 0.11.0 known issue where the checkbox UI let admins pick multiple categories but the filesystem only honoured the first is resolved. Existing multi-category downloads are migrated to their oldest assignment on upgrade.
+- **PDF thumbnails now default off.** Turn on per-install after confirming Imagick is available on your host.
+- **Broken Links integrity panel** stays as a PHP fragment above the React table (server-side lock state and admin-post trigger; not a REST/list surface).
+
+### Removed
+
+- All 14 legacy admin AJAX handlers, the classic-editor TinyMCE shortcode inserter, two  subclasses, and the pre-React PHP fallback forms. Everything now flows through REST.
+- The classic-editor meta boxes for Version & License and Statistics on the download edit screen — the editor sidebar owns those.
+
+### Upgrade notes
+
+- **Backup before upgrading.** This is a large rework of the admin layer. Existing data and settings are preserved, but a rollback to 0.11.0 is a full downgrade — please install on a staging site first if you can.
+- **Database migration runs on activation.** Multi-category downloads collapse to the oldest assignment. The migration is idempotent and logged to a transient visible on the Maintenance tab.
+- **New minimum: WordPress 6.7 and PHP 8.4.** Unchanged from 0.11.0.
+
 ## [0.11.0] — 2026-06-21
 
 ### Added

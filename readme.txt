@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.0
 Requires PHP: 8.4
-Stable tag: 0.11.0
+Stable tag: 0.12.0
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -15,6 +15,10 @@ Document and download manager with real on-disk folder organization, per-departm
 **I-Soft File Manager: Foundation** is a modular download manager built for modern WordPress.
 
 Unlike standard media plugins that dump every upload into a single dated folder, Foundation is designed for municipalities, universities, libraries, and any team that needs to manage thousands of public documents, maintain a strict category tree, and give different departments their own secure upload spaces.
+
+= What's new in 0.12.0 =
+
+The entire admin is rebuilt on React and a public REST API. Statistics, Download Log, Broken Links, Licenses, and Settings load as Gutenberg-native single-page apps under a redesigned **Downloads → Tools** menu; navigating between them is instant after the first load. The download post-edit screen now runs on the block editor with a right-hand sidebar for version, license, agreement, and access role. The Broken Links recovery flow has been rebuilt around a per-row modal. Existing data is preserved on upgrade — see the changelog for full details.
 
 = Key features =
 
@@ -36,7 +40,8 @@ The filesystem **is** the source of truth. Moving a download to a different cate
 
 * **I-Soft File Manager: Sentinel** — server-side automation. Monitors category folders for new files, creates draft download entries, and supports rclone mirroring, SFTP bulk upload, and scheduled folder scans.
 * **I-Soft File Manager: Orbit** — Google Shared Drive sync. Departments drop files into shared folders; Orbit imports them as drafts for review.
-* **I-Soft File Manager: Arbiter** — one-shot importer from jDownloads. Rebuilds your categories, downloads, files, and counters in Foundation, preserving slug paths so existing URLs keep working.
+* **I-Soft File Manager: Nomad** — one-shot importer from jDownloads. Rebuilds your categories, downloads, files, and counters in Foundation, preserving slug paths so existing URLs keep working.
+* **I-Soft File Manager: Arbiter** — extended licensing and enforcement. Per-license acceptance gates (read-and-confirm checkbox, scroll-through, read timer), signed download receipts that bundle a verifiable rider PDF with the file, and custom rider templates with your institution's branding — logos, fonts, colors, per-department layouts.
 
 == Installation ==
 
@@ -71,7 +76,7 @@ No — each download lives in exactly one category. Categories are physical fold
 
 = Can I migrate from jDownloads? =
 
-Yes — but via a separate companion plugin, **I-Soft File Manager: Arbiter** (coming soon). Foundation's data model is intentionally close to jDownloads to make a one-shot import practical; Arbiter reads the legacy tables directly and rebuilds the category tree, downloads, files, and counters into Foundation, preserving slug paths so existing URLs keep working.
+Yes — but via a separate companion plugin, **I-Soft File Manager: Nomad** (coming soon). Foundation's data model is intentionally close to jDownloads to make a one-shot import practical; Nomad reads the legacy tables directly and rebuilds the category tree, downloads, files, and counters into Foundation, preserving slug paths so existing URLs keep working.
 
 = How do I restrict a user to only some categories? =
 
@@ -286,6 +291,25 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 5. Download handler settings — security, logging, and serve method.
 
 == Changelog ==
+
+= 0.12.0 =
+
+**The React admin rewrite.**
+
+* **Rebuilt admin.** Every I-Soft File Manager: Foundation admin screen — Statistics, Download Log, Broken Links, Licenses, Settings — now runs as a Gutenberg-native React app on a shared REST API. Navigation between them is instant after the first page load.
+* **Reorganised Downloads menu.** The sidebar collapses to All Downloads, Add New, Categories, Tags, Licenses, **Tools**, Settings. Statistics, Download Log, and Broken Links move under one **Tools** page with horizontal sub-tabs. Old direct URLs still resolve so bookmarks keep working.
+* **Editor sidebar for downloads.** The download post-edit screen runs on the block editor. Version, license, changelog, author, agreement gate, and access role live in a right-hand sidebar. The classic multi-category checkbox picker is replaced by a single-select dropdown that matches the one-folder-per-download filesystem model.
+* **DataViews-powered Download Log and Broken Links.** Server-side pagination, per-download filter, live search, sortable columns, and debounced typing so the table stays responsive under load.
+* **Rebuilt Broken Links recovery.** Per-row Recover action opens a modal that shows where the file was found vs. where it was expected, with the same seven recovery paths (relink, move back, reassign, split, reupload, detach) but a clearer flow.
+* **Statistics dashboard rewrite.** Same KPI cards, 30-day bar chart, and Top-N tables — now with a Refresh button and a five-minute cached backend.
+* **Schema-driven Settings.** Six sub-tabs (General, Display, Security, Advanced, Maintenance, Extensions) on a horizontal tab strip, with per-tab Save Changes and only-changed-fields writes.
+* **Category icons.** Category admin gets a small icon picker (dashicon, image URL, or shortcode).
+* **Public REST API.** Every admin surface reads and writes through `/isoft-fm-foundation/v1/*`.
+* **Faster page loads.** Single admin JavaScript bundle instead of five, initial data ships inline (no extra REST fetch on page render), lazy per-section hydration, batched log-retention purge, and lighter frontend load (REST controllers, admin classes, and legacy handlers only load when needed).
+* **Category assignment is single-select.** The 0.11.0 known issue where the checkbox UI let admins pick multiple categories but the filesystem only honoured the first is resolved. Existing multi-category downloads are migrated to their oldest assignment on upgrade (idempotent, logged, visible on the Maintenance tab).
+* **Removed:** legacy admin AJAX handlers, the classic-editor TinyMCE shortcode inserter, two `WP_List_Table` subclasses, and the pre-React PHP fallback forms. Everything flows through REST now.
+
+Existing data (downloads, categories, files, licenses, logs, per-user category permissions) is preserved. Please back up before upgrading and test on staging when possible — this is a large rework of the admin layer.
 
 = 0.11.0 =
 * **New: category-level default license with file inheritance.** Each category now has a "Default License" dropdown on its Add/Edit screen. Downloads in a category that have their License field set to "— Inherit from category —" pick up the category's default automatically. Per-file overrides still win. Set Public Domain on your "Budget" and "Assembly decisions" categories, set CC BY-SA 4.0 on your "PR archive" — every file in each category inherits the right license without per-file fiddling.

@@ -122,6 +122,13 @@ class ISOFT_FMF_Pdf_Thumbnail {
 		if ( get_option( 'isoft_fmf_pdf_notice_dismissed' ) ) {
 			return;
 		}
+		// Only nag when the feature is actually requested. If the admin has
+		// PDF thumbnails turned off in settings, the lack of Imagick is
+		// irrelevant to them — surfacing the warning anyway is just noise.
+		$settings = isoft_fmf_get_settings();
+		if ( empty( $settings['enable_pdf_thumbnails'] ) ) {
+			return;
+		}
 		if ( ! $this->detect_backend() ) {
 			echo '<div class="notice notice-warning is-dismissible"><p>';
 			esc_html_e( 'I-Soft File Manager: Foundation: PDF thumbnail generation is disabled — the Imagick PHP extension is not available on this server.', 'isoft-fm-foundation' );

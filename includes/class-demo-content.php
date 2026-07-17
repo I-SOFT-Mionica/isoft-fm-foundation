@@ -34,15 +34,13 @@ class ISOFT_FMF_Demo_Content {
 		if ( ! current_user_can( 'isoft_fmf_manage_settings' ) ) {
 			wp_die( esc_html__( 'You do not have permission to install demo content.', 'isoft-fm-foundation' ), 403 );
 		}
-		if ( self::has_content() ) {
-			isoft_fmf_notify_admin( __( 'Demo content cannot be installed — downloads already exist.', 'isoft-fm-foundation' ), 'error' );
+
+		$result = ( new ISOFT_FMF_Maintenance_Service() )->install_demo();
+		if ( empty( $result['installed'] ) ) {
+			isoft_fmf_notify_admin( $result['reason'] ?? __( 'Demo install failed.', 'isoft-fm-foundation' ), 'error' );
 			wp_safe_redirect( $this->settings_url() );
 			exit;
 		}
-
-		$categories   = $this->create_categories();
-		$download_ids = $this->create_downloads( $categories );
-		$this->create_demo_page( $download_ids );
 
 		isoft_fmf_notify_admin( __( 'Demo content installed successfully.', 'isoft-fm-foundation' ), 'success' );
 		wp_safe_redirect( $this->settings_url( 'isoft_fmf_demo=installed' ) );
@@ -55,8 +53,7 @@ class ISOFT_FMF_Demo_Content {
 			wp_die( esc_html__( 'You do not have permission to remove demo content.', 'isoft-fm-foundation' ), 403 );
 		}
 
-		$this->remove_demo_posts();
-		$this->remove_demo_terms();
+		( new ISOFT_FMF_Maintenance_Service() )->remove_demo();
 
 		isoft_fmf_notify_admin( __( 'Demo content removed.', 'isoft-fm-foundation' ), 'success' );
 		wp_safe_redirect( $this->settings_url( 'isoft_fmf_demo=removed' ) );
@@ -73,6 +70,15 @@ class ISOFT_FMF_Demo_Content {
 		$categories   = $this->create_categories();
 		$download_ids = $this->create_downloads( $categories );
 		$this->create_demo_page( $download_ids );
+	}
+
+	/**
+	 * Programmatic uninstall — skips nonce and redirect. Mirrors install_cli().
+	 * Called by ISOFT_FMF_Maintenance_Service and the AJAX handler.
+	 */
+	public function remove_silent(): void {
+		$this->remove_demo_posts();
+		$this->remove_demo_terms();
 	}
 
 	// ─────────────────────────────────────────────────────────────────────────
@@ -116,60 +122,93 @@ class ISOFT_FMF_Demo_Content {
 
 			$ids[ $slug ] = (int) $result['term_id'];
 			update_term_meta( $ids[ $slug ], '_isoft_fmf_demo_term', 1 );
+
+			// Icon is a per-category meta read by the Category Grid block
+			// and the category-listing templates. Seeding sensible
+			// dashicons here makes the demo look styled out-of-the-box
+			// instead of every card showing a generic placeholder.
+			if ( ! empty( $node['icon'] ) ) {
+				update_term_meta( $ids[ $slug ], '_isoft_fmf_cat_icon', $node['icon'] );
+			}
 		}
 
 		return $ids;
 	}
 
 	/**
-	 * @return array<string,array{name:string,parent?:string}>
+	 * @return array<string,array{name:string,parent?:string,icon?:string}>
 	 */
 	private function category_tree(): array {
 		return array(
-			'municipal-assembly'    => array( 'name' => 'Municipal Assembly' ),
+			'municipal-assembly'    => array(
+				'name' => 'Municipal Assembly',
+				'icon' => 'dashicons-groups',
+			),
 			'term-2025-2029'        => array(
 				'name'   => 'Term 2025-2029',
 				'parent' => 'municipal-assembly',
+				'icon'   => 'dashicons-calendar-alt',
 			),
 			'session-i'             => array(
 				'name'   => 'Session I',
 				'parent' => 'term-2025-2029',
+				'icon'   => 'dashicons-megaphone',
 			),
 			'session-ii'            => array(
 				'name'   => 'Session II',
 				'parent' => 'term-2025-2029',
+				'icon'   => 'dashicons-megaphone',
 			),
 			'term-2021-2025'        => array(
 				'name'   => 'Term 2021-2025',
 				'parent' => 'municipal-assembly',
+				'icon'   => 'dashicons-calendar-alt',
 			),
-			'municipal-council'     => array( 'name' => 'Municipal Council' ),
+			'municipal-council'     => array(
+				'name' => 'Municipal Council',
+				'icon' => 'dashicons-businessperson',
+			),
 			'decisions'             => array(
 				'name'   => 'Decisions',
 				'parent' => 'municipal-council',
+				'icon'   => 'dashicons-yes-alt',
 			),
 			'resolutions'           => array(
 				'name'   => 'Resolutions',
 				'parent' => 'municipal-council',
+				'icon'   => 'dashicons-clipboard',
 			),
-			'public-procurement'    => array( 'name' => 'Public Procurement' ),
+			'public-procurement'    => array(
+				'name' => 'Public Procurement',
+				'icon' => 'dashicons-cart',
+			),
 			'open-procedures'       => array(
 				'name'   => 'Open Procedures',
 				'parent' => 'public-procurement',
+				'icon'   => 'dashicons-unlock',
 			),
 			'negotiated-procedures' => array(
 				'name'   => 'Negotiated Procedures',
 				'parent' => 'public-procurement',
+				'icon'   => 'dashicons-format-chat',
 			),
-			'urban-planning'        => array( 'name' => 'Urban Planning' ),
-			'finance'               => array( 'name' => 'Finance' ),
+			'urban-planning'        => array(
+				'name' => 'Urban Planning',
+				'icon' => 'dashicons-admin-multisite',
+			),
+			'finance'               => array(
+				'name' => 'Finance',
+				'icon' => 'dashicons-chart-pie',
+			),
 			'budget'                => array(
 				'name'   => 'Budget',
 				'parent' => 'finance',
+				'icon'   => 'dashicons-money-alt',
 			),
 			'final-account'         => array(
 				'name'   => 'Final Account',
 				'parent' => 'finance',
+				'icon'   => 'dashicons-chart-area',
 			),
 		);
 	}

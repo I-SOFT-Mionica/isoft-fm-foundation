@@ -1,0 +1,30 @@
+/*
+ * Admin shell chrome — intra-page sub-nav strips only.
+ *
+ * 0.12.9: no more top-level tab strip joining Licenses/Tools/Settings —
+ * each is its own admin page. Tools and Settings both use a horizontal
+ * `.nav-tab-wrapper` sub-nav strip; Licenses is a single flat page
+ * with no sub-nav.
+ */
+
+.isoft-fmf-broken-badge {
+	margin-left: 4px;
+}
+
+/* ---------- Tools sub-nav strip ---------- */
+
+.isoft-fmf-tools-nav {
+	margin-top:    0;
+	margin-bottom: 12px;
+}
+
+.isoft-fmf-tools__body > div[hidden] {
+	display: none;
+}
+
+/* ---------- Settings sub-nav strip ---------- */
+
+.isoft-fmf-settings-nav {
+	margin-top:    0;
+	margin-bottom: 12px;
+}

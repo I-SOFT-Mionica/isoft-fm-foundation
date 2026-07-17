@@ -133,6 +133,77 @@ class ISOFT_FMF_Activator {
 		if ( version_compare( $from_version, '0.10.0', '<' ) ) {
 			self::backfill_effective_access_role();
 		}
+		if ( version_compare( $from_version, '0.12.1', '<' ) ) {
+			self::reduce_to_single_category();
+		}
+	}
+
+	/**
+	 * 0.12.1: enforce the filesystem-as-source-of-truth invariant at the data
+	 * layer. The 0.11.0 known issue allowed admins to check multiple boxes in
+	 * the standard category metabox, but `class-category-folders.php:392` only
+	 * honored the first assignment when placing files on disk. The result was
+	 * dead `wp_term_relationships` rows that confused list filters and the
+	 * license-inheritance walk-up. 0.12.1 ships the block-editor sidebar with
+	 * a single-select category picker and hides the standard multi-checkbox
+	 * panel; this migration trims any historical multi-assignments so the
+	 * stored data matches the new UI invariant.
+	 *
+	 * Strategy: for every download with >1 isoft_fmf_category term, keep the
+	 * lowest term_taxonomy_id (the oldest assignment — same heuristic as the
+	 * filesystem layer's `$tt_ids[0]`) and remove the others. Logs the touched
+	 * post IDs and removed count into a one-shot transient so the Maintenance
+	 * tab can surface the migration result. Idempotent — re-running is a no-op
+	 * because the SELECT only finds posts with >1 assignment.
+	 */
+	private static function reduce_to_single_category(): void {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- One-shot migration on activation; not reachable from request paths.
+		$multi_assigned = (array) $wpdb->get_col(
+			"SELECT tr.object_id
+			   FROM {$wpdb->term_relationships} tr
+			   JOIN {$wpdb->term_taxonomy} tt ON tt.term_taxonomy_id = tr.term_taxonomy_id
+			   JOIN {$wpdb->posts} p ON p.ID = tr.object_id
+			  WHERE tt.taxonomy = 'isoft_fmf_category'
+			    AND p.post_type = 'isoft_fmf_file'
+			  GROUP BY tr.object_id
+			 HAVING COUNT(*) > 1"
+		);
+
+		$touched_posts = array();
+		$removed_total = 0;
+
+		foreach ( $multi_assigned as $post_id ) {
+			$post_id = (int) $post_id;
+			$terms   = wp_get_object_terms( $post_id, 'isoft_fmf_category', array( 'fields' => 'ids' ) );
+			if ( is_wp_error( $terms ) || count( $terms ) <= 1 ) {
+				continue;
+			}
+			// Keep the first (oldest) term; the rest get removed.
+			$keep   = (int) $terms[0];
+			$remove = array_slice( array_map( 'intval', $terms ), 1 );
+
+			// wp_set_object_terms with a single term replaces the entire set —
+			// safer than removing one-by-one and avoids a partial state if
+			// the call is interrupted.
+			wp_set_object_terms( $post_id, array( $keep ), 'isoft_fmf_category', false );
+
+			$touched_posts[] = $post_id;
+			$removed_total  += count( $remove );
+		}
+
+		if ( ! empty( $touched_posts ) ) {
+			set_transient(
+				'isoft_fmf_migration_0_12_1',
+				array(
+					'ran_at'       => current_time( 'mysql' ),
+					'touched_post_ids' => $touched_posts,
+					'removed_assignments' => $removed_total,
+				),
+				MONTH_IN_SECONDS
+			);
+		}
 	}
 
 	/**

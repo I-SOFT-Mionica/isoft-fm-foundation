@@ -19,12 +19,19 @@ global $wpdb;
 // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange -- Uninstall runs once; table drop cannot go through higher-level APIs.
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}isoft_fmf_files" );
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}isoft_fmf_download_log" );
+$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}isoft_fmf_download_daily" );
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}isoft_fmf_licenses" );
 
-// Delete all isoft_fmf_file posts and their meta
+// Delete all isoft_fmf_file posts and their meta, PLUS any posts of any
+// type that carry the _isoft_fmf_demo_content meta key — the demo
+// content installer creates a regular Page that explains the blocks,
+// and the prior post_type='isoft_fmf_file' query left that Page behind
+// after uninstall.
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- One-shot uninstall sweep across post types.
 $post_ids = $wpdb->get_col( "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'isoft_fmf_file'" );
-// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange
-foreach ( $post_ids as $post_id ) {
+$demo_ids = $wpdb->get_col( "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_isoft_fmf_demo_content'" );
+// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.SlowDBQuery.slow_db_query_meta_key,WordPress.DB.DirectDatabaseQuery.SchemaChange
+foreach ( array_unique( array_merge( $post_ids, $demo_ids ) ) as $post_id ) {
 	wp_delete_post( (int) $post_id, true );
 }
 

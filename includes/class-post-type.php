@@ -8,6 +8,35 @@ class ISOFT_FMF_Post_Type {
 		add_action( 'init', array( $this, 'maybe_flush_rewrite_rules' ), 999 );
 		add_filter( 'the_content', array( $this, 'append_download_content' ) );
 		add_filter( 'wp_insert_post_data', array( $this, 'latinize_slug' ), 10, 2 );
+		add_action( 'before_delete_post', array( $this, 'cleanup_stats_on_delete' ), 10, 2 );
+	}
+
+	/**
+	 * Sweep daily-aggregate + per-click log rows tied to a download whose
+	 * post is being permanently deleted. Prevents the dashboard from
+	 * surfacing orphaned counts as "(deleted)" rows after individual
+	 * post deletions through the WP admin (or wp_delete_post calls from
+	 * other code paths). Skipped for non-download post types so deletes
+	 * on unrelated posts don't touch our tables.
+	 *
+	 * The download_count column on isoft_fmf_files is collateral here too:
+	 * the file rows themselves are owned by the post's lifecycle but live
+	 * in our table, so a future post delete that bypasses our file
+	 * cleanup would leak file rows too. They're not addressed here — the
+	 * existing file delete path through class-file-manager handles that
+	 * on the meta-box flow; before_delete_post for the file rows is a
+	 * separate concern that belongs to that class if needed.
+	 */
+	public function cleanup_stats_on_delete( int $post_id, WP_Post $post ): void {
+		if ( 'isoft_fmf_file' !== $post->post_type ) {
+			return;
+		}
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- One-shot post-deletion cleanup; bypassing the manager keeps the hook side-effect cheap.
+		$wpdb->delete( $wpdb->prefix . 'isoft_fmf_download_daily', array( 'download_id' => $post_id ), array( '%d' ) );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Same; the per-click audit log entries are also discarded since the post they audited is being permanently removed.
+		$wpdb->delete( $wpdb->prefix . 'isoft_fmf_download_log', array( 'download_id' => $post_id ), array( '%d' ) );
+		delete_transient( 'isoft_fmf_stats_overview' );
 	}
 
 	/**
@@ -105,17 +134,37 @@ class ISOFT_FMF_Post_Type {
 				'hierarchical'       => false,
 				'menu_position'      => 26,
 				'menu_icon'          => 'dashicons-download',
-				'supports'           => array( 'title', 'thumbnail', 'excerpt', 'revisions', 'author' ),
+				// 'editor' added in 0.12.1 so use_block_editor_for_post_type()
+				// doesn't short-circuit to false. Without 'editor' support,
+				// the block editor never loads regardless of what our filter
+				// below returns — the supports check runs first in WP core.
+				// The previous Description meta box (textarea name="content")
+				// is retired in this phase; post_content is now edited via
+				// the block canvas. Legacy classic-editor content renders as
+				// a single "Classic" block on first open.
+				'supports'           => array( 'title', 'editor', 'thumbnail', 'excerpt', 'revisions', 'author' ),
 				'show_in_rest'       => true,
 				'rest_base'          => 'isoft-fmf-downloads',
 			)
 		);
 
-		// Disable block editor for downloads — files are the primary content, not prose.
+		// Block editor enabled as of 0.12.1 so the editor-sidebar plugin
+		// (ISOFT_FMF_Editor_Sidebar) can mount its Document panels.
+		// Existing meta boxes still render below the editor canvas (WP
+		// degrades them as collapsible "Additional fields" panels in the
+		// block editor) until 0.12.5 demolition swaps each one out for
+		// its sidebar equivalent.
+		//
+		// Legacy classic-editor post_content renders fine as a single
+		// "Classic" block — no auto-conversion required, opt-in per post.
+		//
+		// Revert path: change the literal `true` below back to `false`.
+		// The filter signature is preserved so other plugins' override
+		// chains still work.
 		add_filter(
 			'use_block_editor_for_post_type',
 			function ( bool $use, string $post_type ): bool {
-				return $post_type === 'isoft_fmf_file' ? false : $use;
+				return $post_type === 'isoft_fmf_file' ? true : $use;
 			},
 			10,
 			2

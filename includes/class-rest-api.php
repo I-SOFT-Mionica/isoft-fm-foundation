@@ -119,6 +119,10 @@ class ISOFT_FMF_Rest_Api {
 						'default'           => 0,
 						'sanitize_callback' => 'absint',
 					),
+					'search'      => array(
+						'default'           => '',
+						'sanitize_callback' => 'sanitize_text_field',
+					),
 				),
 			)
 		);
@@ -239,10 +243,13 @@ class ISOFT_FMF_Rest_Api {
 
 		global $wpdb;
 
+		// download_count + is_missing added in 0.12.1 so the editor-sidebar
+		// Stats panel can render per-file counts and the Files panel can
+		// show a "X broken" badge — one fetch, two consumers.
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		$files = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT id, title, file_name, file_type, file_size, file_mime, external_url, sort_order
+				"SELECT id, title, file_name, file_type, file_size, file_mime, external_url, sort_order, download_count, is_missing
 				   FROM {$wpdb->prefix}isoft_fmf_files
 				  WHERE download_id = %d
 				  ORDER BY sort_order ASC, id ASC",
@@ -266,13 +273,15 @@ class ISOFT_FMF_Rest_Api {
 					(int) $f->id
 				);
 				return array(
-					'id'           => (int) $f->id,
-					'title'        => $label,
-					'file_name'    => $f->file_name,
-					'file_type'    => $f->file_type,
-					'file_size'    => (int) $f->file_size,
-					'file_mime'    => $f->file_mime,
-					'external_url' => $f->external_url,
+					'id'             => (int) $f->id,
+					'title'          => $label,
+					'file_name'      => $f->file_name,
+					'file_type'      => $f->file_type,
+					'file_size'      => (int) $f->file_size,
+					'file_mime'      => $f->file_mime,
+					'external_url'   => $f->external_url,
+					'download_count' => (int) $f->download_count,
+					'is_missing'     => (bool) $f->is_missing,
 				);
 			},
 			$files
@@ -326,6 +335,19 @@ class ISOFT_FMF_Rest_Api {
 	public function get_stats_overview( WP_REST_Request $request ): WP_REST_Response {
 		$stats = isoft_fmf_get_stats_overview();
 
+		// Daily 30d series is returned by the helper as wpdb rows (day,count);
+		// flatten to a YYYY-MM-DD => int map for the React chart, which is
+		// the shape the PHP view (admin/views/stats-dashboard.php) also
+		// reduced to before rendering its bars.
+		$daily_map = array();
+		foreach ( $stats['daily_30d'] as $row ) {
+			$daily_map[ $row->day ] = (int) $row->count;
+		}
+
+		// `top_downloads_30d` (limited to 5) is the pre-0.12.3 shape kept
+		// for any external consumer; `top_30d` is the full 10-row list the
+		// dashboard renders. Both populated from the same data so there's
+		// no extra query cost.
 		return new WP_REST_Response(
 			array(
 				'total_downloads'   => $stats['total_downloads'],
@@ -333,6 +355,11 @@ class ISOFT_FMF_Rest_Api {
 				'total_log_entries' => $stats['total_log_entries'],
 				'total_size_bytes'  => $stats['total_size_bytes'],
 				'top_downloads_30d' => array_slice( $stats['top_30d'], 0, 5 ),
+				'top_alltime'       => $stats['top_alltime'],
+				'top_30d'           => $stats['top_30d'],
+				'top_30d_window'    => $stats['top_30d_window'] ?? '30d',
+				'daily_30d'         => $daily_map,
+				'logging_enabled'   => (bool) get_option( 'isoft_fmf_enable_logging', true ),
 			),
 			200
 		);
@@ -349,17 +376,60 @@ class ISOFT_FMF_Rest_Api {
 		$per_page    = min( (int) $request->get_param( 'per_page' ), 200 );
 		$page        = max( 1, (int) $request->get_param( 'page' ) );
 		$download_id = (int) $request->get_param( 'download_id' );
+		$search      = trim( (string) $request->get_param( 'search' ) );
 		$offset      = ( $page - 1 ) * $per_page;
 
-		// Two-branch literal-prepare pattern: each branch passes a single string literal as
-		// the first arg of $wpdb->prepare(), so sniffs can verify safety without tracing
-		// concatenated $where/$base_sql variables.
-		if ( $download_id > 0 ) {
+		// Literal-prepare pattern: each branch passes a single string literal
+		// as the first arg of $wpdb->prepare(), so sniffs can verify safety
+		// without tracing concatenated $where/$base_sql variables. Search adds
+		// a second dimension to the existing download_id filter, so four
+		// explicit branches cover {none, search, download, download+search}.
+		// Search matches on download title, file name, or user IP — the
+		// three columns admins look up to chase down a specific event.
+		$like = $search !== '' ? '%' . $wpdb->esc_like( $search ) . '%' : '';
+
+		if ( $download_id > 0 && $search !== '' ) {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- REST endpoint on custom log table; pagination prevents query-cache benefit.
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
 					"SELECT l.id, l.download_id, p.post_title AS download_title,
-					        l.file_id, f.file_name, l.user_id, l.user_ip,
+					        l.file_id, f.file_name, l.user_id, l.user_login, l.ip_address AS user_ip,
+					        l.user_agent, l.downloaded_at
+					   FROM {$wpdb->prefix}isoft_fmf_download_log l
+					   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
+					   LEFT JOIN {$wpdb->prefix}isoft_fmf_files f ON f.id = l.file_id
+					  WHERE l.download_id = %d
+					    AND ( p.post_title LIKE %s OR f.file_name LIKE %s OR l.ip_address LIKE %s )
+					  ORDER BY l.downloaded_at DESC
+					  LIMIT %d OFFSET %d",
+					$download_id,
+					$like,
+					$like,
+					$like,
+					$per_page,
+					$offset
+				)
+			);
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- REST endpoint on custom log table; count cannot be cached due to live filter.
+			$total = (int) $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT COUNT(*) FROM {$wpdb->prefix}isoft_fmf_download_log l
+					   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
+					   LEFT JOIN {$wpdb->prefix}isoft_fmf_files f ON f.id = l.file_id
+					  WHERE l.download_id = %d
+					    AND ( p.post_title LIKE %s OR f.file_name LIKE %s OR l.ip_address LIKE %s )",
+					$download_id,
+					$like,
+					$like,
+					$like
+				)
+			);
+		} elseif ( $download_id > 0 ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- REST endpoint on custom log table; pagination prevents query-cache benefit.
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT l.id, l.download_id, p.post_title AS download_title,
+					        l.file_id, f.file_name, l.user_id, l.user_login, l.ip_address AS user_ip,
 					        l.user_agent, l.downloaded_at
 					   FROM {$wpdb->prefix}isoft_fmf_download_log l
 					   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
@@ -379,12 +449,44 @@ class ISOFT_FMF_Rest_Api {
 					$download_id
 				)
 			);
+		} elseif ( $search !== '' ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- REST endpoint on custom log table; pagination prevents query-cache benefit.
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT l.id, l.download_id, p.post_title AS download_title,
+					        l.file_id, f.file_name, l.user_id, l.user_login, l.ip_address AS user_ip,
+					        l.user_agent, l.downloaded_at
+					   FROM {$wpdb->prefix}isoft_fmf_download_log l
+					   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
+					   LEFT JOIN {$wpdb->prefix}isoft_fmf_files f ON f.id = l.file_id
+					  WHERE ( p.post_title LIKE %s OR f.file_name LIKE %s OR l.ip_address LIKE %s )
+					  ORDER BY l.downloaded_at DESC
+					  LIMIT %d OFFSET %d",
+					$like,
+					$like,
+					$like,
+					$per_page,
+					$offset
+				)
+			);
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- REST endpoint on custom log table; count cannot be cached due to live filter.
+			$total = (int) $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT COUNT(*) FROM {$wpdb->prefix}isoft_fmf_download_log l
+					   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
+					   LEFT JOIN {$wpdb->prefix}isoft_fmf_files f ON f.id = l.file_id
+					  WHERE ( p.post_title LIKE %s OR f.file_name LIKE %s OR l.ip_address LIKE %s )",
+					$like,
+					$like,
+					$like
+				)
+			);
 		} else {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- REST endpoint on custom log table; pagination prevents query-cache benefit.
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
 					"SELECT l.id, l.download_id, p.post_title AS download_title,
-					        l.file_id, f.file_name, l.user_id, l.user_ip,
+					        l.file_id, f.file_name, l.user_id, l.user_login, l.ip_address AS user_ip,
 					        l.user_agent, l.downloaded_at
 					   FROM {$wpdb->prefix}isoft_fmf_download_log l
 					   LEFT JOIN {$wpdb->posts} p ON p.ID = l.download_id
@@ -399,10 +501,19 @@ class ISOFT_FMF_Rest_Api {
 			$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}isoft_fmf_download_log" );
 		}
 
-		$response = new WP_REST_Response( $rows ?? array(), 200 );
-		$response->header( 'X-WP-Total', $total );
-		$response->header( 'X-WP-TotalPages', (int) ceil( $total / $per_page ) );
-
-		return $response;
+		// Wrap items + pagination metadata in a single response object so
+		// the React client can consume one parsed payload. The original
+		// X-WP-Total / X-WP-TotalPages header pattern fought with
+		// @wordpress/api-fetch's middleware chain — switching to a body
+		// envelope sidesteps that and matches what we'd do for any new
+		// paginated endpoint going forward.
+		return new WP_REST_Response(
+			array(
+				'items'      => $rows ?? array(),
+				'totalItems' => $total,
+				'totalPages' => $per_page > 0 ? (int) ceil( $total / $per_page ) : 0,
+			),
+			200
+		);
 	}
 }

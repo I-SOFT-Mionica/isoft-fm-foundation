@@ -5,6 +5,11 @@ class ISOFT_FMF_Settings {
 
 	public function register_hooks(): void {
 		add_action( 'admin_menu', array( $this, 'register_menu' ) );
+		// Hide the 3 legacy Tools sub-URLs from the WP admin sidebar
+		// after the menu is built. They still resolve — the shell
+		// renders on them with the correct sub-tab pre-selected — so
+		// bookmarks and inbound links keep working.
+		add_action( 'admin_menu', array( $this, 'consolidate_tools_menu' ), 999 );
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
 		add_action( 'admin_init', array( $this, 'handle_flush_rewrite' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue' ) );
@@ -12,6 +17,7 @@ class ISOFT_FMF_Settings {
 
 	public function enqueue( string $hook ): void {
 		$isoft_fmf_pages = array(
+			'isoft_fmf_file_page_isoft-fmf-tools',
 			'isoft_fmf_file_page_isoft-fmf-stats',
 			'isoft_fmf_file_page_isoft-fmf-log',
 			'isoft_fmf_file_page_isoft-fmf-settings',
@@ -21,28 +27,32 @@ class ISOFT_FMF_Settings {
 			return;
 		}
 		wp_enqueue_style( 'isoft-fmf-admin', ISOFT_FMF_PLUGIN_URL . 'admin/css/admin-style.css', array(), ISOFT_FMF_VERSION );
-
-		if ( 'isoft_fmf_file_page_isoft-fmf-broken-links' === $hook ) {
-			wp_enqueue_script( 'isoft-fmf-broken-links', ISOFT_FMF_PLUGIN_URL . 'admin/js/broken-links.js', array( 'jquery' ), ISOFT_FMF_VERSION, true );
-			wp_localize_script(
-				'isoft-fmf-broken-links',
-				'isfmBrokenLinks',
-				array(
-					'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-					'nonce'   => wp_create_nonce( 'isoft_fmf_broken_links' ),
-					'i18n'    => array(
-						'confirmMoveBack' => __( 'Move the file back to the original folder?', 'isoft-fm-foundation' ),
-						'confirmReassign' => __( 'Move this download (and all its files) to the new category?', 'isoft-fm-foundation' ),
-						'confirmSplit'    => __( 'Create a new download for this file in its new category?', 'isoft-fm-foundation' ),
-						'confirmDetach'   => __( 'Remove this file from the download? The file on disk will not be deleted.', 'isoft-fm-foundation' ),
-						'generic_error'   => __( 'Action failed. Please reload the page and try again.', 'isoft-fm-foundation' ),
-					),
-				)
-			);
-		}
 	}
 
 	public function register_menu(): void {
+		// Tools — the single sidebar entry that houses Statistics /
+		// Download Log / Broken Links as sub-tabs inside the shell.
+		// Position 17 places it right after Licenses (position 16),
+		// which sits right after Tags (WordPress-native position 15).
+		$missing_count = ISOFT_FMF_File_Integrity::missing_count();
+		$tools_label   = __( 'Tools', 'isoft-fm-foundation' );
+		if ( $missing_count > 0 ) {
+			$tools_label .= ' <span class="awaiting-mod isoft-fmf-broken-badge">' . number_format_i18n( $missing_count ) . '</span>';
+		}
+		add_submenu_page(
+			'edit.php?post_type=isoft_fmf_file',
+			__( 'Tools', 'isoft-fm-foundation' ),
+			$tools_label,
+			'isoft_fmf_view_logs',
+			'isoft-fmf-tools',
+			array( $this, 'render_tools' ),
+			17
+		);
+
+		// Legacy Tools sub-URLs — still registered so admin.php?page=…
+		// resolves for existing bookmarks and for the shell's own
+		// intra-Tools client-side URLs (pushState uses these). They
+		// get hidden from the sidebar by consolidate_tools_menu().
 		add_submenu_page(
 			'edit.php?post_type=isoft_fmf_file',
 			__( 'Statistics', 'isoft-fm-foundation' ),
@@ -59,17 +69,10 @@ class ISOFT_FMF_Settings {
 			'isoft-fmf-log',
 			array( $this, 'render_log' )
 		);
-
-		// Broken Links — label carries a count badge when rows are flagged.
-		$missing_count = ISOFT_FMF_File_Integrity::missing_count();
-		$broken_label  = __( 'Broken Links', 'isoft-fm-foundation' );
-		if ( $missing_count > 0 ) {
-			$broken_label .= ' <span class="awaiting-mod isoft-fmf-broken-badge">' . number_format_i18n( $missing_count ) . '</span>';
-		}
 		add_submenu_page(
 			'edit.php?post_type=isoft_fmf_file',
 			__( 'Broken Links', 'isoft-fm-foundation' ),
-			$broken_label,
+			__( 'Broken Links', 'isoft-fm-foundation' ),
 			'isoft_fmf_manage_settings',
 			'isoft-fmf-broken-links',
 			array( $this, 'render_broken_links' )
@@ -81,16 +84,36 @@ class ISOFT_FMF_Settings {
 			__( 'Settings', 'isoft-fm-foundation' ),
 			'isoft_fmf_manage_settings',
 			'isoft-fmf-settings',
-			array( $this, 'render_page' )
+			array( $this, 'render_page' ),
+			18
 		);
+	}
+
+	/**
+	 * Runs after all admin_menu handlers finish (priority 999). Removes
+	 * the three legacy Tools sub-URLs from the sidebar so users see one
+	 * "Tools" entry instead of Statistics + Download Log + Broken
+	 * Links. `remove_submenu_page` only drops the sidebar row — the
+	 * `$_registered_pages` entry survives, so the URLs still load.
+	 */
+	public function consolidate_tools_menu(): void {
+		$parent = 'edit.php?post_type=isoft_fmf_file';
+		remove_submenu_page( $parent, 'isoft-fmf-stats' );
+		remove_submenu_page( $parent, 'isoft-fmf-log' );
+		remove_submenu_page( $parent, 'isoft-fmf-broken-links' );
+	}
+
+	public function render_tools(): void {
+		if ( ! current_user_can( 'isoft_fmf_view_logs' ) ) {
+			wp_die( esc_html__( 'You do not have permission to view Tools.', 'isoft-fm-foundation' ) );
+		}
+		require ISOFT_FMF_PLUGIN_DIR . 'admin/views/tools-page.php';
 	}
 
 	public function render_broken_links(): void {
 		if ( ! current_user_can( 'isoft_fmf_manage_settings' ) ) {
 			wp_die( esc_html__( 'You do not have permission to view broken links.', 'isoft-fm-foundation' ) );
 		}
-		$table = new ISOFT_FMF_Broken_Links_Table();
-		$table->prepare_items();
 		require ISOFT_FMF_PLUGIN_DIR . 'admin/views/broken-links-page.php';
 	}
 
@@ -105,8 +128,6 @@ class ISOFT_FMF_Settings {
 		if ( ! current_user_can( 'isoft_fmf_view_logs' ) ) {
 			wp_die( esc_html__( 'You do not have permission to view the download log.', 'isoft-fm-foundation' ) );
 		}
-		$table = new ISOFT_FMF_Log_Table();
-		$table->prepare_items();
 		require ISOFT_FMF_PLUGIN_DIR . 'admin/views/log-viewer.php';
 	}
 
@@ -117,84 +138,35 @@ class ISOFT_FMF_Settings {
 		require ISOFT_FMF_PLUGIN_DIR . 'admin/views/settings-page.php';
 	}
 
+	/**
+	 * One option group per tab — so saving one tab cannot wipe checkboxes
+	 * on another. WP's Settings API iterates every option registered to
+	 * the submitted group and reads $_POST[option]; unchecked checkboxes
+	 * are absent from POST and would absint('') → 0, silently unsetting
+	 * them. Grouping per tab keeps each save scoped to its tab's fields.
+	 *
+	 * Schema lives on [[ISOFT_FMF_Settings_Service]] so both this legacy
+	 * register_setting() path and the REST controller share one source.
+	 */
 	public function register_settings(): void {
-		// One option group per tab — so saving one tab cannot wipe checkboxes
-		// on another. WP's Settings API iterates every option registered to
-		// the submitted group and reads $_POST[option]; unchecked checkboxes
-		// are absent from POST and would absint('') → 0, silently unsetting
-		// them. Grouping per tab keeps each save scoped to its tab's fields.
-		$groups = array(
-			'isoft_fmf_general'     => array(
-				'isoft_fmf_default_access_role'     => 'sanitize_text_field',
-				'isoft_fmf_enable_counting'         => 'absint',
-				'isoft_fmf_enable_logging'          => 'absint',
-				'isoft_fmf_enable_detailed_logging' => 'absint',
-				'isoft_fmf_log_retention_days'      => 'absint',
-				'isoft_fmf_enable_pdf_thumbnails'   => 'absint',
-				'isoft_fmf_pdf_thumb_width'         => 'absint',
-				'isoft_fmf_pdf_thumb_height'        => 'absint',
-				'isoft_fmf_pdf_thumb_quality'       => 'absint',
-				'isoft_fmf_overwrite_pdf_thumbnail' => 'absint',
-				'isoft_fmf_allowed_extensions'      => 'sanitize_textarea_field',
-				'isoft_fmf_cyrillic_titles'         => 'absint',
-			),
-			'isoft_fmf_display'     => array(
-				'isoft_fmf_default_button_text'  => 'sanitize_text_field',
-				'isoft_fmf_listing_layout'       => 'sanitize_text_field',
-				'isoft_fmf_items_per_page'       => 'absint',
-				'isoft_fmf_show_file_size'       => 'absint',
-				'isoft_fmf_show_download_count'  => 'absint',
-				'isoft_fmf_show_date'            => 'absint',
-				'isoft_fmf_date_format'          => 'sanitize_text_field',
-				'isoft_fmf_enable_zip_bundle'    => 'absint',
-				'isoft_fmf_enable_zip_cache'     => 'absint',
-				'isoft_fmf_zip_cache_days'       => 'absint',
-				'isoft_fmf_external_link_target' => array( $this, 'sanitize_link_target' ),
-			),
-			'isoft_fmf_security'    => array(
-				'isoft_fmf_serve_method'           => 'sanitize_text_field',
-				'isoft_fmf_nginx_config_confirmed' => 'absint',
-				'isoft_fmf_rate_limit_per_hour'    => 'absint',
-				'isoft_fmf_block_user_agents'      => 'sanitize_textarea_field',
-				'isoft_fmf_hotlink_protection'     => 'absint',
-			),
-			'isoft_fmf_advanced'    => array(
-				'isoft_fmf_archive_slug'             => 'sanitize_title',
-				'isoft_fmf_category_slug'            => 'sanitize_title',
-				'isoft_fmf_tag_slug'                 => 'sanitize_title',
-				'isoft_fmf_delete_data_on_uninstall' => 'absint',
-			),
-			'isoft_fmf_maintenance' => array(
-				'isoft_fmf_integrity_check_enabled' => 'absint',
-				'isoft_fmf_integrity_check_time'    => array( $this, 'sanitize_time' ),
-				'isoft_fmf_integrity_autorelink'    => 'absint',
-				'isoft_fmf_integrity_use_inode'     => 'absint',
-			),
-		);
-
-		foreach ( $groups as $group => $options ) {
+		foreach ( ISOFT_FMF_Settings_Service::groups() as $group => $options ) {
 			foreach ( $options as $option => $sanitize ) {
 				register_setting( $group, $option, array( 'sanitize_callback' => $sanitize ) );
 			}
 		}
 	}
 
+	// Backward-compat delegators — pre-0.12.0 these were instance methods on
+	// this class. The schema references the static versions on the service
+	// now; these stay so any external caller passing array( $settings,
+	// 'sanitize_time' ) keeps working until 0.12.5 demolition.
+
 	public function sanitize_time( $value ): string {
-		$value = is_string( $value ) ? trim( $value ) : '';
-		if ( preg_match( '/^(\d{1,2}):(\d{2})$/', $value, $m ) ) {
-			$h = max( 0, min( 23, (int) $m[1] ) );
-			$i = max( 0, min( 59, (int) $m[2] ) );
-			return sprintf( '%02d:%02d', $h, $i );
-		}
-		return '02:30';
+		return ISOFT_FMF_Settings_Service::sanitize_time( $value );
 	}
 
-	/**
-	 * Whitelist HTML link target attribute values. Anything else collapses
-	 * to '_blank' (the default we ship with).
-	 */
 	public function sanitize_link_target( $value ): string {
-		return in_array( $value, array( '_self', '_blank' ), true ) ? $value : '_blank';
+		return ISOFT_FMF_Settings_Service::sanitize_link_target( $value );
 	}
 
 	public function handle_flush_rewrite(): void {
@@ -203,7 +175,7 @@ class ISOFT_FMF_Settings {
 			// isoft_fmf_advanced group, so settings_fields() generates a
 			// nonce keyed to that group name.
 			check_admin_referer( 'isoft_fmf_advanced-options' );
-			flush_rewrite_rules();
+			( new ISOFT_FMF_Settings_Service() )->flush_rewrite();
 			add_settings_error( 'isoft_fmf_settings', 'flushed', __( 'Rewrite rules flushed.', 'isoft-fm-foundation' ), 'updated' );
 		}
 	}

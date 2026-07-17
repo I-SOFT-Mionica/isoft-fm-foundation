@@ -27,9 +27,9 @@ name: Plugin Check
 
 on:
   push:
-    branches: [main]
+    branches: [main, "dev/0.12.x"]
   pull_request:
-    branches: [main]
+    branches: [main, "dev/0.12.x"]
 
 jobs:
   plugin-check:
