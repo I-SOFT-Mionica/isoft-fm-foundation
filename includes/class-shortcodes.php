@@ -683,36 +683,27 @@ class ISOFT_FMF_Shortcodes {
 	 * Render a single download button, with agree-modal support.
 	 */
 	private function render_download_button( object $file, int $download_id, string $text = '', string $extra_class = '' ): string {
-		$default_text  = isoft_fmf_get_settings()['default_button_text'] ?: __( 'Download', 'isoft-fm-foundation' );
-		$text          = $text ?: $default_text;
-		$require_agree = (bool) get_post_meta( $download_id, '_isoft_fmf_require_agree', true );
-		$url           = isoft_fmf_get_download_url( (int) $file->id, $download_id );
-		$class         = trim( 'wp-element-button isoft-fmf-download-btn ' . $extra_class );
+		$default_text = isoft_fmf_get_settings()['default_button_text'] ?: __( 'Download', 'isoft-fm-foundation' );
+		$text         = $text ?: $default_text;
+		$agreement    = isoft_fmf_agreement_for( $download_id );
+		$url          = isoft_fmf_get_download_url( (int) $file->id, $download_id );
+		$class        = trim( 'wp-element-button isoft-fmf-download-btn ' . $extra_class );
 
 		if ( 'external' === $file->file_type ) {
 			$url = esc_url( $file->external_url );
 		}
 
-		if ( $require_agree ) {
-			$license_id = (int) get_post_meta( $download_id, '_isoft_fmf_license_id', true );
-			$license    = $license_id ? ( new ISOFT_FMF_License_Manager() )->get( $license_id ) : null;
-			// Cast to string on BOTH branches — see note in download-card.php at
-			// the matching wp_kses_post call. Nullable LONGTEXT in the
-			// licenses table; without the cast a NULL full_text triggers a
-			// PHP 8.1+ deprecation warning on the frontend.
-			$agree_text  = $license ? wp_kses_post( (string) $license->full_text ) : wp_kses_post( (string) get_post_meta( $download_id, '_isoft_fmf_agree_text', true ) );
-			$agree_title = $license ? esc_html( $license->title ) : esc_html( get_the_title( $download_id ) );
-
+		if ( null !== $agreement ) {
 			// Hidden div holds the agreement content for the modal JS to pick up
 			$hidden_id = 'isoft-fmf-agree-content-' . (int) $file->id;
 
 			return '<div class="isoft-fmf-agree-wrap">'
 				. '<div id="' . esc_attr( $hidden_id ) . '" class="isoft-fmf-agree-content" hidden>'
-				. $agree_text
+				. $agreement['text']
 				. '</div>'
 				. '<a href="' . esc_url( $url ) . '" class="' . esc_attr( $class ) . ' isoft-fmf-requires-agree"'
 				. ' data-agree-content="' . esc_attr( '#' . $hidden_id ) . '"'
-				. ' data-agree-title="' . $agree_title . '">'
+				. ' data-agree-title="' . esc_attr( $agreement['title'] ) . '">'
 				. '<span class="dashicons dashicons-download"></span>'
 				. esc_html( $text )
 				. '</a></div>';

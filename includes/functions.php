@@ -115,34 +115,36 @@ function isoft_fmf_get_settings( bool $refresh = false ): array {
 		return $cached;
 	}
 	$cached = array(
-		'default_access_role'      => get_option( 'isoft_fmf_default_access_role', 'public' ),
-		'enable_counting'          => (bool) get_option( 'isoft_fmf_enable_counting', true ),
-		'enable_logging'           => (bool) get_option( 'isoft_fmf_enable_logging', true ),
-		'enable_detailed_logging'  => (bool) get_option( 'isoft_fmf_enable_detailed_logging', false ),
-		'log_retention_days'       => (int) get_option( 'isoft_fmf_log_retention_days', 365 ),
-		'enable_pdf_thumbnails'    => (bool) get_option( 'isoft_fmf_enable_pdf_thumbnails', false ),
-		'pdf_thumb_width'          => (int) get_option( 'isoft_fmf_pdf_thumb_width', 300 ),
-		'pdf_thumb_height'         => (int) get_option( 'isoft_fmf_pdf_thumb_height', 424 ),
-		'pdf_thumb_quality'        => (int) get_option( 'isoft_fmf_pdf_thumb_quality', 85 ),
-		'overwrite_pdf_thumbnail'  => (bool) get_option( 'isoft_fmf_overwrite_pdf_thumbnail', false ),
-		'default_button_text'      => get_option( 'isoft_fmf_default_button_text', '' ),
-		'allowed_extensions'       => array_values( array_filter( array_map( 'trim', explode( ',', get_option( 'isoft_fmf_allowed_extensions', 'pdf,doc,docx,xls,xlsx,ppt,pptx,odt,ods,odp,txt,csv,zip,rar,7z,jpg,jpeg,png,gif,webp,mp4,mp3,wav' ) ) ) ) ),
-		'cyrillic_titles'          => (bool) get_option( 'isoft_fmf_cyrillic_titles', false ),
-		'listing_layout'           => get_option( 'isoft_fmf_listing_layout', 'list' ),
-		'items_per_page'           => (int) get_option( 'isoft_fmf_items_per_page', 10 ),
-		'show_file_size'           => (bool) get_option( 'isoft_fmf_show_file_size', true ),
-		'show_download_count'      => (bool) get_option( 'isoft_fmf_show_download_count', true ),
-		'show_date'                => (bool) get_option( 'isoft_fmf_show_date', true ),
-		'date_format'              => get_option( 'isoft_fmf_date_format', get_option( 'date_format' ) ),
-		'serve_method'             => get_option( 'isoft_fmf_serve_method', 'auto' ),
-		'rate_limit_per_hour'      => (int) get_option( 'isoft_fmf_rate_limit_per_hour', 0 ),
-		'hotlink_protection'       => (bool) get_option( 'isoft_fmf_hotlink_protection', false ),
-		'cache_friendly_links'     => (bool) get_option( 'isoft_fmf_cache_friendly_links', false ),
-		'public_api_enabled'       => (bool) get_option( 'isoft_fmf_public_api_enabled', false ),
-		'archive_slug'             => get_option( 'isoft_fmf_archive_slug', 'downloads' ),
-		'category_slug'            => get_option( 'isoft_fmf_category_slug', 'download-category' ),
-		'tag_slug'                 => get_option( 'isoft_fmf_tag_slug', 'download-tag' ),
-		'delete_data_on_uninstall' => (bool) get_option( 'isoft_fmf_delete_data_on_uninstall', false ),
+		'default_access_role'       => get_option( 'isoft_fmf_default_access_role', 'public' ),
+		'enable_counting'           => (bool) get_option( 'isoft_fmf_enable_counting', true ),
+		'enable_logging'            => (bool) get_option( 'isoft_fmf_enable_logging', true ),
+		'enable_detailed_logging'   => (bool) get_option( 'isoft_fmf_enable_detailed_logging', false ),
+		'log_retention_days'        => (int) get_option( 'isoft_fmf_log_retention_days', 365 ),
+		'enable_pdf_thumbnails'     => (bool) get_option( 'isoft_fmf_enable_pdf_thumbnails', false ),
+		'pdf_thumb_width'           => (int) get_option( 'isoft_fmf_pdf_thumb_width', 300 ),
+		'pdf_thumb_height'          => (int) get_option( 'isoft_fmf_pdf_thumb_height', 424 ),
+		'pdf_thumb_quality'         => (int) get_option( 'isoft_fmf_pdf_thumb_quality', 85 ),
+		'overwrite_pdf_thumbnail'   => (bool) get_option( 'isoft_fmf_overwrite_pdf_thumbnail', false ),
+		'default_button_text'       => get_option( 'isoft_fmf_default_button_text', '' ),
+		'allowed_extensions'        => array_values( array_filter( array_map( 'trim', explode( ',', get_option( 'isoft_fmf_allowed_extensions', 'pdf,doc,docx,xls,xlsx,ppt,pptx,odt,ods,odp,txt,csv,zip,rar,7z,jpg,jpeg,png,gif,webp,mp4,mp3,wav' ) ) ) ) ),
+		'cyrillic_titles'           => (bool) get_option( 'isoft_fmf_cyrillic_titles', false ),
+		'listing_layout'            => get_option( 'isoft_fmf_listing_layout', 'list' ),
+		'items_per_page'            => (int) get_option( 'isoft_fmf_items_per_page', 10 ),
+		'show_file_size'            => (bool) get_option( 'isoft_fmf_show_file_size', true ),
+		'show_download_count'       => (bool) get_option( 'isoft_fmf_show_download_count', true ),
+		'show_date'                 => (bool) get_option( 'isoft_fmf_show_date', true ),
+		'date_format'               => get_option( 'isoft_fmf_date_format', get_option( 'date_format' ) ),
+		'serve_method'              => get_option( 'isoft_fmf_serve_method', 'auto' ),
+		'rate_limit_per_hour'       => (int) get_option( 'isoft_fmf_rate_limit_per_hour', 0 ),
+		'hotlink_protection'        => (bool) get_option( 'isoft_fmf_hotlink_protection', false ),
+		'cache_friendly_links'      => (bool) get_option( 'isoft_fmf_cache_friendly_links', false ),
+		'public_api_enabled'        => (bool) get_option( 'isoft_fmf_public_api_enabled', false ),
+		'public_api_cache_ttl'      => (int) get_option( 'isoft_fmf_public_api_cache_ttl', 300 ),
+		'cache_friendly_rate_limit' => (int) get_option( 'isoft_fmf_cache_friendly_rate_limit', 120 ),
+		'archive_slug'              => get_option( 'isoft_fmf_archive_slug', 'downloads' ),
+		'category_slug'             => get_option( 'isoft_fmf_category_slug', 'download-category' ),
+		'tag_slug'                  => get_option( 'isoft_fmf_tag_slug', 'download-tag' ),
+		'delete_data_on_uninstall'  => (bool) get_option( 'isoft_fmf_delete_data_on_uninstall', false ),
 	);
 	return $cached;
 }
@@ -804,8 +806,9 @@ function isoft_fmf_effective_rate_limit(): int {
 		 * Filters the default hourly per-IP limit used while cache-friendly links are on.
 		 *
 		 * @param int $limit Downloads per IP per hour; 0 disables the default.
+		 *                   Default: the "Default limit for cache-friendly links" setting (120).
 		 */
-		$limit = (int) apply_filters( 'isoft_fmf_cache_friendly_default_rate_limit', 120 );
+		$limit = (int) apply_filters( 'isoft_fmf_cache_friendly_default_rate_limit', (int) get_option( 'isoft_fmf_cache_friendly_rate_limit', 120 ) );
 	}
 	return max( 0, $limit );
 }
@@ -962,6 +965,34 @@ function isoft_fmf_resume_content_changed(): void {
 		/** This action is documented in isoft_fmf_content_changed(). */
 		do_action( 'isoft_fmf_content_changed', 'bulk', 0 );
 	}
+}
+
+/**
+ * The agreement a visitor must accept before downloading, or null when the
+ * download has no agreement gate. Single source for the download card, the
+ * download button shortcode and the public API.
+ *
+ * Text: the full text of the license set directly on the download, else the
+ * download's custom agreement text. (An inherited category license does not
+ * feed the agreement — unchanged behaviour.)
+ *
+ * @return array{title: string, text: string, license_id: int|null}|null
+ *         text is wp_kses_post()-filtered HTML; title is raw (escape at output).
+ */
+function isoft_fmf_agreement_for( int $download_id ): ?array {
+	if ( ! get_post_meta( $download_id, '_isoft_fmf_require_agree', true ) ) {
+		return null;
+	}
+
+	$license_id = (int) get_post_meta( $download_id, '_isoft_fmf_license_id', true );
+	$license    = $license_id > 0 ? ( new ISOFT_FMF_License_Manager() )->get( $license_id ) : null;
+
+	// Cast to string: full_text is a nullable LONGTEXT; wp_kses_post( null ) is deprecated since PHP 8.1.
+	return array(
+		'title'      => $license ? (string) $license->title : get_the_title( $download_id ),
+		'text'       => wp_kses_post( $license ? (string) $license->full_text : (string) get_post_meta( $download_id, '_isoft_fmf_agree_text', true ) ),
+		'license_id' => $license ? (int) $license->id : null,
+	);
 }
 
 /**

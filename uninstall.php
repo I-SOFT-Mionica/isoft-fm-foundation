@@ -83,6 +83,8 @@ $options = array(
 	'isoft_fmf_hotlink_protection',
 	'isoft_fmf_cache_friendly_links',
 	'isoft_fmf_public_api_enabled',
+	'isoft_fmf_public_api_cache_ttl',
+	'isoft_fmf_cache_friendly_rate_limit',
 	// Settings (files)
 	'isoft_fmf_allowed_extensions',
 	'isoft_fmf_cyrillic_titles',

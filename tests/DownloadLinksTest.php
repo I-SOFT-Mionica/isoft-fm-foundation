@@ -146,6 +146,17 @@ class DownloadLinksTest extends WP_UnitTestCase {
 		$this->assertSame( 40, isoft_fmf_effective_rate_limit() );
 	}
 
+	public function test_default_limit_comes_from_the_setting(): void {
+		$this->enable_cache_friendly_links();
+		update_option( 'isoft_fmf_cache_friendly_rate_limit', 300 );
+		$this->assertSame( 300, isoft_fmf_effective_rate_limit() );
+
+		update_option( 'isoft_fmf_cache_friendly_rate_limit', 0 );
+		$this->assertSame( 0, isoft_fmf_effective_rate_limit() );
+
+		delete_option( 'isoft_fmf_cache_friendly_rate_limit' );
+	}
+
 	public function test_configured_rate_limit_always_wins(): void {
 		$this->enable_cache_friendly_links();
 		update_option( 'isoft_fmf_rate_limit_per_hour', 7 );

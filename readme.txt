@@ -296,8 +296,8 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 
 **Works behind static sites, CDNs and page caches.**
 
-* **Optional cache-friendly download links.** Turn on **Settings > Security > Cache-friendly download links** and links to public downloads stop expiring, so pages kept by a caching plugin, a CDN or a static site keep working. Restricted and password-protected downloads are never affected. Off by default, so nothing changes until you choose it; a sensible download limit per visitor applies automatically while it is on.
-* **Optional public read-only REST API** for headless sites and apps. Turn it on under **Settings > Advanced**. Visitors only see what they could already see on your site, and server file paths are never exposed.
+* **Optional cache-friendly download links.** Turn on **Settings > Security > Cache-friendly download links** and links to public downloads stop expiring, so pages kept by a caching plugin, a CDN or a static site keep working. Restricted and password-protected downloads are never affected. Off by default, so nothing changes until you choose it; a download limit per visitor (120 an hour, adjustable under Settings > Security) applies automatically while it is on.
+* **Optional public read-only REST API** for headless sites and apps. Turn it on under **Settings > Advanced**, where you can also set how long its answers may be cached. Visitors only see what they could already see on your site, server file paths are never exposed, and downloads that ask visitors to accept terms tell the app to do the same.
 * **Count downloads served elsewhere.** An edge server or CDN can report downloads afterwards, so download counts, HOT badges and the license-at-download record stay accurate, even when a report is retried.
 * **Better refresh signals.** Static sites and caches are told when files or licenses change, including after a broken-link repair, and bulk imports can announce themselves once instead of once per file.
 * **Non-Latin file names** (e.g. Cyrillic) now arrive intact when downloaded.

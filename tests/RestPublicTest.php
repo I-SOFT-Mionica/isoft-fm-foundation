@@ -297,4 +297,98 @@ class RestPublicTest extends WP_UnitTestCase {
 	public function test_per_page_is_capped(): void {
 		$this->assertSame( 400, $this->get( '/downloads', array( 'per_page' => 500 ) )->get_status() );
 	}
+
+	public function test_routes_publish_their_schema(): void {
+		$expected = array(
+			'/downloads'    => 'isoft-fmf-downloads',
+			'/downloads/1'  => 'isoft-fmf-download',
+			'/categories'   => 'isoft-fmf-categories',
+		);
+		foreach ( $expected as $route => $title ) {
+			$data = $this->server->dispatch( new WP_REST_Request( 'OPTIONS', self::NS . $route ) )->get_data();
+			$this->assertSame( $title, $data['schema']['title'] ?? null, $route );
+		}
+	}
+
+	public function test_requests_with_credentials_are_never_publicly_cacheable(): void {
+		// Anonymous to WordPress, but authenticated in front of it (HTTP auth, Cloudflare Access).
+		foreach ( array( 'Authorization' => 'Basic dXNlcjpwYXNz', 'Cf-Access-Jwt-Assertion' => 'eyJ0' ) as $header => $value ) {
+			$request = new WP_REST_Request( 'GET', self::NS . '/downloads' );
+			$request->set_header( $header, $value );
+
+			$this->assertSame( 'private, no-store', $this->server->dispatch( $request )->get_headers()['Cache-Control'], $header );
+		}
+	}
+
+	public function test_cache_lifetime_comes_from_the_setting(): void {
+		update_option( 'isoft_fmf_public_api_cache_ttl', 60 );
+		$this->assertSame( 'public, max-age=60', $this->get( '/downloads' )->get_headers()['Cache-Control'] );
+
+		update_option( 'isoft_fmf_public_api_cache_ttl', 0 );
+		$this->assertSame( 'private, no-store', $this->get( '/downloads' )->get_headers()['Cache-Control'] );
+
+		delete_option( 'isoft_fmf_public_api_cache_ttl' );
+	}
+
+	public function test_a_visible_download_does_not_name_its_hidden_category(): void {
+		$internal = (int) wp_insert_term( 'Internal', 'isoft_fmf_category' )['term_id'];
+		update_term_meta( $internal, '_isoft_fmf_cat_access_role', 'editor' );
+		// The download's own role wins over the category's, so it stays public.
+		$id = $this->make_download( 'Press release', array(), 'public' );
+		wp_set_object_terms( $id, array( $internal ), 'isoft_fmf_category' );
+		$this->access->recompute_effective_role( $id );
+
+		$data = $this->get( "/downloads/{$id}" )->get_data();
+
+		$this->assertSame( 'Press release', $data['title'] );
+		$this->assertSame( array(), $data['categories'] );
+		$this->assertStringNotContainsString( 'Internal', (string) wp_json_encode( $this->get( '/downloads' )->get_data() ) );
+	}
+
+	public function test_agreement_gate_is_exposed(): void {
+		$plain = $this->make_download( 'No gate' );
+		$this->assertNull( $this->get( "/downloads/{$plain}" )->get_data()['gate'] );
+
+		$custom = $this->make_download( 'Custom terms' );
+		update_post_meta( $custom, '_isoft_fmf_require_agree', true );
+		update_post_meta( $custom, '_isoft_fmf_agree_text', '<p>Use for teaching only.</p>' );
+		$gate = $this->get( "/downloads/{$custom}" )->get_data()['gate'];
+		$this->assertSame( 'agreement', $gate['type'] );
+		$this->assertSame( 'Custom terms', $gate['title'] );
+		$this->assertSame( '<p>Use for teaching only.</p>', $gate['text'] );
+		$this->assertNull( $gate['license_id'] );
+
+		$license_id = ( new ISOFT_FMF_License_Service() )->create(
+			array(
+				'title'     => 'Test License',
+				'full_text' => 'License full text.',
+			)
+		);
+		$licensed   = $this->make_download( 'Licensed' );
+		update_post_meta( $licensed, '_isoft_fmf_require_agree', true );
+		update_post_meta( $licensed, '_isoft_fmf_license_id', $license_id );
+		$gate = $this->get( "/downloads/{$licensed}" )->get_data()['gate'];
+		$this->assertSame( 'Test License', $gate['title'] );
+		$this->assertSame( 'License full text.', $gate['text'] );
+		$this->assertSame( $license_id, $gate['license_id'] );
+	}
+
+	public function test_external_only_downloads_hide_local_copies(): void {
+		$id      = $this->make_download( 'Mirrored' );
+		$manager = new ISOFT_FMF_File_Manager();
+		$manager->add_local_file(
+			$id,
+			array(
+				'file_name' => 'local.pdf',
+				'file_path' => 'x/local.pdf',
+			)
+		);
+		$manager->add_external_link( $id, 'https://example.org/remote.pdf' );
+		update_post_meta( $id, '_isoft_fmf_external_only', true );
+
+		$data = $this->get( "/downloads/{$id}" )->get_data();
+
+		$this->assertTrue( $data['external_only'] );
+		$this->assertSame( array( 'external' ), array_column( $data['files'], 'type' ) );
+	}
 }

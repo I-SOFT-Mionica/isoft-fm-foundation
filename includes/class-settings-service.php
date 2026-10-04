@@ -56,18 +56,20 @@ class ISOFT_FMF_Settings_Service {
 				'isoft_fmf_external_link_target' => array( self::class, 'sanitize_link_target' ),
 			),
 			'isoft_fmf_security'    => array(
-				'isoft_fmf_serve_method'           => 'sanitize_text_field',
-				'isoft_fmf_nginx_config_confirmed' => 'absint',
-				'isoft_fmf_rate_limit_per_hour'    => 'absint',
-				'isoft_fmf_block_user_agents'      => 'sanitize_textarea_field',
-				'isoft_fmf_hotlink_protection'     => 'absint',
-				'isoft_fmf_cache_friendly_links'   => 'absint',
+				'isoft_fmf_serve_method'              => 'sanitize_text_field',
+				'isoft_fmf_nginx_config_confirmed'    => 'absint',
+				'isoft_fmf_rate_limit_per_hour'       => 'absint',
+				'isoft_fmf_block_user_agents'         => 'sanitize_textarea_field',
+				'isoft_fmf_hotlink_protection'        => 'absint',
+				'isoft_fmf_cache_friendly_links'      => 'absint',
+				'isoft_fmf_cache_friendly_rate_limit' => 'absint',
 			),
 			'isoft_fmf_advanced'    => array(
 				'isoft_fmf_archive_slug'             => 'sanitize_title',
 				'isoft_fmf_category_slug'            => 'sanitize_title',
 				'isoft_fmf_tag_slug'                 => 'sanitize_title',
 				'isoft_fmf_public_api_enabled'       => 'absint',
+				'isoft_fmf_public_api_cache_ttl'     => 'absint',
 				'isoft_fmf_delete_data_on_uninstall' => 'absint',
 			),
 			'isoft_fmf_maintenance' => array(
@@ -119,7 +121,7 @@ class ISOFT_FMF_Settings_Service {
 	public function get_all(): array {
 		$out = array();
 		foreach ( self::known_keys() as $key ) {
-			$value         = get_option( $key, null );
+			$value       = get_option( $key, null );
 			$out[ $key ] = null === $value || false === $value ? null : $value;
 		}
 		return $out;
