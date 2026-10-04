@@ -270,6 +270,7 @@ class RestPublicTest extends WP_UnitTestCase {
 		add_filter( 'isoft_fmf_public_api_max_per_page', fn() => 5 );
 		$this->boot_server();
 
+		$this->assertSame( 200, $this->get( '/downloads' )->get_status(), 'default page size must fit under the cap' );
 		$this->assertSame( 400, $this->get( '/downloads', array( 'per_page' => 6 ) )->get_status() );
 		$this->assertSame( 200, $this->get( '/downloads', array( 'per_page' => 5 ) )->get_status() );
 	}

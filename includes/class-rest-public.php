@@ -102,7 +102,7 @@ class ISOFT_FMF_Rest_Public {
 					),
 					'per_page'              => array(
 						'type'    => 'integer',
-						'default' => 20,
+						'default' => min( 20, $max_per_page ),
 						'minimum' => 1,
 						'maximum' => $max_per_page,
 					),
