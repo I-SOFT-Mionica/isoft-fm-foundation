@@ -855,9 +855,11 @@ function isoft_fmf_get_bundle_url( int $download_id ): string {
  *
  * Pass an `idempotency_key` in $context to make retries safe: a repeat
  * report of the same file and key writes nothing, counts nothing and
- * returns the original log row id. This needs logging enabled (the key
- * lives on the log row); without a key, or with logging off, every call
- * counts.
+ * returns the original log row id. The key lives on the log row, so this
+ * holds only while logging is enabled and until the retention purge
+ * removes the row: a retry arriving after that counts again, as does every
+ * call without a key or with logging off. Reporters should retry well
+ * inside the log retention period.
  *
  * @param int                  $file_id File ID (isoft_fmf_files row).
  * @param array<string, mixed> $context Optional: time, user_id, ip, user_agent, referer, source,

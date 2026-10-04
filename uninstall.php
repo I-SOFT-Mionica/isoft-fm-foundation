@@ -139,6 +139,7 @@ $capabilities = array(
 	'isoft_fmf_view_logs',
 	'isoft_fmf_export_logs',
 	'isoft_fmf_manage_settings',
+	'isoft_fmf_record_downloads',
 );
 
 $role_names = array( 'subscriber', 'contributor', 'author', 'editor', 'administrator' );

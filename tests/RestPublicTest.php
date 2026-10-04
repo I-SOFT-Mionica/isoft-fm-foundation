@@ -347,12 +347,14 @@ class RestPublicTest extends WP_UnitTestCase {
 
 	public function test_agreement_gate_is_exposed(): void {
 		$plain = $this->make_download( 'No gate' );
-		$this->assertNull( $this->get( "/downloads/{$plain}" )->get_data()['gate'] );
+		$this->assertSame( array(), $this->get( "/downloads/{$plain}" )->get_data()['gates'] );
 
 		$custom = $this->make_download( 'Custom terms' );
 		update_post_meta( $custom, '_isoft_fmf_require_agree', true );
 		update_post_meta( $custom, '_isoft_fmf_agree_text', '<p>Use for teaching only.</p>' );
-		$gate = $this->get( "/downloads/{$custom}" )->get_data()['gate'];
+		$gates = $this->get( "/downloads/{$custom}" )->get_data()['gates'];
+		$this->assertCount( 1, $gates );
+		$gate = $gates[0];
 		$this->assertSame( 'agreement', $gate['type'] );
 		$this->assertSame( 'Custom terms', $gate['title'] );
 		$this->assertSame( '<p>Use for teaching only.</p>', $gate['text'] );
@@ -367,10 +369,55 @@ class RestPublicTest extends WP_UnitTestCase {
 		$licensed   = $this->make_download( 'Licensed' );
 		update_post_meta( $licensed, '_isoft_fmf_require_agree', true );
 		update_post_meta( $licensed, '_isoft_fmf_license_id', $license_id );
-		$gate = $this->get( "/downloads/{$licensed}" )->get_data()['gate'];
+		$gate = $this->get( "/downloads/{$licensed}" )->get_data()['gates'][0];
 		$this->assertSame( 'Test License', $gate['title'] );
 		$this->assertSame( 'License full text.', $gate['text'] );
 		$this->assertSame( $license_id, $gate['license_id'] );
+	}
+
+	public function test_query_args_filter_runs_but_cannot_bypass_access_rules(): void {
+		$this->make_download( 'Public one' );
+		$this->make_download( 'Public two' );
+		$this->make_download( 'Members', array(), 'subscriber' );
+		add_filter(
+			'isoft_fmf_public_api_query_args',
+			function ( array $args, WP_REST_Request $request ): array {
+				$this->assertInstanceOf( WP_REST_Request::class, $request );
+				$args['s'] = 'one';
+				return $args;
+			},
+			10,
+			2
+		);
+
+		$this->assertSame( array( 'Public one' ), $this->titles( $this->get( '/downloads' ) ) );
+
+		add_filter(
+			'isoft_fmf_public_api_query_args',
+			function ( array $args ): array {
+				unset( $args['s'] );
+				$args['post_status'] = array( 'publish', 'draft' );
+				return $args;
+			},
+			20
+		);
+		$this->assertNotContains( 'Members', $this->titles( $this->get( '/downloads' ) ) );
+	}
+
+	public function test_download_filter_can_add_fields_to_list_and_single(): void {
+		$id = $this->make_download( 'Extendable' );
+		add_filter(
+			'isoft_fmf_public_api_download',
+			function ( array $item, WP_Post $post, WP_REST_Request $request ): array {
+				$item['extra'] = $post->ID;
+				return $item;
+			},
+			10,
+			3
+		);
+
+		$this->assertSame( $id, $this->get( "/downloads/{$id}" )->get_data()['extra'] );
+		$this->assertSame( $id, $this->get( '/downloads' )->get_data()[0]['extra'] );
 	}
 
 	public function test_external_only_downloads_hide_local_copies(): void {

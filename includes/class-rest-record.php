@@ -10,9 +10,11 @@
  *        {time?, user_id?, ip?, user_agent?, referer?, source?, license_id?, idempotency_key?}
  *
  * Authenticated (application password, cookie + nonce): this writes audit
- * rows, so it needs isoft_fmf_manage_settings, the same capability that
- * guards the other write endpoints. Pass an idempotency_key so a retried
- * report is counted once.
+ * rows, so it needs the dedicated isoft_fmf_record_downloads capability
+ * (administrators have it). Give a reporter account only that capability
+ * and its credential cannot change settings. Pass an idempotency_key so a
+ * retried report is counted once; see isoft_fmf_record_download() for the
+ * limits of that guarantee.
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -65,7 +67,7 @@ class ISOFT_FMF_Rest_Record {
 	}
 
 	public function permission(): bool {
-		return current_user_can( 'isoft_fmf_manage_settings' );
+		return current_user_can( 'isoft_fmf_record_downloads' );
 	}
 
 	/**

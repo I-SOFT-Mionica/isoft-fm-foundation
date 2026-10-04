@@ -212,6 +212,15 @@ class ISOFT_FMF_Rest_Public {
 		 * pre_get_posts hook (REST is a frontend context), so totals and
 		 * pagination are right. The per-item check below is defence in depth.
 		 */
+		/**
+		 * Filters the WP_Query arguments of the public downloads listing, before the query runs.
+		 * Access filtering is applied separately and cannot be bypassed from here.
+		 *
+		 * @param array           $args    WP_Query arguments.
+		 * @param WP_REST_Request $request The request.
+		 */
+		$args = (array) apply_filters( 'isoft_fmf_public_api_query_args', $args, $request );
+
 		$query = new WP_Query( $args );
 
 		// One query for every file row on the page instead of one per download.
@@ -220,7 +229,7 @@ class ISOFT_FMF_Rest_Public {
 		$items = array();
 		foreach ( $query->posts as $post ) {
 			if ( $this->access()->can_access_download( (int) $post->ID ) ) {
-				$items[] = $this->shape_download( $post );
+				$items[] = $this->item( $post, $request );
 			}
 		}
 
@@ -246,7 +255,7 @@ class ISOFT_FMF_Rest_Public {
 			return new WP_Error( 'isoft_fmf_not_found', __( 'Download not found.', 'isoft-fm-foundation' ), array( 'status' => 404 ) );
 		}
 
-		return $this->with_cache_headers( new WP_REST_Response( $this->shape_download( $post ) ), $request, get_post_modified_time( 'U', true, $post ) );
+		return $this->with_cache_headers( new WP_REST_Response( $this->item( $post, $request ) ), $request, get_post_modified_time( 'U', true, $post ) );
 	}
 
 	/**
@@ -391,6 +400,25 @@ class ISOFT_FMF_Rest_Public {
 	}
 
 	/**
+	 * A download as returned by the API, after integrations had their say.
+	 *
+	 * @param WP_Post         $post    Download.
+	 * @param WP_REST_Request $request The request.
+	 * @return array<string, mixed>
+	 */
+	private function item( WP_Post $post, WP_REST_Request $request ): array {
+		/**
+		 * Filters one download in a public API response, e.g. to add fields.
+		 * Runs after the visibility checks; never add server paths or restricted data.
+		 *
+		 * @param array<string, mixed> $item    The download as shaped by the API.
+		 * @param WP_Post              $post    The download post.
+		 * @param WP_REST_Request      $request The request.
+		 */
+		return (array) apply_filters( 'isoft_fmf_public_api_download', $this->shape_download( $post ), $post, $request );
+	}
+
+	/**
 	 * Public shape of a download. Never includes server paths.
 	 *
 	 * @return array<string, mixed>
@@ -468,15 +496,19 @@ class ISOFT_FMF_Rest_Public {
 		/*
 		 * Clients must show the agreement and get consent before linking to
 		 * any file, exactly like the download card's modal; without it a
-		 * headless site would silently bypass the gate. 'type' leaves room
-		 * for other gates (e.g. a contact form) later.
+		 * headless site would silently bypass the gate. A list, so several
+		 * gates (e.g. an agreement and a contact form) can combine; clients
+		 * must clear them in order.
 		 */
-		$gate = $agreement ? array(
-			'type'       => 'agreement',
-			'title'      => html_entity_decode( $agreement['title'], ENT_QUOTES, 'UTF-8' ),
-			'text'       => $agreement['text'],
-			'license_id' => $agreement['license_id'],
-		) : null;
+		$gates = array();
+		if ( $agreement ) {
+			$gates[] = array(
+				'type'       => 'agreement',
+				'title'      => html_entity_decode( $agreement['title'], ENT_QUOTES, 'UTF-8' ),
+				'text'       => $agreement['text'],
+				'license_id' => $agreement['license_id'],
+			);
+		}
 
 		return array(
 			'id'             => $id,
@@ -494,7 +526,7 @@ class ISOFT_FMF_Rest_Public {
 			'version'        => (string) get_post_meta( $id, '_isoft_fmf_version', true ),
 			'changelog'      => wp_kses_post( (string) get_post_meta( $id, '_isoft_fmf_changelog', true ) ),
 			'external_only'  => $external_only,
-			'gate'           => $gate,
+			'gates'          => $gates,
 			'author_name'    => (string) get_post_meta( $id, '_isoft_fmf_author_name', true ),
 			'author_url'     => esc_url_raw( (string) get_post_meta( $id, '_isoft_fmf_author_url', true ) ),
 			'date_published' => (string) get_post_meta( $id, '_isoft_fmf_date_published', true ),
@@ -571,20 +603,23 @@ class ISOFT_FMF_Rest_Public {
 					'type'        => 'boolean',
 					'description' => 'Only external links are offered; local copies are kept but never listed.',
 				),
-				'gate'           => array(
-					'type'        => array( 'object', 'null' ),
-					'description' => 'What a visitor must do before any file link is shown. Clients must honour it.',
-					'properties'  => array(
-						'type'       => array(
-							'type' => 'string',
-							'enum' => array( 'agreement' ),
+				'gates'          => array(
+					'type'        => 'array',
+					'description' => 'What a visitor must do, in order, before any file link is shown. Empty when nothing is required. Clients must honour it.',
+					'items'       => array(
+						'type'       => 'object',
+						'properties' => array(
+							'type'       => array(
+								'type' => 'string',
+								'enum' => array( 'agreement' ),
+							),
+							'title'      => array( 'type' => 'string' ),
+							'text'       => array(
+								'type'        => 'string',
+								'description' => 'HTML the visitor must accept.',
+							),
+							'license_id' => array( 'type' => array( 'integer', 'null' ) ),
 						),
-						'title'      => array( 'type' => 'string' ),
-						'text'       => array(
-							'type'        => 'string',
-							'description' => 'HTML the visitor must accept.',
-						),
-						'license_id' => array( 'type' => array( 'integer', 'null' ) ),
 					),
 				),
 				'author_name'    => array( 'type' => 'string' ),

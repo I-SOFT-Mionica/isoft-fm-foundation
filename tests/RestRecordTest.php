@@ -60,6 +60,29 @@ class RestRecordTest extends WP_UnitTestCase {
 		$this->assertSame( 403, $this->post( $this->file_id )->get_status() );
 	}
 
+	public function test_a_reporter_with_only_the_record_capability_can_record_but_not_change_settings(): void {
+		$reporter = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+		get_user_by( 'id', $reporter )->add_cap( 'isoft_fmf_record_downloads' );
+		wp_set_current_user( $reporter );
+
+		$this->assertSame( 201, $this->post( $this->file_id )->get_status() );
+		$this->assertFalse( current_user_can( 'isoft_fmf_manage_settings' ) );
+	}
+
+	public function test_settings_capability_alone_is_not_enough(): void {
+		$user = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+		get_user_by( 'id', $user )->add_cap( 'isoft_fmf_manage_settings' );
+		wp_set_current_user( $user );
+
+		$this->assertSame( 403, $this->post( $this->file_id )->get_status() );
+	}
+
+	public function test_administrators_hold_the_record_capability(): void {
+		$this->become_admin();
+
+		$this->assertTrue( current_user_can( 'isoft_fmf_record_downloads' ) );
+	}
+
 	public function test_admin_can_record_and_the_row_is_not_stamped_with_their_identity(): void {
 		global $wpdb;
 		$this->become_admin();

@@ -270,7 +270,7 @@ HTACCESS;
 	 */
 	public static function maybe_register_capabilities(): void {
 		$role = get_role( 'administrator' );
-		if ( $role && ! $role->has_cap( 'isoft_fmf_manage_settings' ) ) {
+		if ( $role && ( ! $role->has_cap( 'isoft_fmf_manage_settings' ) || ! $role->has_cap( 'isoft_fmf_record_downloads' ) ) ) {
 			self::register_capabilities();
 
 			// The current user object cached its caps before we added ours.
@@ -424,7 +424,7 @@ HTACCESS;
 			'contributor'   => array( 'isoft_fmf_view_downloads' ),
 			'author'        => array( 'isoft_fmf_view_downloads', 'isoft_fmf_create_downloads', 'isoft_fmf_edit_own_downloads' ),
 			'editor'        => array( 'isoft_fmf_view_downloads', 'isoft_fmf_create_downloads', 'isoft_fmf_edit_own_downloads', 'isoft_fmf_edit_all_downloads', 'isoft_fmf_delete_downloads', 'isoft_fmf_manage_categories', 'isoft_fmf_view_logs' ),
-			'administrator' => array( 'isoft_fmf_view_downloads', 'isoft_fmf_create_downloads', 'isoft_fmf_edit_own_downloads', 'isoft_fmf_edit_all_downloads', 'isoft_fmf_delete_downloads', 'isoft_fmf_manage_categories', 'isoft_fmf_view_logs', 'isoft_fmf_export_logs', 'isoft_fmf_manage_settings' ),
+			'administrator' => array( 'isoft_fmf_view_downloads', 'isoft_fmf_create_downloads', 'isoft_fmf_edit_own_downloads', 'isoft_fmf_edit_all_downloads', 'isoft_fmf_delete_downloads', 'isoft_fmf_manage_categories', 'isoft_fmf_view_logs', 'isoft_fmf_export_logs', 'isoft_fmf_manage_settings', 'isoft_fmf_record_downloads' ),
 		);
 
 		foreach ( $role_caps as $role_name => $caps ) {
