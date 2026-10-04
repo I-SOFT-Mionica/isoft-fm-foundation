@@ -757,30 +757,127 @@ function isoft_fmf_allowed_html(): array {
 }
 
 /**
- * Build a secure, nonce-protected download URL for a file.
+ * Whether download links for a download must carry a nonce.
+ *
+ * Public downloads don't: anyone can load the page and get a fresh nonce,
+ * so it protects nothing, while it breaks every cached copy of the page
+ * (page-cache plugins, CDNs, static exports) once it expires. Abuse of
+ * public files is handled by the rate limit, user-agent blocklist and
+ * hotlink protection. Restricted and password-protected downloads keep
+ * the nonce; the access check stays the real protection either way.
+ *
+ * Unknown downloads keep the nonce (fail closed).
  */
-function isoft_fmf_get_download_url( int $file_id ): string {
-	return add_query_arg(
-		array(
-			'isoft_fmf_download' => $file_id,
-			'nonce'              => wp_create_nonce( 'isoft_fmf_download_' . $file_id ),
-		),
-		home_url( '/' )
-	);
+function isoft_fmf_download_requires_nonce( int $download_id ): bool {
+	$public = $download_id > 0
+		&& 'isoft_fmf_file' === get_post_type( $download_id )
+		&& ! post_password_required( $download_id )
+		&& 'public' === ( new ISOFT_FMF_Access_Control() )->effective_role_for( $download_id );
+
+	/**
+	 * Filters whether download / bundle links for a download need a nonce.
+	 * Return true to restore pre-0.13 behaviour (nonce on every link).
+	 *
+	 * @param bool $required    Default: false for public downloads, true otherwise.
+	 * @param int  $download_id Download post ID.
+	 */
+	return (bool) apply_filters( 'isoft_fmf_download_requires_nonce', ! $public, $download_id );
 }
 
 /**
- * Build a secure, nonce-protected URL that streams every local file
- * attached to the given download as a single ZIP archive.
+ * Build the download URL for a file. Nonce-protected unless the download
+ * is public (see isoft_fmf_download_requires_nonce()).
+ */
+function isoft_fmf_get_download_url( int $file_id ): string {
+	$file        = ( new ISOFT_FMF_File_Manager() )->get_file( $file_id );
+	$download_id = $file ? (int) $file->download_id : 0;
+
+	$args = array( 'isoft_fmf_download' => $file_id );
+	if ( isoft_fmf_download_requires_nonce( $download_id ) ) {
+		$args['nonce'] = wp_create_nonce( 'isoft_fmf_download_' . $file_id );
+	}
+	return add_query_arg( $args, home_url( '/' ) );
+}
+
+/**
+ * Build the URL that streams every local file attached to the given
+ * download as a single ZIP archive. Nonce-protected unless the download
+ * is public (see isoft_fmf_download_requires_nonce()).
  */
 function isoft_fmf_get_bundle_url( int $download_id ): string {
-	return add_query_arg(
-		array(
-			'isoft_fmf_bundle' => $download_id,
-			'nonce'            => wp_create_nonce( 'isoft_fmf_bundle_' . $download_id ),
-		),
-		home_url( '/' )
-	);
+	$args = array( 'isoft_fmf_bundle' => $download_id );
+	if ( isoft_fmf_download_requires_nonce( $download_id ) ) {
+		$args['nonce'] = wp_create_nonce( 'isoft_fmf_bundle_' . $download_id );
+	}
+	return add_query_arg( $args, home_url( '/' ) );
+}
+
+/**
+ * Record a download that has been served — by the built-in handler or by
+ * something else (an edge server, a CDN, a static mirror) reported after
+ * the fact. Writes the log row (with the license in force, stamped at log
+ * time), the daily bucket for the download's own date, and the file and
+ * download counters when counting is enabled.
+ *
+ * Callers are responsible for not reporting the same download twice;
+ * there is no de-duplication here.
+ *
+ * @param int                  $file_id File ID (isoft_fmf_files row).
+ * @param array<string, mixed> $context Optional: time, user_id, ip, user_agent, referer, source.
+ *                                      See ISOFT_FMF_Download_Logger::log().
+ * @return int|null Log row ID; null when the file is unknown, logging is
+ *                  disabled or the insert failed (counters still update).
+ */
+function isoft_fmf_record_download( int $file_id, array $context = array() ): ?int {
+	$manager = new ISOFT_FMF_File_Manager();
+	$file    = $manager->get_file( $file_id );
+	if ( ! $file ) {
+		return null;
+	}
+
+	$download_id = (int) $file->download_id;
+	$log_id      = ( new ISOFT_FMF_Download_Logger() )->log( $download_id, $file_id, $context );
+
+	if ( isoft_fmf_get_settings()['enable_counting'] ) {
+		$manager->increment_count( $file_id, $download_id );
+	}
+
+	return $log_id;
+}
+
+/**
+ * Announce that public-facing FMF content changed outside the post / term
+ * save hooks WordPress already fires: file rows (added, edited, reordered,
+ * removed) and licenses. Static site builders, page caches and CDNs hook
+ * here to refresh.
+ *
+ * Download counters are deliberately not announced — they change on every
+ * download and would turn into a rebuild per click.
+ *
+ * @param string $object_type 'download' (its files changed) or 'license'.
+ * @param int    $object_id   Download post ID or license ID.
+ */
+function isoft_fmf_content_changed( string $object_type, int $object_id ): void {
+	/**
+	 * Fires when FMF content changed outside post / term saves.
+	 *
+	 * @param string $object_type 'download' or 'license'.
+	 * @param int    $object_id   Download post ID or license ID.
+	 */
+	do_action( 'isoft_fmf_content_changed', $object_type, $object_id );
+}
+
+/**
+ * Content-Disposition value that survives non-ASCII file names (RFC 6266):
+ * an ASCII fallback plus the UTF-8 name.
+ */
+function isoft_fmf_content_disposition( string $file_name ): string {
+	$ascii = preg_replace( '/[^A-Za-z0-9._-]+/', '_', remove_accents( isoft_fmf_cyrillic_to_latin( $file_name ) ) );
+	$ascii = trim( (string) $ascii, '_' );
+	if ( '' === $ascii ) {
+		$ascii = 'download';
+	}
+	return sprintf( 'attachment; filename="%s"; filename*=UTF-8\'\'%s', $ascii, rawurlencode( $file_name ) );
 }
 
 /**

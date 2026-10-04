@@ -2,6 +2,23 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.13.0] — 2026-10-04
+
+Headless readiness. Foundation can now sit behind a headless or statically generated frontend, a CDN, or a full-page cache without losing working download links, download counts, or the license audit trail. Everything here is additive; existing sites keep working unchanged apart from public download links no longer carrying a nonce.
+
+### New
+
+- **Public read-only REST API.** `GET /isoft-fm-foundation/v1/public/downloads` (filters: `category` with `include_subcategories`, `tag`, `search`, `page`, `per_page` ≤ 100, `orderby` date / modified / title / menu_order / downloads, `order`), `GET /public/downloads/{id}` and `GET /public/categories`. Results are filtered for the requesting user by the same access rules as the frontend (SQL-level, so totals and pagination are right, plus a per-item check). Restricted downloads return the same 404 as missing ones. Server paths are never exposed; local files carry `download_url`, external links their URL. Category post counts are omitted because WordPress counts include restricted downloads. `ISOFT_FMF_Rest_Public`.
+- **`isoft_fmf_record_download( $file_id, $context )`.** Records a download served somewhere else (edge server, CDN, static mirror) after the fact: log row with the license in force, the daily bucket for the download's own date, and the file / download counters. The built-in handler now goes through the same function.
+- **Download log context.** `ISOFT_FMF_Download_Logger::log()` takes an optional `$context` (`time`, `user_id`, `ip`, `user_agent`, `referer`, `source`). Passing a key — even as `null` — overrides the current request, so an importer never stamps its own IP or user on a visitor's download. IP / user agent / referer are still stored only with detailed logging on. `isoft_fmf_log_entry_data` and `isoft_fmf_download_logged` receive the context as an extra argument (`source` is `handler` for downloads served by Foundation itself).
+- **`isoft_fmf_content_changed` action** (`'download' | 'license'`, ID) from every write path WordPress's post / term hooks don't cover: files added, edited, reordered or removed; licenses created, updated or deleted. Static site builders, page caches and CDNs hook here to refresh. Download counters deliberately don't fire it.
+- **`isoft_fmf_content_disposition()`** builds RFC 6266 `Content-Disposition` values (ASCII fallback via Cyrillic transliteration plus `filename*=UTF-8''…`). The download handler uses it, so non-ASCII file names arrive intact.
+
+### Changed
+
+- **Public download and bundle links no longer carry a nonce.** Nonces expire after 12–24 hours and depend on the session, so any cached copy of a page (page-cache plugin, CDN, static export) served links that failed with "Security check failed" a day later. For public files the nonce protected nothing — anyone can load the page and get a fresh one. Restricted, password-protected and unknown downloads keep the nonce; access checks, hotlink protection, the user-agent blocklist and the rate limit are unchanged. `isoft_fmf_download_requires_nonce()` decides; the `isoft_fmf_download_requires_nonce` filter restores nonces everywhere (`add_filter( 'isoft_fmf_download_requires_nonce', '__return_true' );`).
+- **Tested up to 7.1.**
+
 ## [0.12.0] — 2026-07-17
 
 The React admin rewrite. Every I-Soft File Manager: Foundation admin screen (Statistics, Download Log, Broken Links, Settings, Licenses) is now a Gutenberg-native React app running on a shared REST API. The result: instant navigation between the Downloads pages after first load, a redesigned Downloads sidebar (Licenses, Tools, Settings), a rebuilt Broken Links recovery flow, and a lot less code churning in the background on every request.

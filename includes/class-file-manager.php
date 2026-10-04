@@ -126,6 +126,7 @@ class ISOFT_FMF_File_Manager {
 		$file_id = (int) $wpdb->insert_id;
 		self::bust_cache_for( $download_id, $file_id );
 		do_action( 'isoft_fmf_file_uploaded', $file_id, $download_id );
+		isoft_fmf_content_changed( 'download', $download_id );
 		return $file_id;
 	}
 
@@ -157,6 +158,7 @@ class ISOFT_FMF_File_Manager {
 		$file_id = (int) $wpdb->insert_id;
 		self::bust_cache_for( $download_id, $file_id );
 		do_action( 'isoft_fmf_file_uploaded', $file_id, $download_id );
+		isoft_fmf_content_changed( 'download', $download_id );
 		return $file_id;
 	}
 
@@ -182,6 +184,7 @@ class ISOFT_FMF_File_Manager {
 			$row = $this->get_file_uncached( $file_id );
 			if ( $row ) {
 				self::bust_cache_for( (int) $row->download_id, $file_id );
+				isoft_fmf_content_changed( 'download', (int) $row->download_id );
 			} else {
 				wp_cache_delete( "file_{$file_id}", self::CACHE_GROUP );
 			}
@@ -224,6 +227,7 @@ class ISOFT_FMF_File_Manager {
 		$result = $wpdb->delete( $this->table, array( 'id' => $file_id ), array( '%d' ) );
 		if ( false !== $result ) {
 			self::bust_cache_for( (int) $file->download_id, $file_id );
+			isoft_fmf_content_changed( 'download', (int) $file->download_id );
 		}
 		return false !== $result;
 	}
@@ -296,6 +300,7 @@ class ISOFT_FMF_File_Manager {
 		}
 		foreach ( array_keys( $download_ids ) as $download_id ) {
 			self::bust_cache_for( (int) $download_id );
+			isoft_fmf_content_changed( 'download', (int) $download_id );
 		}
 	}
 }

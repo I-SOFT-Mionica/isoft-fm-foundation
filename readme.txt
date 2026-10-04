@@ -2,9 +2,9 @@
 Contributors: chillic
 Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 8.4
-Stable tag: 0.12.0
+Stable tag: 0.13.0
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -292,6 +292,17 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 
 == Changelog ==
 
+= 0.13.0 =
+
+**Headless readiness: works behind static sites, CDNs and page caches.**
+
+* **Download links survive caching.** Links to public downloads no longer carry a security token that expires after a day, so pages cached by a caching plugin, a CDN or a static site keep working links. Restricted and password-protected downloads still use one. Developers can restore the old behaviour with the `isoft_fmf_download_requires_nonce` filter.
+* **Public read-only REST API** for headless sites and apps: `/isoft-fm-foundation/v1/public/downloads`, `/public/downloads/{id}` and `/public/categories`, filtered by the same access rules as your site. Restricted downloads stay invisible to visitors who may not see them, and server file paths are never exposed.
+* **Count downloads served elsewhere.** `isoft_fmf_record_download()` lets an edge server or CDN report downloads afterwards, so download counts, HOT badges and the license-at-download audit trail stay accurate.
+* **New `isoft_fmf_content_changed` hook** when files or licenses change, so static sites and caches know when to refresh.
+* **Non-Latin file names** (e.g. Cyrillic) now arrive intact when downloaded.
+* Tested up to WordPress 7.1.
+
 = 0.12.0 =
 
 **The React admin rewrite.**
@@ -385,6 +396,9 @@ Existing data (downloads, categories, files, licenses, logs, per-user category p
 * **Inline metadata editing** directly from the file list.
 
 == Upgrade Notice ==
+
+= 0.13.0 =
+Public download links no longer expire on cached pages. New public REST API and hooks for headless sites, CDNs and page caches. No data changes.
 
 = 0.11.0 =
 License inheritance from categories. Two new seeded licenses (Serbian PD, CC BY-SA 4.0). License chip on cards. Download log records its license. Click Restore seeded licenses on Downloads → Licenses. Known: assign one category per download — picker fix in next patch.

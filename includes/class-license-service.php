@@ -170,6 +170,7 @@ class ISOFT_FMF_License_Service {
 		$id = (int) $wpdb->insert_id;
 		$this->enforce_single_default( $id, (bool) $row['is_default'] );
 		self::bust_cache( $id );
+		isoft_fmf_content_changed( 'license', $id );
 		return $id;
 	}
 
@@ -191,6 +192,7 @@ class ISOFT_FMF_License_Service {
 		$wpdb->update( $this->table, $row, array( 'id' => $id ), $fmt, array( '%d' ) );
 		$this->enforce_single_default( $id, (bool) $row['is_default'] );
 		self::bust_cache( $id );
+		isoft_fmf_content_changed( 'license', $id );
 		return true;
 	}
 
@@ -203,6 +205,7 @@ class ISOFT_FMF_License_Service {
 		$deleted = $wpdb->delete( $this->table, array( 'id' => $id ), array( '%d' ) );
 		if ( $deleted ) {
 			self::bust_cache( $id );
+			isoft_fmf_content_changed( 'license', $id );
 			return true;
 		}
 		return false;

@@ -19,20 +19,25 @@ class ISOFT_FMF_Download_Handler {
 			return;
 		}
 
-		// Nonce check
-		$nonce = isset( $_GET['nonce'] ) ? sanitize_text_field( wp_unslash( $_GET['nonce'] ) ) : '';
-		if ( ! wp_verify_nonce( $nonce, "isoft_fmf_download_{$file_id}" ) ) {
-			wp_die( esc_html__( 'Security check failed. Please refresh the page and try again.', 'isoft-fm-foundation' ), 403 );
-		}
-
 		$file_manager = new ISOFT_FMF_File_Manager();
 		$file         = $file_manager->get_file( $file_id );
+		$download_id  = $file ? (int) $file->download_id : 0;
+
+		/*
+		 * Nonce check — skipped for public downloads so cached pages keep
+		 * working links (see isoft_fmf_download_requires_nonce()). Unknown
+		 * files still require one, so probing IDs reveals nothing.
+		 */
+		if ( isoft_fmf_download_requires_nonce( $download_id ) ) {
+			$nonce = isset( $_GET['nonce'] ) ? sanitize_text_field( wp_unslash( $_GET['nonce'] ) ) : '';
+			if ( ! wp_verify_nonce( $nonce, "isoft_fmf_download_{$file_id}" ) ) {
+				wp_die( esc_html__( 'Security check failed. Please refresh the page and try again.', 'isoft-fm-foundation' ), 403 );
+			}
+		}
 
 		if ( ! $file ) {
 			wp_die( esc_html__( 'File not found.', 'isoft-fm-foundation' ), 404 );
 		}
-
-		$download_id = (int) $file->download_id;
 
 		if ( 'publish' !== get_post_status( $download_id ) ) {
 			wp_die( esc_html__( 'This download is not currently available.', 'isoft-fm-foundation' ), 404 );
@@ -107,11 +112,7 @@ class ISOFT_FMF_Download_Handler {
 			// render_unavailable_page() exits.
 		}
 
-		$file_id = (int) $file->id;
-		$log_id  = ( new ISOFT_FMF_Download_Logger() )->log( $download_id, $file_id );
-		if ( isoft_fmf_get_settings()['enable_counting'] ) {
-			$manager->increment_count( $file_id, $download_id );
-		}
+		$log_id = isoft_fmf_record_download( (int) $file->id );
 		do_action( 'isoft_fmf_after_download', $log_id );
 
 		$mime      = $file->file_mime ?: 'application/octet-stream';
@@ -121,7 +122,7 @@ class ISOFT_FMF_Download_Handler {
 			'isoft_fmf_download_headers',
 			array(
 				'Content-Type'           => $mime,
-				'Content-Disposition'    => "attachment; filename=\"{$file_name}\"",
+				'Content-Disposition'    => isoft_fmf_content_disposition( $file_name ),
 				'Content-Length'         => (string) filesize( $file_path ),
 				'X-Content-Type-Options' => 'nosniff',
 				'Cache-Control'          => 'no-store, no-cache, must-revalidate',
