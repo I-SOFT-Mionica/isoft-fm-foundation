@@ -686,7 +686,7 @@ class ISOFT_FMF_Shortcodes {
 		$default_text  = isoft_fmf_get_settings()['default_button_text'] ?: __( 'Download', 'isoft-fm-foundation' );
 		$text          = $text ?: $default_text;
 		$require_agree = (bool) get_post_meta( $download_id, '_isoft_fmf_require_agree', true );
-		$url           = isoft_fmf_get_download_url( (int) $file->id );
+		$url           = isoft_fmf_get_download_url( (int) $file->id, $download_id );
 		$class         = trim( 'wp-element-button isoft-fmf-download-btn ' . $extra_class );
 
 		if ( 'external' === $file->file_type ) {

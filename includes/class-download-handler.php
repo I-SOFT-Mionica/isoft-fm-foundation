@@ -73,7 +73,7 @@ class ISOFT_FMF_Download_Handler {
 		}
 
 		// Rate limit — per-IP throttle using short-lived transients.
-		$rate_limit = (int) get_option( 'isoft_fmf_rate_limit_per_hour', 0 );
+		$rate_limit = isoft_fmf_effective_rate_limit();
 		if ( $rate_limit > 0 ) {
 			$ip_hash = 'isoft_fmf_rl_' . md5( isoft_fmf_client_ip() ?? 'unknown' );
 			$hits    = (int) get_transient( $ip_hash );
@@ -94,7 +94,7 @@ class ISOFT_FMF_Download_Handler {
 			if ( ! $target ) {
 				wp_die( esc_html__( 'This external link is invalid.', 'isoft-fm-foundation' ), 400 );
 			}
-			$log_id = ( new ISOFT_FMF_Download_Logger() )->log( $download_id, $file_id );
+			$log_id = isoft_fmf_record_download( $file_id );
 			do_action( 'isoft_fmf_after_download', $log_id );
 			// phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- External-link downloads point off-site; wp_safe_redirect() rejects them. $target is validated via esc_url_raw() above. See changelog 0.4.3.
 			wp_redirect( $target );

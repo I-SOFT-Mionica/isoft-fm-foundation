@@ -61,11 +61,13 @@ class ISOFT_FMF_Settings_Service {
 				'isoft_fmf_rate_limit_per_hour'    => 'absint',
 				'isoft_fmf_block_user_agents'      => 'sanitize_textarea_field',
 				'isoft_fmf_hotlink_protection'     => 'absint',
+				'isoft_fmf_cache_friendly_links'   => 'absint',
 			),
 			'isoft_fmf_advanced'    => array(
 				'isoft_fmf_archive_slug'             => 'sanitize_title',
 				'isoft_fmf_category_slug'            => 'sanitize_title',
 				'isoft_fmf_tag_slug'                 => 'sanitize_title',
+				'isoft_fmf_public_api_enabled'       => 'absint',
 				'isoft_fmf_delete_data_on_uninstall' => 'absint',
 			),
 			'isoft_fmf_maintenance' => array(

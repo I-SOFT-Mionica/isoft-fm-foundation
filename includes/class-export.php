@@ -220,7 +220,10 @@ class ISOFT_FMF_Export {
 				'User Agent',
 				'Referer',
 				'Downloaded At',
-			)
+			),
+			',',
+			'"',
+			'\\'
 		);
 
 		foreach ( $rows as $row ) {
@@ -238,7 +241,10 @@ class ISOFT_FMF_Export {
 					$row->user_agent ?? '',
 					$row->referer ?? '',
 					$row->downloaded_at,
-				)
+				),
+				',',
+				'"',
+				'\\'
 			);
 		}
 

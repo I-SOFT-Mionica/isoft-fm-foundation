@@ -81,6 +81,8 @@ $options = array(
 	'isoft_fmf_enable_zip_cache',
 	'isoft_fmf_zip_cache_days',
 	'isoft_fmf_hotlink_protection',
+	'isoft_fmf_cache_friendly_links',
+	'isoft_fmf_public_api_enabled',
 	// Settings (files)
 	'isoft_fmf_allowed_extensions',
 	'isoft_fmf_cyrillic_titles',

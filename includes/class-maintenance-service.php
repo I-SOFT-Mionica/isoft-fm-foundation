@@ -117,7 +117,10 @@ class ISOFT_FMF_Maintenance_Service {
 		$out = fopen( 'php://temp', 'w+' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen,WordPress.WP.AlternativeFunctions.file_system_read_fopen -- php://temp is a memory stream, not filesystem I/O.
 		fputcsv(
 			$out,
-			array( 'download_id', 'file_id', 'license_id_at_download', 'downloaded_at', 'ip_address', 'user_id', 'user_login', 'user_agent' )
+			array( 'download_id', 'file_id', 'license_id_at_download', 'downloaded_at', 'ip_address', 'user_id', 'user_login', 'user_agent' ),
+			',',
+			'"',
+			'\\'
 		);
 		foreach ( $rows as $row ) {
 			fputcsv(
@@ -131,7 +134,10 @@ class ISOFT_FMF_Maintenance_Service {
 					$row->user_id ?? '',
 					$row->user_login ?? '',
 					$row->user_agent ?? '',
-				)
+				),
+				',',
+				'"',
+				'\\'
 			);
 		}
 		rewind( $out );

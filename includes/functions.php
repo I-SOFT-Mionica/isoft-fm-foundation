@@ -104,9 +104,14 @@ function isoft_fmf_render_category_icon( int $term_id ): void {
 	printf( '<span class="dashicons %s"></span>', esc_attr( $icon ) );
 }
 
-function isoft_fmf_get_settings(): array {
+/**
+ * Plugin settings, read once per request.
+ *
+ * @param bool $refresh Re-read the options (after a save in the same request, or in tests).
+ */
+function isoft_fmf_get_settings( bool $refresh = false ): array {
 	static $cached = null;
-	if ( null !== $cached ) {
+	if ( null !== $cached && ! $refresh ) {
 		return $cached;
 	}
 	$cached = array(
@@ -132,6 +137,8 @@ function isoft_fmf_get_settings(): array {
 		'serve_method'             => get_option( 'isoft_fmf_serve_method', 'auto' ),
 		'rate_limit_per_hour'      => (int) get_option( 'isoft_fmf_rate_limit_per_hour', 0 ),
 		'hotlink_protection'       => (bool) get_option( 'isoft_fmf_hotlink_protection', false ),
+		'cache_friendly_links'     => (bool) get_option( 'isoft_fmf_cache_friendly_links', false ),
+		'public_api_enabled'       => (bool) get_option( 'isoft_fmf_public_api_enabled', false ),
 		'archive_slug'             => get_option( 'isoft_fmf_archive_slug', 'downloads' ),
 		'category_slug'            => get_option( 'isoft_fmf_category_slug', 'download-category' ),
 		'tag_slug'                 => get_option( 'isoft_fmf_tag_slug', 'download-tag' ),
@@ -759,38 +766,62 @@ function isoft_fmf_allowed_html(): array {
 /**
  * Whether download links for a download must carry a nonce.
  *
- * Public downloads don't: anyone can load the page and get a fresh nonce,
- * so it protects nothing, while it breaks every cached copy of the page
- * (page-cache plugins, CDNs, static exports) once it expires. Abuse of
- * public files is handled by the rate limit, user-agent blocklist and
- * hotlink protection. Restricted and password-protected downloads keep
- * the nonce; the access check stays the real protection either way.
- *
- * Unknown downloads keep the nonce (fail closed).
+ * Always, unless the site owner turned on "Cache-friendly download links"
+ * (isoft_fmf_cache_friendly_links). With it on, public downloads drop the
+ * nonce: anyone can load the page and get a fresh one, so it protects
+ * nothing, while it breaks every cached copy of the page (page-cache
+ * plugins, CDNs, static exports) once it expires. Restricted and
+ * password-protected downloads always keep the nonce, and unknown ones
+ * fail closed; the access check stays the real protection either way.
  */
 function isoft_fmf_download_requires_nonce( int $download_id ): bool {
-	$public = $download_id > 0
-		&& 'isoft_fmf_file' === get_post_type( $download_id )
-		&& ! post_password_required( $download_id )
-		&& 'public' === ( new ISOFT_FMF_Access_Control() )->effective_role_for( $download_id );
+	$skip = false;
+	if ( get_option( 'isoft_fmf_cache_friendly_links', 0 ) && $download_id > 0 ) {
+		$skip = 'isoft_fmf_file' === get_post_type( $download_id )
+			&& 'publish' === get_post_status( $download_id )
+			&& ! post_password_required( $download_id )
+			&& 'public' === ( new ISOFT_FMF_Access_Control() )->effective_role_for( $download_id );
+	}
 
 	/**
 	 * Filters whether download / bundle links for a download need a nonce.
-	 * Return true to restore pre-0.13 behaviour (nonce on every link).
 	 *
-	 * @param bool $required    Default: false for public downloads, true otherwise.
-	 * @param int  $download_id Download post ID.
+	 * @param bool $required    Default: true, false only for public downloads while cache-friendly links are on.
+	 * @param int  $download_id Download post ID (0 when unknown).
 	 */
-	return (bool) apply_filters( 'isoft_fmf_download_requires_nonce', ! $public, $download_id );
+	return (bool) apply_filters( 'isoft_fmf_download_requires_nonce', ! $skip, $download_id );
 }
 
 /**
- * Build the download URL for a file. Nonce-protected unless the download
- * is public (see isoft_fmf_download_requires_nonce()).
+ * Per-IP downloads allowed per hour. The configured limit wins; while
+ * cache-friendly links are on and no limit is set, a conservative default
+ * applies so nonce-less links are not an open tap.
  */
-function isoft_fmf_get_download_url( int $file_id ): string {
-	$file        = ( new ISOFT_FMF_File_Manager() )->get_file( $file_id );
-	$download_id = $file ? (int) $file->download_id : 0;
+function isoft_fmf_effective_rate_limit(): int {
+	$limit = (int) get_option( 'isoft_fmf_rate_limit_per_hour', 0 );
+	if ( $limit <= 0 && get_option( 'isoft_fmf_cache_friendly_links', 0 ) ) {
+		/**
+		 * Filters the default hourly per-IP limit used while cache-friendly links are on.
+		 *
+		 * @param int $limit Downloads per IP per hour; 0 disables the default.
+		 */
+		$limit = (int) apply_filters( 'isoft_fmf_cache_friendly_default_rate_limit', 120 );
+	}
+	return max( 0, $limit );
+}
+
+/**
+ * Build the download URL for a file. Nonce-protected unless cache-friendly
+ * links are on and the download is public (see isoft_fmf_download_requires_nonce()).
+ *
+ * @param int $file_id     File ID.
+ * @param int $download_id Parent download ID when the caller already knows it; saves a lookup.
+ */
+function isoft_fmf_get_download_url( int $file_id, int $download_id = 0 ): string {
+	if ( $download_id <= 0 && get_option( 'isoft_fmf_cache_friendly_links', 0 ) ) {
+		$file        = ( new ISOFT_FMF_File_Manager() )->get_file( $file_id );
+		$download_id = $file ? (int) $file->download_id : 0;
+	}
 
 	$args = array( 'isoft_fmf_download' => $file_id );
 	if ( isoft_fmf_download_requires_nonce( $download_id ) ) {
@@ -801,8 +832,8 @@ function isoft_fmf_get_download_url( int $file_id ): string {
 
 /**
  * Build the URL that streams every local file attached to the given
- * download as a single ZIP archive. Nonce-protected unless the download
- * is public (see isoft_fmf_download_requires_nonce()).
+ * download as a single ZIP archive. Nonce-protected unless cache-friendly
+ * links are on and the download is public (see isoft_fmf_download_requires_nonce()).
  */
 function isoft_fmf_get_bundle_url( int $download_id ): string {
 	$args = array( 'isoft_fmf_bundle' => $download_id );
@@ -819,12 +850,15 @@ function isoft_fmf_get_bundle_url( int $download_id ): string {
  * time), the daily bucket for the download's own date, and the file and
  * download counters when counting is enabled.
  *
- * Callers are responsible for not reporting the same download twice;
- * there is no de-duplication here.
+ * Pass an `idempotency_key` in $context to make retries safe: a repeat
+ * report of the same file and key writes nothing, counts nothing and
+ * returns the original log row id. This needs logging enabled (the key
+ * lives on the log row); without a key, or with logging off, every call
+ * counts.
  *
  * @param int                  $file_id File ID (isoft_fmf_files row).
- * @param array<string, mixed> $context Optional: time, user_id, ip, user_agent, referer, source.
- *                                      See ISOFT_FMF_Download_Logger::log().
+ * @param array<string, mixed> $context Optional: time, user_id, ip, user_agent, referer, source,
+ *                                      license_id, idempotency_key. See ISOFT_FMF_Download_Logger::log().
  * @return int|null Log row ID; null when the file is unknown, logging is
  *                  disabled or the insert failed (counters still update).
  */
@@ -836,7 +870,22 @@ function isoft_fmf_record_download( int $file_id, array $context = array() ): ?i
 	}
 
 	$download_id = (int) $file->download_id;
-	$log_id      = ( new ISOFT_FMF_Download_Logger() )->log( $download_id, $file_id, $context );
+	$logger      = new ISOFT_FMF_Download_Logger();
+	$key         = ISOFT_FMF_Download_Logger::clean_key( $context['idempotency_key'] ?? null );
+
+	if ( null !== $key ) {
+		$existing = $logger->find_by_key( $file_id, $key );
+		if ( null !== $existing ) {
+			return $existing;
+		}
+	}
+
+	$log_id = $logger->log( $download_id, $file_id, $context );
+
+	// Lost a race against a concurrent report of the same key: the other call counted it.
+	if ( null === $log_id && null !== $key && null !== $logger->find_by_key( $file_id, $key ) ) {
+		return $logger->find_by_key( $file_id, $key );
+	}
 
 	if ( isoft_fmf_get_settings()['enable_counting'] ) {
 		$manager->increment_count( $file_id, $download_id );
@@ -854,17 +903,65 @@ function isoft_fmf_record_download( int $file_id, array $context = array() ): ?i
  * Download counters are deliberately not announced — they change on every
  * download and would turn into a rebuild per click.
  *
+ * Listeners should be cheap or debounce on their side: this can still fire
+ * for many objects in one request. Importers can wrap their work in
+ * isoft_fmf_suspend_content_changed() / isoft_fmf_resume_content_changed().
+ *
  * @param string $object_type 'download' (its files changed) or 'license'.
  * @param int    $object_id   Download post ID or license ID.
  */
 function isoft_fmf_content_changed( string $object_type, int $object_id ): void {
+	$state = &isoft_fmf_content_changed_state();
+
+	if ( $state['suspended'] > 0 ) {
+		$state['pending'] = true;
+		return;
+	}
+
 	/**
 	 * Fires when FMF content changed outside post / term saves.
 	 *
-	 * @param string $object_type 'download' or 'license'.
+	 * @param string $object_type 'download', 'license', or 'bulk' (object id 0) after a suspended batch.
 	 * @param int    $object_id   Download post ID or license ID.
 	 */
 	do_action( 'isoft_fmf_content_changed', $object_type, $object_id );
+}
+
+/**
+ * Request-scoped bookkeeping for isoft_fmf_content_changed().
+ *
+ * @return array{suspended:int,pending:bool}
+ */
+function &isoft_fmf_content_changed_state(): array {
+	static $state = array(
+		'suspended' => 0,
+		'pending'   => false,
+	);
+	return $state;
+}
+
+/**
+ * Hold back isoft_fmf_content_changed while a bulk operation runs (an
+ * import, a migration). Pair with isoft_fmf_resume_content_changed(), which
+ * fires a single ( 'bulk', 0 ) announcement if anything changed meanwhile,
+ * so a static-build or cache-purge listener reacts once instead of
+ * thousands of times. Calls nest.
+ */
+function isoft_fmf_suspend_content_changed(): void {
+	$state = &isoft_fmf_content_changed_state();
+	++$state['suspended'];
+}
+
+/**
+ * End a suspension started by isoft_fmf_suspend_content_changed().
+ */
+function isoft_fmf_resume_content_changed(): void {
+	$state = &isoft_fmf_content_changed_state();
+	if ( $state['suspended'] > 0 && 0 === --$state['suspended'] && $state['pending'] ) {
+		$state['pending'] = false;
+		/** This action is documented in isoft_fmf_content_changed(). */
+		do_action( 'isoft_fmf_content_changed', 'bulk', 0 );
+	}
 }
 
 /**

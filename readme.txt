@@ -294,13 +294,14 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 
 = 0.13.0 =
 
-**Headless readiness: works behind static sites, CDNs and page caches.**
+**Works behind static sites, CDNs and page caches.**
 
-* **Download links survive caching.** Links to public downloads no longer carry a security token that expires after a day, so pages cached by a caching plugin, a CDN or a static site keep working links. Restricted and password-protected downloads still use one. Developers can restore the old behaviour with the `isoft_fmf_download_requires_nonce` filter.
-* **Public read-only REST API** for headless sites and apps: `/isoft-fm-foundation/v1/public/downloads`, `/public/downloads/{id}` and `/public/categories`, filtered by the same access rules as your site. Restricted downloads stay invisible to visitors who may not see them, and server file paths are never exposed.
-* **Count downloads served elsewhere.** `isoft_fmf_record_download()` lets an edge server or CDN report downloads afterwards, so download counts, HOT badges and the license-at-download audit trail stay accurate.
-* **New `isoft_fmf_content_changed` hook** when files or licenses change, so static sites and caches know when to refresh.
+* **Optional cache-friendly download links.** Turn on **Settings > Security > Cache-friendly download links** and links to public downloads stop expiring, so pages kept by a caching plugin, a CDN or a static site keep working. Restricted and password-protected downloads are never affected. Off by default, so nothing changes until you choose it; a sensible download limit per visitor applies automatically while it is on.
+* **Optional public read-only REST API** for headless sites and apps. Turn it on under **Settings > Advanced**. Visitors only see what they could already see on your site, and server file paths are never exposed.
+* **Count downloads served elsewhere.** An edge server or CDN can report downloads afterwards, so download counts, HOT badges and the license-at-download record stay accurate, even when a report is retried.
+* **Better refresh signals.** Static sites and caches are told when files or licenses change, including after a broken-link repair, and bulk imports can announce themselves once instead of once per file.
 * **Non-Latin file names** (e.g. Cyrillic) now arrive intact when downloaded.
+* **External-link downloads are now counted** like any other download.
 * Tested up to WordPress 7.1.
 
 = 0.12.0 =
@@ -398,7 +399,7 @@ Existing data (downloads, categories, files, licenses, logs, per-user category p
 == Upgrade Notice ==
 
 = 0.13.0 =
-Public download links no longer expire on cached pages. New public REST API and hooks for headless sites, CDNs and page caches. No data changes.
+New optional cache-friendly download links and public REST API (both off until you enable them). Adds one column to the download log on update; no data is changed.
 
 = 0.11.0 =
 License inheritance from categories. Two new seeded licenses (Serbian PD, CC BY-SA 4.0). License chip on cards. Download log records its license. Click Restore seeded licenses on Downloads → Licenses. Known: assign one category per download — picker fix in next patch.

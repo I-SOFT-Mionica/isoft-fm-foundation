@@ -113,7 +113,7 @@ class ISOFT_FMF_Bundle_Handler {
 		}
 
 		// One bundle = one rate-limit hit, regardless of how many files it contains.
-		$rate_limit = (int) get_option( 'isoft_fmf_rate_limit_per_hour', 0 );
+		$rate_limit = isoft_fmf_effective_rate_limit();
 		if ( $rate_limit > 0 ) {
 			$ip_hash = 'isoft_fmf_rl_' . md5( isoft_fmf_client_ip() ?? 'unknown' );
 			$hits    = (int) get_transient( $ip_hash );

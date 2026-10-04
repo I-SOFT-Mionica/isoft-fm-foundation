@@ -53,6 +53,45 @@ class ISOFT_FMF_File_Manager {
 	}
 
 	/**
+	 * Load the files of many downloads in one query and warm the per-download
+	 * cache, so a listing that then calls get_files() for each one costs a
+	 * single query instead of one per download.
+	 *
+	 * @param int[] $download_ids Download post IDs.
+	 */
+	public function prime_files( array $download_ids ): void {
+		$missing = array();
+		foreach ( array_unique( array_map( 'intval', $download_ids ) ) as $id ) {
+			if ( $id > 0 && false === wp_cache_get( "files_for_download_{$id}", self::CACHE_GROUP ) ) {
+				$missing[] = $id;
+			}
+		}
+		if ( ! $missing ) {
+			return;
+		}
+
+		global $wpdb;
+		$placeholders = implode( ',', array_fill( 0, count( $missing ), '%d' ) );
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare,WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Custom table read, cached below via wp_cache_set(); placeholder list is generated from count().
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT * FROM %i WHERE download_id IN ({$placeholders}) ORDER BY sort_order ASC, id ASC",
+				$this->table,
+				...$missing
+			)
+		) ?: array();
+		// phpcs:enable
+
+		$grouped = array_fill_keys( $missing, array() );
+		foreach ( $rows as $row ) {
+			$grouped[ (int) $row->download_id ][] = $row;
+		}
+		foreach ( $grouped as $id => $files ) {
+			wp_cache_set( "files_for_download_{$id}", $files, self::CACHE_GROUP, HOUR_IN_SECONDS );
+		}
+	}
+
+	/**
 	 * Get a single file record.
 	 */
 	public function get_file( int $file_id ): ?object {

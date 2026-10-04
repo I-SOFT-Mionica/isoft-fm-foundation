@@ -21,9 +21,52 @@ class ISOFT_FMF_Rest_Public {
 
 	private const MAX_PER_PAGE = 100;
 
+	/** Seconds anonymous responses may be cached by browsers, CDNs and page caches. */
+	private const CACHE_TTL = 300;
+
+	private ?ISOFT_FMF_License_Resolver $resolver     = null;
+	private ?ISOFT_FMF_Access_Control $access_control = null;
+	private ?ISOFT_FMF_File_Manager $file_manager     = null;
+
+	/**
+	 * Whether the public API is switched on (Settings -> Advanced). Off by
+	 * default so installs that update to this version gain no new surface.
+	 */
+	public static function is_enabled(): bool {
+		/**
+		 * Filters whether the public read-only REST API is available.
+		 *
+		 * @param bool $enabled Value of the "Enable the public read-only REST API" setting.
+		 */
+		return (bool) apply_filters( 'isoft_fmf_public_api_enabled', (bool) get_option( 'isoft_fmf_public_api_enabled', 0 ) );
+	}
+
+	private function access(): ISOFT_FMF_Access_Control {
+		return $this->access_control ??= new ISOFT_FMF_Access_Control();
+	}
+
+	private function files(): ISOFT_FMF_File_Manager {
+		return $this->file_manager ??= new ISOFT_FMF_File_Manager();
+	}
+
+	private function resolver(): ISOFT_FMF_License_Resolver {
+		return $this->resolver ??= new ISOFT_FMF_License_Resolver();
+	}
+
 	private const ORDERBY = array( 'date', 'modified', 'title', 'menu_order', 'downloads' );
 
 	public function register_routes(): void {
+		if ( ! self::is_enabled() ) {
+			return;
+		}
+
+		/**
+		 * Filters the largest page size the public downloads endpoint accepts.
+		 *
+		 * @param int $max Default 100.
+		 */
+		$max_per_page = max( 1, (int) apply_filters( 'isoft_fmf_public_api_max_per_page', self::MAX_PER_PAGE ) );
+
 		register_rest_route(
 			self::NS,
 			'/public/downloads',
@@ -31,6 +74,7 @@ class ISOFT_FMF_Rest_Public {
 				'methods'             => WP_REST_Server::READABLE,
 				'callback'            => array( $this, 'list_downloads' ),
 				'permission_callback' => '__return_true',
+				'schema'              => array( $this, 'download_collection_schema' ),
 				'args'                => array(
 					'category'              => array(
 						'type'    => 'integer',
@@ -60,7 +104,7 @@ class ISOFT_FMF_Rest_Public {
 						'type'    => 'integer',
 						'default' => 20,
 						'minimum' => 1,
-						'maximum' => self::MAX_PER_PAGE,
+						'maximum' => $max_per_page,
 					),
 					'orderby'               => array(
 						'type'    => 'string',
@@ -83,6 +127,7 @@ class ISOFT_FMF_Rest_Public {
 				'methods'             => WP_REST_Server::READABLE,
 				'callback'            => array( $this, 'get_download' ),
 				'permission_callback' => '__return_true',
+				'schema'              => array( $this, 'download_schema' ),
 				'args'                => array(
 					'id' => array(
 						'type'    => 'integer',
@@ -99,6 +144,7 @@ class ISOFT_FMF_Rest_Public {
 				'methods'             => WP_REST_Server::READABLE,
 				'callback'            => array( $this, 'list_categories' ),
 				'permission_callback' => '__return_true',
+				'schema'              => array( $this, 'category_collection_schema' ),
 			)
 		);
 	}
@@ -152,11 +198,14 @@ class ISOFT_FMF_Rest_Public {
 		 * pre_get_posts hook (REST is a frontend context), so totals and
 		 * pagination are right. The per-item check below is defence in depth.
 		 */
-		$query  = new WP_Query( $args );
-		$access = new ISOFT_FMF_Access_Control();
-		$items  = array();
+		$query = new WP_Query( $args );
+
+		// One query for every file row on the page instead of one per download.
+		$this->files()->prime_files( wp_list_pluck( $query->posts, 'ID' ) );
+
+		$items = array();
 		foreach ( $query->posts as $post ) {
-			if ( $access->can_access_download( (int) $post->ID ) ) {
+			if ( $this->access()->can_access_download( (int) $post->ID ) ) {
 				$items[] = $this->shape_download( $post );
 			}
 		}
@@ -164,7 +213,7 @@ class ISOFT_FMF_Rest_Public {
 		$response = new WP_REST_Response( $items );
 		$response->header( 'X-WP-Total', (string) (int) $query->found_posts );
 		$response->header( 'X-WP-TotalPages', (string) (int) $query->max_num_pages );
-		return $response;
+		return $this->with_cache_headers( $response );
 	}
 
 	/**
@@ -177,13 +226,40 @@ class ISOFT_FMF_Rest_Public {
 			|| 'isoft_fmf_file' !== $post->post_type
 			|| 'publish' !== $post->post_status
 			|| post_password_required( $post )
-			|| ! ( new ISOFT_FMF_Access_Control() )->can_access_download( (int) $post->ID )
+			|| ! $this->access()->can_access_download( (int) $post->ID )
 		) {
 			// Same answer for "missing" and "not allowed": nothing to probe.
 			return new WP_Error( 'isoft_fmf_not_found', __( 'Download not found.', 'isoft-fm-foundation' ), array( 'status' => 404 ) );
 		}
 
-		return new WP_REST_Response( $this->shape_download( $post ) );
+		return $this->with_cache_headers( new WP_REST_Response( $this->shape_download( $post ) ), get_post_modified_time( 'U', true, $post ) );
+	}
+
+	/**
+	 * Cache policy. What a visitor may see depends on who they are, so only
+	 * anonymous responses are shareable; anything tied to a login is private.
+	 *
+	 * @param WP_REST_Response $response      Response to annotate.
+	 * @param int|false        $last_modified Unix time of the newest content in the response, if known.
+	 */
+	private function with_cache_headers( WP_REST_Response $response, $last_modified = false ): WP_REST_Response {
+		/**
+		 * Filters how long (seconds) anonymous public-API responses may be cached. 0 disables caching.
+		 *
+		 * @param int $ttl Default 300.
+		 */
+		$ttl = max( 0, (int) apply_filters( 'isoft_fmf_public_api_cache_ttl', self::CACHE_TTL ) );
+
+		if ( is_user_logged_in() || 0 === $ttl ) {
+			$response->header( 'Cache-Control', 'private, no-store' );
+		} else {
+			$response->header( 'Cache-Control', 'public, max-age=' . $ttl );
+			if ( $last_modified ) {
+				$response->header( 'Last-Modified', gmdate( 'D, d M Y H:i:s', (int) $last_modified ) . ' GMT' );
+			}
+		}
+		$response->header( 'Vary', 'Cookie, Authorization' );
+		return $response;
 	}
 
 	public function list_categories(): WP_REST_Response {
@@ -197,14 +273,25 @@ class ISOFT_FMF_Rest_Public {
 			return new WP_REST_Response( array() );
 		}
 
-		$access = new ISOFT_FMF_Access_Control();
-		$items  = array();
+		$by_id = array();
 		foreach ( $terms as $term ) {
-			$role = (string) get_term_meta( $term->term_id, '_isoft_fmf_cat_access_role', true );
-			if ( '' !== $role && ! $access->user_meets_role( $role ) ) {
+			$by_id[ (int) $term->term_id ] = $term;
+		}
+
+		/**
+		 * Filters whether the public API lists a folder path (slug chain) per category.
+		 * Off by default: it describes how the site organises its files.
+		 *
+		 * @param bool $include Default false.
+		 */
+		$include_folder = (bool) apply_filters( 'isoft_fmf_public_api_include_folder', false );
+
+		$items = array();
+		foreach ( $terms as $term ) {
+			if ( ! $this->category_visible( $term, $by_id ) ) {
 				continue;
 			}
-			$items[] = array(
+			$item = array(
 				'id'          => (int) $term->term_id,
 				'name'        => $term->name,
 				'slug'        => $term->slug,
@@ -212,15 +299,48 @@ class ISOFT_FMF_Rest_Public {
 				'description' => $term->description,
 				'icon'        => (string) get_term_meta( $term->term_id, '_isoft_fmf_cat_icon', true ),
 				'sort_order'  => (int) get_term_meta( $term->term_id, '_isoft_fmf_cat_sort_order', true ),
-				'folder'      => isoft_fmf_category_folder_path( (int) $term->term_id ),
 			);
+			if ( $include_folder ) {
+				$item['folder'] = isoft_fmf_category_folder_path( (int) $term->term_id );
+			}
+			$items[] = $item;
 		}
 
 		/*
 		 * Post counts are left out on purpose: WordPress counts include
 		 * restricted downloads, which would leak their existence.
 		 */
-		return new WP_REST_Response( $items );
+		return $this->with_cache_headers( new WP_REST_Response( $items ) );
+	}
+
+	/**
+	 * A category is listed when the requesting user meets its access role and
+	 * so does every ancestor; a child of a hidden parent would otherwise
+	 * point at a category the client cannot see.
+	 *
+	 * @param WP_Term             $term  Category.
+	 * @param array<int, WP_Term> $by_id All categories keyed by ID.
+	 */
+	private function category_visible( WP_Term $term, array $by_id ): bool {
+		$visible = true;
+		$node    = $term;
+		$guard   = 0;
+		while ( $node && $guard++ < 50 ) {
+			$role = (string) get_term_meta( $node->term_id, '_isoft_fmf_cat_access_role', true );
+			if ( '' !== $role && ! $this->access()->user_meets_role( $role ) ) {
+				$visible = false;
+				break;
+			}
+			$node = $node->parent ? ( $by_id[ (int) $node->parent ] ?? null ) : null;
+		}
+
+		/**
+		 * Filters whether a category is listed by the public API.
+		 *
+		 * @param bool    $visible Result of the built-in access-role check.
+		 * @param WP_Term $term    Category.
+		 */
+		return (bool) apply_filters( 'isoft_fmf_public_category_visible', $visible, $term );
 	}
 
 	/**
@@ -230,10 +350,10 @@ class ISOFT_FMF_Rest_Public {
 	 */
 	private function shape_download( WP_Post $post ): array {
 		$id      = (int) $post->ID;
-		$license = ( new ISOFT_FMF_License_Resolver() )->effective_license_row_for( $id );
+		$license = $this->resolver()->effective_license_row_for( $id );
 
 		$files = array();
-		foreach ( ( new ISOFT_FMF_File_Manager() )->get_files( $id ) as $file ) {
+		foreach ( $this->files()->get_files( $id ) as $file ) {
 			$external = 'external' === $file->file_type;
 			$files[]  = array(
 				'id'           => (int) $file->id,
@@ -245,7 +365,7 @@ class ISOFT_FMF_Rest_Public {
 				'mime'         => $external ? null : (string) $file->file_mime,
 				'sha256'       => $external || '' === (string) $file->file_hash ? null : (string) $file->file_hash,
 				'url'          => $external ? esc_url_raw( (string) $file->external_url ) : null,
-				'download_url' => isoft_fmf_get_download_url( (int) $file->id ),
+				'download_url' => isoft_fmf_get_download_url( (int) $file->id, $id ),
 				'mirror'       => (bool) $file->is_mirror,
 				'missing'      => (bool) $file->is_missing,
 				'count'        => (int) $file->download_count,
@@ -299,7 +419,7 @@ class ISOFT_FMF_Rest_Public {
 			'author_url'     => esc_url_raw( (string) get_post_meta( $id, '_isoft_fmf_author_url', true ) ),
 			'date_published' => (string) get_post_meta( $id, '_isoft_fmf_date_published', true ),
 			'download_count' => (int) get_post_meta( $id, '_isoft_fmf_download_count', true ),
-			'access'         => ( new ISOFT_FMF_Access_Control() )->effective_role_for( $id ),
+			'access'         => $this->access()->effective_role_for( $id ),
 			'license'        => $license ? array(
 				'id'          => (int) $license->id,
 				'title'       => (string) $license->title,
@@ -313,6 +433,111 @@ class ISOFT_FMF_Rest_Public {
 				&& get_option( 'isoft_fmf_enable_zip_bundle', 0 )
 				? isoft_fmf_get_bundle_url( $id )
 				: null,
+		);
+	}
+
+	/**
+	 * JSON Schema of one download as returned by this API.
+	 *
+	 * @return array<string, mixed>
+	 */
+	public function download_schema(): array {
+		$terms = array(
+			'type'  => 'array',
+			'items' => array(
+				'type'       => 'object',
+				'properties' => array(
+					'id'   => array( 'type' => 'integer' ),
+					'name' => array( 'type' => 'string' ),
+					'slug' => array( 'type' => 'string' ),
+				),
+			),
+		);
+		return array(
+			'$schema'    => 'http://json-schema.org/draft-04/schema#',
+			'title'      => 'isoft-fmf-download',
+			'type'       => 'object',
+			'properties' => array(
+				'id'             => array( 'type' => 'integer' ),
+				'title'          => array( 'type' => 'string' ),
+				'slug'           => array( 'type' => 'string' ),
+				'excerpt'        => array( 'type' => 'string' ),
+				'content'        => array(
+					'type'        => 'string',
+					'description' => 'Rendered HTML.',
+				),
+				'date'           => array(
+					'type'   => 'string',
+					'format' => 'date-time',
+				),
+				'modified'       => array(
+					'type'   => 'string',
+					'format' => 'date-time',
+				),
+				'link'           => array(
+					'type'   => 'string',
+					'format' => 'uri',
+				),
+				'categories'     => $terms,
+				'tags'           => $terms,
+				'featured'       => array( 'type' => 'boolean' ),
+				'hot'            => array( 'type' => 'boolean' ),
+				'version'        => array( 'type' => 'string' ),
+				'author_name'    => array( 'type' => 'string' ),
+				'author_url'     => array( 'type' => 'string' ),
+				'date_published' => array( 'type' => 'string' ),
+				'download_count' => array( 'type' => 'integer' ),
+				'access'         => array(
+					'type'        => 'string',
+					'description' => 'Role required to download.',
+				),
+				'license'        => array( 'type' => array( 'object', 'null' ) ),
+				'thumbnail'      => array( 'type' => array( 'object', 'null' ) ),
+				'files'          => array(
+					'type'  => 'array',
+					'items' => array( 'type' => 'object' ),
+				),
+				'bundle_url'     => array( 'type' => array( 'string', 'null' ) ),
+			),
+		);
+	}
+
+	/**
+	 * JSON Schema of the downloads collection.
+	 *
+	 * @return array<string, mixed>
+	 */
+	public function download_collection_schema(): array {
+		return array(
+			'$schema' => 'http://json-schema.org/draft-04/schema#',
+			'title'   => 'isoft-fmf-downloads',
+			'type'    => 'array',
+			'items'   => $this->download_schema(),
+		);
+	}
+
+	/**
+	 * JSON Schema of the categories collection.
+	 *
+	 * @return array<string, mixed>
+	 */
+	public function category_collection_schema(): array {
+		return array(
+			'$schema' => 'http://json-schema.org/draft-04/schema#',
+			'title'   => 'isoft-fmf-categories',
+			'type'    => 'array',
+			'items'   => array(
+				'type'       => 'object',
+				'properties' => array(
+					'id'          => array( 'type' => 'integer' ),
+					'name'        => array( 'type' => 'string' ),
+					'slug'        => array( 'type' => 'string' ),
+					'parent'      => array( 'type' => 'integer' ),
+					'description' => array( 'type' => 'string' ),
+					'icon'        => array( 'type' => 'string' ),
+					'sort_order'  => array( 'type' => 'integer' ),
+				),
+			),
 		);
 	}
 }

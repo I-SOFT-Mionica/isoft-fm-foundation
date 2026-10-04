@@ -202,5 +202,6 @@ add_action(
 		( new ISOFT_FMF_Rest_Maintenance() )->register_routes();
 		( new ISOFT_FMF_Rest_Users() )->register_routes();
 		( new ISOFT_FMF_Rest_Public() )->register_routes();
+		( new ISOFT_FMF_Rest_Record() )->register_routes();
 	}
 );

@@ -22,7 +22,9 @@ class ISOFT_FMF_Download_Logger {
 	 * - ip         (string|null)  Client IP. Default: this request's.
 	 * - user_agent (string|null)  Client user agent. Default: this request's.
 	 * - referer    (string|null)  Referring URL. Default: this request's.
-	 * - source     (string)       Where the file was served, e.g. 'edge'. Default: 'handler' (FMF's own download handler).
+	 * - source     (string)       Where the file was served, e.g. 'edge'. Lowercase letters, digits, '_' and '-', up to 32. Default: 'handler' (FMF's own download handler).
+	 * - license_id (int)          License that governed the download when it happened. Default: the license in force now.
+	 * - idempotency_key (string)  Caller's id for this download (up to 64 of A-Z a-z 0-9 . _ : -). A second log() for the same file and key writes nothing and returns the first row's id.
 	 *
 	 * ip / user_agent / referer are stored only when detailed logging is on.
 	 * Passing a key with null stores NULL instead of falling back to the
@@ -40,13 +42,17 @@ class ISOFT_FMF_Download_Logger {
 			return null;
 		}
 
-		$context = wp_parse_args(
-			$context,
-			array(
-				'time'   => time(),
-				'source' => 'handler',
-			)
-		);
+		$context           = wp_parse_args( $context, array( 'source' => 'handler' ) );
+		$context['time']   = self::clean_time( $context['time'] ?? null );
+		$context['source'] = self::clean_source( $context['source'] );
+		$idempotency_key   = self::clean_key( $context['idempotency_key'] ?? null );
+
+		if ( null !== $idempotency_key ) {
+			$existing = $this->find_by_key( $file_id, $idempotency_key );
+			if ( null !== $existing ) {
+				return $existing;
+			}
+		}
 
 		$user = array_key_exists( 'user_id', $context )
 			? ( get_userdata( absint( $context['user_id'] ) ) ?: new WP_User() )
@@ -60,7 +66,9 @@ class ISOFT_FMF_Download_Logger {
 		// load-bearing legal trail — a license change later doesn't strip
 		// what governed THIS specific download. Resolver returns 0 when there
 		// is no effective license (download has none and category has none).
-		$license_id_at_download = ( new ISOFT_FMF_License_Resolver() )->effective_license_for( $download_id );
+		$license_id_at_download = isset( $context['license_id'] )
+			? absint( $context['license_id'] )
+			: ( new ISOFT_FMF_License_Resolver() )->effective_license_for( $download_id );
 
 		$data   = array(
 			'download_id'            => $download_id,
@@ -72,6 +80,11 @@ class ISOFT_FMF_Download_Logger {
 			'log_date'               => $today,
 		);
 		$format = array( '%d', '%d', '%d', '%s', '%d', '%s', '%s' );
+
+		if ( null !== $idempotency_key ) {
+			$data['idempotency_key'] = $idempotency_key;
+			$format[]                = '%s';
+		}
 
 		// PII fields — only when detailed logging is explicitly enabled
 		if ( $settings['enable_detailed_logging'] ) {
@@ -197,6 +210,50 @@ class ISOFT_FMF_Download_Logger {
 	 * reasonable number of iterations.
 	 */
 	private const BATCH_SIZE = 5000;
+
+	/**
+	 * Log row id previously written for a file with this idempotency key.
+	 */
+	public function find_by_key( int $file_id, string $key ): ?int {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Idempotency probe on the write path; must never be cached.
+		$id = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE file_id = %d AND idempotency_key = %s LIMIT 1', $this->table, $file_id, $key ) );
+		return null === $id ? null : (int) $id;
+	}
+
+	/**
+	 * A caller-supplied timestamp, or now when it is missing, not numeric,
+	 * not positive or (beyond a few minutes of clock skew) in the future.
+	 *
+	 * @param mixed $time Value from the log() context.
+	 */
+	private static function clean_time( $time ): int {
+		$now = time();
+		if ( ! is_numeric( $time ) ) {
+			return $now;
+		}
+		$time = (int) $time;
+		return ( $time > 0 && $time <= $now + 300 ) ? min( $time, $now ) : $now;
+	}
+
+	/**
+	 * A source label limited to [a-z0-9_-], up to 32 characters; 'handler' when empty.
+	 *
+	 * @param mixed $source Value from the log() context.
+	 */
+	private static function clean_source( $source ): string {
+		$source = is_string( $source ) ? substr( sanitize_key( $source ), 0, 32 ) : '';
+		return '' === $source ? 'handler' : $source;
+	}
+
+	/**
+	 * An idempotency key of up to 64 safe characters, or null.
+	 *
+	 * @param mixed $key Value from the log() context.
+	 */
+	public static function clean_key( $key ): ?string {
+		return is_string( $key ) && 1 === preg_match( '/^[A-Za-z0-9._:-]{1,64}$/', $key ) ? $key : null;
+	}
 
 	/**
 	 * A caller-supplied IP, or null when it is not a valid address.

@@ -296,7 +296,7 @@ $use_summary  = $is_multi && ! $expand_files;
 				<div id="<?php echo esc_attr( $hidden_id ); ?>" class="isoft-fmf-agree-content" hidden>
 					<?php echo wp_kses_post( $agree_text ); ?>
 				</div>
-				<a href="<?php echo esc_url( isoft_fmf_get_download_url( (int) $file->id ) ); ?>"
+				<a href="<?php echo esc_url( isoft_fmf_get_download_url( (int) $file->id, (int) $post->ID ) ); ?>"
 					class="wp-element-button isoft-fmf-download-btn isoft-fmf-requires-agree"
 					data-agree-content="#<?php echo esc_attr( $hidden_id ); ?>"
 					data-agree-title="<?php echo $license ? esc_attr( $license->title ) : esc_attr( get_the_title( $post->ID ) ); ?>">
@@ -319,7 +319,7 @@ $use_summary  = $is_multi && ! $expand_files;
 						$ext_attrs = ' download rel="nofollow"';
 					}
 					?>
-				<a href="<?php echo esc_url( isoft_fmf_get_download_url( (int) $file->id ) ); ?>"
+				<a href="<?php echo esc_url( isoft_fmf_get_download_url( (int) $file->id, (int) $post->ID ) ); ?>"
 					class="wp-element-button isoft-fmf-download-btn"<?php echo $ext_attrs; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static whitelisted attribute set. ?>>
 					<?php echo esc_html( $btn_text ); ?>
 				</a>

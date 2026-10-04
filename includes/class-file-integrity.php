@@ -193,6 +193,7 @@ class ISOFT_FMF_File_Integrity {
 				array( '%d' )
 			);
 			ISOFT_FMF_File_Manager::bust_cache_for( $download_id, (int) $file->id );
+			isoft_fmf_content_changed( 'download', $download_id );
 			delete_transient( 'isoft_fmf_missing_count' );
 		}
 
@@ -505,6 +506,7 @@ class ISOFT_FMF_File_Integrity {
 				array( '%d' )
 			);
 			ISOFT_FMF_File_Manager::bust_cache_for( (int) $file->download_id, (int) $file->id );
+			isoft_fmf_content_changed( 'download', (int) $file->download_id );
 			return true;
 		}
 
@@ -527,6 +529,7 @@ class ISOFT_FMF_File_Integrity {
 
 		$download_id = (int) $file->download_id;
 		ISOFT_FMF_File_Manager::bust_cache_for( $download_id, (int) $file->id );
+		isoft_fmf_content_changed( 'download', $download_id );
 		delete_transient( 'isoft_fmf_missing_count' );
 		$this->maybe_republish( $download_id );
 	}
@@ -679,6 +682,7 @@ class ISOFT_FMF_File_Integrity {
 				array( '%d' )
 			);
 			ISOFT_FMF_File_Manager::bust_cache_for( (int) $file->download_id, (int) $file->id );
+			isoft_fmf_content_changed( 'download', (int) $file->download_id );
 			return true;
 		}
 

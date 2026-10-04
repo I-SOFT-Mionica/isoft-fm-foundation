@@ -200,6 +200,13 @@ const TAB_SCHEMAS = {
 			default: 0,
 		},
 		{
+			key:     'isoft_fmf_cache_friendly_links',
+			label:   __( 'Cache-friendly download links for public files', 'isoft-fm-foundation' ),
+			type:    'toggle',
+			help:    __( 'Public download links stop expiring, so pages kept by a page cache, a CDN or a static export keep working. Restricted and password-protected downloads are not affected. Because anyone can then open a public link directly, pair this with a rate limit; one is applied automatically while this is on and no limit is set.', 'isoft-fm-foundation' ),
+			default: 0,
+		},
+		{
 			key:         'isoft_fmf_block_user_agents',
 			label:       __( 'User-Agent Blocklist', 'isoft-fm-foundation' ),
 			type:        'textarea',
@@ -227,6 +234,13 @@ const TAB_SCHEMAS = {
 			label:   __( 'Tag Archive Slug', 'isoft-fm-foundation' ),
 			type:    'text',
 			default: 'download-tag',
+		},
+		{
+			key:     'isoft_fmf_public_api_enabled',
+			label:   __( 'Enable the public read-only REST API', 'isoft-fm-foundation' ),
+			type:    'toggle',
+			help:    __( 'Lets a headless site, static build or app read downloads and categories at /wp-json/isoft-fm-foundation/v1/public/. Visitors only see what they could already see on the site.', 'isoft-fm-foundation' ),
+			default: 0,
 		},
 		{
 			key:     'isoft_fmf_delete_data_on_uninstall',

@@ -77,4 +77,40 @@ class ContentChangedTest extends WP_UnitTestCase {
 
 		$this->assertSame( array_fill( 0, 3, array( 'license', $id ) ), $this->events );
 	}
+
+	public function test_suspend_holds_events_and_resume_fires_one_bulk_event(): void {
+		isoft_fmf_suspend_content_changed();
+		$this->add_link();
+		$this->add_link();
+		$this->assertSame( array(), $this->events );
+
+		isoft_fmf_resume_content_changed();
+
+		$this->assertSame( array( array( 'bulk', 0 ) ), $this->events );
+	}
+
+	public function test_resume_without_changes_fires_nothing_and_suspends_nest(): void {
+		isoft_fmf_suspend_content_changed();
+		isoft_fmf_suspend_content_changed();
+		isoft_fmf_content_changed( 'license', 4 );
+		isoft_fmf_resume_content_changed();
+		$this->assertSame( array(), $this->events );
+
+		isoft_fmf_resume_content_changed();
+		$this->assertSame( array( array( 'bulk', 0 ) ), $this->events );
+
+		$this->events = array();
+		isoft_fmf_suspend_content_changed();
+		isoft_fmf_resume_content_changed();
+		$this->assertSame( array(), $this->events );
+	}
+
+	public function test_events_fire_again_after_resume(): void {
+		isoft_fmf_suspend_content_changed();
+		isoft_fmf_resume_content_changed();
+
+		$this->add_link();
+
+		$this->assertSame( array( array( 'download', $this->download_id ) ), $this->events );
+	}
 }
