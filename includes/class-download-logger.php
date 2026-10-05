@@ -274,19 +274,6 @@ class ISOFT_FMF_Download_Logger {
 	}
 
 	private function client_ip(): ?string {
-		foreach ( array( 'HTTP_CF_CONNECTING_IP', 'HTTP_X_FORWARDED_FOR', 'HTTP_X_REAL_IP', 'REMOTE_ADDR' ) as $header ) {
-			if ( empty( $_SERVER[ $header ] ) ) {
-				continue;
-			}
-			$ip = sanitize_text_field( wp_unslash( $_SERVER[ $header ] ) );
-			// X-Forwarded-For may be a comma-separated list; take the first.
-			if ( str_contains( $ip, ',' ) ) {
-				$ip = trim( explode( ',', $ip )[0] );
-			}
-			if ( filter_var( $ip, FILTER_VALIDATE_IP ) ) {
-				return $ip;
-			}
-		}
-		return null;
+		return isoft_fmf_client_ip();
 	}
 }

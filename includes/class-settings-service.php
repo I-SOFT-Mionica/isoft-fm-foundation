@@ -63,6 +63,9 @@ class ISOFT_FMF_Settings_Service {
 				'isoft_fmf_hotlink_protection'        => 'absint',
 				'isoft_fmf_cache_friendly_links'      => 'absint',
 				'isoft_fmf_cache_friendly_rate_limit' => 'absint',
+				'isoft_fmf_client_ip_mode'            => array( 'ISOFT_FMF_Client_Ip', 'sanitize_mode' ),
+				'isoft_fmf_trusted_proxies'           => array( 'ISOFT_FMF_Client_Ip', 'sanitize_proxy_list' ),
+				'isoft_fmf_cloudflare_ranges_refresh' => 'absint',
 			),
 			'isoft_fmf_advanced'    => array(
 				'isoft_fmf_archive_slug'             => 'sanitize_title',

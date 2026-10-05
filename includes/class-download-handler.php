@@ -75,7 +75,7 @@ class ISOFT_FMF_Download_Handler {
 		// Rate limit — per-IP throttle using short-lived transients.
 		$rate_limit = isoft_fmf_effective_rate_limit();
 		if ( $rate_limit > 0 ) {
-			$ip_hash = 'isoft_fmf_rl_' . md5( isoft_fmf_client_ip() ?? 'unknown' );
+			$ip_hash = 'isoft_fmf_rl_' . md5( ISOFT_FMF_Client_Ip::bucket( isoft_fmf_client_ip() ) );
 			$hits    = (int) get_transient( $ip_hash );
 			if ( $hits >= $rate_limit ) {
 				do_action( 'isoft_fmf_rate_limit_exceeded', isoft_fmf_client_ip(), $rate_limit );

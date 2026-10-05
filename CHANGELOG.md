@@ -2,6 +2,15 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [Unreleased]
+
+### Security
+
+- **Visitor IP addresses can no longer be faked.** `isoft_fmf_client_ip()` used to believe `CF-Connecting-IP`, `X-Forwarded-For` and `X-Real-IP` from anyone, so the per-IP download limit could be dodged, or another visitor's allowance used up, by sending a made-up header. A forwarding header is now believed only when the connection itself comes from a proxy the site trusts. New setting **Client IP source** (Settings > Security): *Direct connection*, *Cloudflare* (`CF-Connecting-IP`, only when the connection comes from a Cloudflare address), *Other reverse proxy* (`X-Forwarded-For` read right to left past the **Trusted proxies** you list), or *Trust every header* (the old behaviour). New installs start on Cloudflare when the activating request demonstrably came through it, otherwise on Direct. Existing sites keep the old behaviour until the owner chooses; an admin notice on the dashboard, Plugins and Downloads screens explains why and offers a one-click switch to the mode this request suggests.
+- The Cloudflare address list ships with the plugin, so no request is made at runtime. An opt-in setting refreshes it from cloudflare.com about once a week; a response that does not parse cleanly is discarded.
+- IPv6 visitors are rate-limited per /64 (the block one visitor controls), so rotating through addresses does not dodge the limit. IPv4 is unchanged.
+- The download log and the rate limiter now share one resolver (`ISOFT_FMF_Client_Ip`); the new `isoft_fmf_client_ip` filter lets hosts with another proxy setup adjust the result.
+
 ## [0.13.0] — 2026-10-04
 
 Headless readiness. Foundation can now sit behind a headless or statically generated frontend, a CDN, or a full-page cache without losing working download links, download counts, or the license audit trail. Everything is opt-in or additive; an existing site behaves exactly as before after updating.
