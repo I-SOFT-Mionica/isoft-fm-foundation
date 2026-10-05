@@ -1040,22 +1040,11 @@ function isoft_fmf_user_agent_blocked(): bool {
 }
 
 /**
- * Best-effort client IP — checks reverse-proxy headers (Cloudflare,
- * generic X-Forwarded-For, etc.) before falling back to REMOTE_ADDR.
- * Returns null if no header parses as a valid IP.
+ * The visitor's IP address. Forwarding headers (Cloudflare, X-Forwarded-For)
+ * are believed only when the connection comes from a proxy the site trusts;
+ * see ISOFT_FMF_Client_Ip and Settings > Security > Client IP source.
+ * Returns null if no valid address is found.
  */
 function isoft_fmf_client_ip(): ?string {
-	foreach ( array( 'HTTP_CF_CONNECTING_IP', 'HTTP_X_FORWARDED_FOR', 'HTTP_X_REAL_IP', 'REMOTE_ADDR' ) as $header ) {
-		if ( empty( $_SERVER[ $header ] ) ) {
-			continue;
-		}
-		$ip = sanitize_text_field( wp_unslash( $_SERVER[ $header ] ) );
-		if ( str_contains( $ip, ',' ) ) {
-			$ip = trim( explode( ',', $ip )[0] );
-		}
-		if ( filter_var( $ip, FILTER_VALIDATE_IP ) ) {
-			return $ip;
-		}
-	}
-	return null;
+	return ISOFT_FMF_Client_Ip::resolve();
 }

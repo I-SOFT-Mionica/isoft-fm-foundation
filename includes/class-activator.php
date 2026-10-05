@@ -43,6 +43,14 @@ class ISOFT_FMF_Activator {
 		self::create_file_storage();
 		self::run_migrations( $from_version );
 
+		// New installs start safe: believe Cloudflare's header only when this
+		// request demonstrably came through Cloudflare, otherwise the direct
+		// connection. Existing installs keep their behaviour until the owner
+		// chooses (see ISOFT_FMF_Client_Ip_Notice).
+		if ( version_compare( $from_version, '0.0.1', '<' ) ) {
+			add_option( ISOFT_FMF_Client_Ip::OPTION_MODE, ISOFT_FMF_Client_Ip::detect(), '', false );
+		}
+
 		// Can't flush here — the 'isoft_fmf_file' CPT isn't registered yet at activation-hook time
 		// (plugins_loaded hasn't fired). Set a flag; ISOFT_FMF_Post_Type::register() will flush
 		// on the very next request after the CPT is in place.

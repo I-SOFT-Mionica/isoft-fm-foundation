@@ -54,6 +54,7 @@ class ISOFT_FMF_Cron {
 		$this->recalculate_hot();
 		$this->purge_daily_old();
 		( new ISOFT_FMF_Download_Logger() )->purge_old_logs();
+		ISOFT_FMF_Client_Ip::maybe_refresh_ranges();
 
 		do_action( 'isoft_fmf_daily_cron_complete' );
 	}

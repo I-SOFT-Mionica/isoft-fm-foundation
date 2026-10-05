@@ -149,6 +149,7 @@ add_action(
 		( new ISOFT_FMF_Cron() )->register_hooks();
 
 		if ( is_admin() ) {
+			( new ISOFT_FMF_Client_Ip_Notice() )->register_hooks();
 			( new ISOFT_FMF_Admin_Meta_Boxes() )->register_hooks();
 			( new ISOFT_FMF_Admin_Columns() )->register_hooks();
 			// License_Manager registers its admin submenu on
