@@ -73,9 +73,12 @@ class ISOFT_FMF_Bundle_Handler {
 			wp_die( esc_html__( 'ZIP bundle support requires the PHP zip extension, which is not installed on this server.', 'isoft-fm-foundation' ), 500 );
 		}
 
-		$nonce = isset( $_GET['nonce'] ) ? sanitize_text_field( wp_unslash( $_GET['nonce'] ) ) : '';
-		if ( ! wp_verify_nonce( $nonce, "isoft_fmf_bundle_{$download_id}" ) ) {
-			wp_die( esc_html__( 'Security check failed. Please refresh the page and try again.', 'isoft-fm-foundation' ), 403 );
+		// Nonce check — skipped for public downloads (see isoft_fmf_download_requires_nonce()).
+		if ( isoft_fmf_download_requires_nonce( $download_id ) ) {
+			$nonce = isset( $_GET['nonce'] ) ? sanitize_text_field( wp_unslash( $_GET['nonce'] ) ) : '';
+			if ( ! wp_verify_nonce( $nonce, "isoft_fmf_bundle_{$download_id}" ) ) {
+				wp_die( esc_html__( 'Security check failed. Please refresh the page and try again.', 'isoft-fm-foundation' ), 403 );
+			}
 		}
 
 		if ( 'publish' !== get_post_status( $download_id ) ) {
@@ -110,7 +113,7 @@ class ISOFT_FMF_Bundle_Handler {
 		}
 
 		// One bundle = one rate-limit hit, regardless of how many files it contains.
-		$rate_limit = (int) get_option( 'isoft_fmf_rate_limit_per_hour', 0 );
+		$rate_limit = isoft_fmf_effective_rate_limit();
 		if ( $rate_limit > 0 ) {
 			$ip_hash = 'isoft_fmf_rl_' . md5( isoft_fmf_client_ip() ?? 'unknown' );
 			$hits    = (int) get_transient( $ip_hash );

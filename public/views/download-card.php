@@ -27,7 +27,8 @@ if ( get_post_meta( $post->ID, '_isoft_fmf_external_only', true ) ) {
 	$files = array_values( array_filter( $files, fn( $f ): bool => 'external' === $f->file_type ) );
 }
 
-$require_agree = (bool) get_post_meta( $post->ID, '_isoft_fmf_require_agree', true );
+$agreement     = isoft_fmf_agreement_for( (int) $post->ID );
+$require_agree = null !== $agreement;
 // Resolved role (after walking inherit-from-category cascade), not the literal
 // meta — the lock-icon check below has to reflect what the visitor actually
 // faces. Reading the literal showed a lock on files that resolved to public
@@ -38,14 +39,7 @@ $role_label        = isoft_fmf_access_role_label( $access_role );
 $effective_license = ( new ISOFT_FMF_License_Resolver() )->effective_license_row_for( $post->ID );
 // HOT = set by nightly cron at 01:00 (top 10 downloads last 7 days), stored in post meta.
 $is_hot     = (bool) get_post_meta( $post->ID, '_isoft_fmf_is_hot', true );
-$license_id = (int) get_post_meta( $post->ID, '_isoft_fmf_license_id', true );
-$license    = ( $require_agree && $license_id ) ? ( new ISOFT_FMF_License_Manager() )->get( $license_id ) : null;
-// Cast to string on BOTH branches: the licenses table's full_text
-// column is nullable (LONGTEXT, no NOT NULL constraint), and a license
-// row with full_text=NULL would hit wp_kses_post(null) — deprecated
-// since PHP 8.1, triggers a public-facing warning on frontends with
-// display_errors on.
-$agree_text = $license ? wp_kses_post( (string) $license->full_text ) : wp_kses_post( (string) get_post_meta( $post->ID, '_isoft_fmf_agree_text', true ) );
+$agree_text = $agreement['text'] ?? '';
 $btn_text   = $settings['default_button_text'] ?: __( 'Download', 'isoft-fm-foundation' );
 
 // ZIP-bundle button is opt-in via Settings → Display and only renders
@@ -296,10 +290,10 @@ $use_summary  = $is_multi && ! $expand_files;
 				<div id="<?php echo esc_attr( $hidden_id ); ?>" class="isoft-fmf-agree-content" hidden>
 					<?php echo wp_kses_post( $agree_text ); ?>
 				</div>
-				<a href="<?php echo esc_url( isoft_fmf_get_download_url( (int) $file->id ) ); ?>"
+				<a href="<?php echo esc_url( isoft_fmf_get_download_url( (int) $file->id, (int) $post->ID ) ); ?>"
 					class="wp-element-button isoft-fmf-download-btn isoft-fmf-requires-agree"
 					data-agree-content="#<?php echo esc_attr( $hidden_id ); ?>"
-					data-agree-title="<?php echo $license ? esc_attr( $license->title ) : esc_attr( get_the_title( $post->ID ) ); ?>">
+					data-agree-title="<?php echo esc_attr( $agreement['title'] ?? '' ); ?>">
 					<?php echo esc_html( $btn_text ); ?>
 				</a>
 					<?php
@@ -319,7 +313,7 @@ $use_summary  = $is_multi && ! $expand_files;
 						$ext_attrs = ' download rel="nofollow"';
 					}
 					?>
-				<a href="<?php echo esc_url( isoft_fmf_get_download_url( (int) $file->id ) ); ?>"
+				<a href="<?php echo esc_url( isoft_fmf_get_download_url( (int) $file->id, (int) $post->ID ) ); ?>"
 					class="wp-element-button isoft-fmf-download-btn"<?php echo $ext_attrs; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static whitelisted attribute set. ?>>
 					<?php echo esc_html( $btn_text ); ?>
 				</a>

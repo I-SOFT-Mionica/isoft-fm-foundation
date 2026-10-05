@@ -13,9 +13,28 @@ class ISOFT_FMF_Download_Logger {
 	/**
 	 * Write a download log entry.
 	 *
+	 * By default every value comes from the current request. $context lets
+	 * a caller record a download that was served somewhere else (an edge
+	 * server, a CDN, a static mirror) after the fact. Every key is optional:
+	 *
+	 * - time       (int)          Unix timestamp of the download. Default: now.
+	 * - user_id    (int)          Downloading user, 0 for a guest. Default: current user.
+	 * - ip         (string|null)  Client IP. Default: this request's.
+	 * - user_agent (string|null)  Client user agent. Default: this request's.
+	 * - referer    (string|null)  Referring URL. Default: this request's.
+	 * - source     (string)       Where the file was served, e.g. 'edge'. Lowercase letters, digits, '_' and '-', up to 32. Default: 'handler' (FMF's own download handler).
+	 * - license_id (int)          License that governed the download when it happened. Default: the license in force now.
+	 * - idempotency_key (string)  Caller's id for this download (up to 64 of A-Z a-z 0-9 . _ : -). A second log() for the same file and key writes nothing and returns the first row's id.
+	 *
+	 * ip / user_agent / referer are stored only when detailed logging is on.
+	 * Passing a key with null stores NULL instead of falling back to the
+	 * current request — importers must not stamp their own IP on a visitor's
+	 * download.
+	 *
+	 * @param array<string, mixed> $context See above.
 	 * @return int|null  Inserted log ID, or null if logging is disabled or insert failed.
 	 */
-	public function log( int $download_id, int $file_id ): ?int {
+	public function log( int $download_id, int $file_id, array $context = array() ): ?int {
 		global $wpdb;
 
 		$settings = isoft_fmf_get_settings();
@@ -23,16 +42,33 @@ class ISOFT_FMF_Download_Logger {
 			return null;
 		}
 
-		$user = wp_get_current_user();
+		$context           = wp_parse_args( $context, array( 'source' => 'handler' ) );
+		$context['time']   = self::clean_time( $context['time'] ?? null );
+		$context['source'] = self::clean_source( $context['source'] );
+		$idempotency_key   = self::clean_key( $context['idempotency_key'] ?? null );
 
-		$now   = current_time( 'mysql' );
-		$today = current_time( 'Y-m-d' );
+		if ( null !== $idempotency_key ) {
+			$existing = $this->find_by_key( $file_id, $idempotency_key );
+			if ( null !== $existing ) {
+				return $existing;
+			}
+		}
+
+		$user = array_key_exists( 'user_id', $context )
+			? ( get_userdata( absint( $context['user_id'] ) ) ?: new WP_User() )
+			: wp_get_current_user();
+
+		$time  = absint( $context['time'] );
+		$now   = wp_date( 'Y-m-d H:i:s', $time );
+		$today = wp_date( 'Y-m-d', $time );
 
 		// Stamp the resolved license id at the moment of download. This is the
 		// load-bearing legal trail — a license change later doesn't strip
 		// what governed THIS specific download. Resolver returns 0 when there
 		// is no effective license (download has none and category has none).
-		$license_id_at_download = ( new ISOFT_FMF_License_Resolver() )->effective_license_for( $download_id );
+		$license_id_at_download = isset( $context['license_id'] )
+			? absint( $context['license_id'] )
+			: ( new ISOFT_FMF_License_Resolver() )->effective_license_for( $download_id );
 
 		$data   = array(
 			'download_id'            => $download_id,
@@ -45,19 +81,32 @@ class ISOFT_FMF_Download_Logger {
 		);
 		$format = array( '%d', '%d', '%d', '%s', '%d', '%s', '%s' );
 
+		if ( null !== $idempotency_key ) {
+			$data['idempotency_key'] = $idempotency_key;
+			$format[]                = '%s';
+		}
+
 		// PII fields — only when detailed logging is explicitly enabled
 		if ( $settings['enable_detailed_logging'] ) {
-			$data['ip_address'] = $this->client_ip();
-			$data['user_agent'] = isset( $_SERVER['HTTP_USER_AGENT'] )
-				? substr( sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ), 0, 500 )
-				: null;
-			$data['referer']    = isset( $_SERVER['HTTP_REFERER'] )
-				? esc_url_raw( wp_unslash( $_SERVER['HTTP_REFERER'] ) )
-				: null;
+			$data['ip_address'] = array_key_exists( 'ip', $context )
+				? self::valid_ip( $context['ip'] )
+				: $this->client_ip();
+			$data['user_agent'] = array_key_exists( 'user_agent', $context )
+				? self::clean_user_agent( $context['user_agent'] )
+				: self::clean_user_agent( isset( $_SERVER['HTTP_USER_AGENT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) : null );
+			$data['referer']    = array_key_exists( 'referer', $context )
+				? ( is_string( $context['referer'] ) ? esc_url_raw( $context['referer'] ) : null )
+				: ( isset( $_SERVER['HTTP_REFERER'] ) ? esc_url_raw( wp_unslash( $_SERVER['HTTP_REFERER'] ) ) : null );
 			array_push( $format, '%s', '%s', '%s' );
 		}
 
-		$data = apply_filters( 'isoft_fmf_log_entry_data', $data );
+		/**
+		 * Filters a log row before it is written.
+		 *
+		 * @param array                $data    Column => value.
+		 * @param array<string, mixed> $context Caller context (see log()); 'source' says where the file was served.
+		 */
+		$data = apply_filters( 'isoft_fmf_log_entry_data', $data, $context );
 
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Write-path logger on custom log tables; never cached.
 		if ( false === $wpdb->insert( $this->table, $data, $format ) ) {
@@ -93,8 +142,9 @@ class ISOFT_FMF_Download_Logger {
 		 * @param int      $file_id                File id within the download.
 		 * @param int      $user_id                Acting user id (0 for guest).
 		 * @param int|null $license_id_at_download License id resolved at log time, null if no effective license.
+		 * @param array    $context                Caller context (see log()); 'source' says where the file was served.
 		 */
-		do_action( 'isoft_fmf_download_logged', $log_id, $download_id, $file_id, (int) $user->ID, $license_id_at_download > 0 ? $license_id_at_download : null );
+		do_action( 'isoft_fmf_download_logged', $log_id, $download_id, $file_id, (int) $user->ID, $license_id_at_download > 0 ? $license_id_at_download : null, $context );
 
 		return $log_id;
 	}
@@ -160,6 +210,68 @@ class ISOFT_FMF_Download_Logger {
 	 * reasonable number of iterations.
 	 */
 	private const BATCH_SIZE = 5000;
+
+	/**
+	 * Log row id previously written for a file with this idempotency key.
+	 */
+	public function find_by_key( int $file_id, string $key ): ?int {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Idempotency probe on the write path; must never be cached.
+		$id = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE file_id = %d AND idempotency_key = %s LIMIT 1', $this->table, $file_id, $key ) );
+		return null === $id ? null : (int) $id;
+	}
+
+	/**
+	 * A caller-supplied timestamp, or now when it is missing, not numeric,
+	 * not positive or (beyond a few minutes of clock skew) in the future.
+	 *
+	 * @param mixed $time Value from the log() context.
+	 */
+	private static function clean_time( $time ): int {
+		$now = time();
+		if ( ! is_numeric( $time ) ) {
+			return $now;
+		}
+		$time = (int) $time;
+		return ( $time > 0 && $time <= $now + 300 ) ? min( $time, $now ) : $now;
+	}
+
+	/**
+	 * A source label limited to [a-z0-9_-], up to 32 characters; 'handler' when empty.
+	 *
+	 * @param mixed $source Value from the log() context.
+	 */
+	private static function clean_source( $source ): string {
+		$source = is_string( $source ) ? substr( sanitize_key( $source ), 0, 32 ) : '';
+		return '' === $source ? 'handler' : $source;
+	}
+
+	/**
+	 * An idempotency key of up to 64 safe characters, or null.
+	 *
+	 * @param mixed $key Value from the log() context.
+	 */
+	public static function clean_key( $key ): ?string {
+		return is_string( $key ) && 1 === preg_match( '/^[A-Za-z0-9._:-]{1,64}$/', $key ) ? $key : null;
+	}
+
+	/**
+	 * A caller-supplied IP, or null when it is not a valid address.
+	 *
+	 * @param mixed $ip Value from the log() context.
+	 */
+	private static function valid_ip( $ip ): ?string {
+		return is_string( $ip ) && filter_var( $ip, FILTER_VALIDATE_IP ) ? $ip : null;
+	}
+
+	/**
+	 * A user agent trimmed to the column width, or null.
+	 *
+	 * @param mixed $user_agent Value from the log() context or the request.
+	 */
+	private static function clean_user_agent( $user_agent ): ?string {
+		return is_string( $user_agent ) && '' !== $user_agent ? substr( sanitize_text_field( $user_agent ), 0, 500 ) : null;
+	}
 
 	private function client_ip(): ?string {
 		foreach ( array( 'HTTP_CF_CONNECTING_IP', 'HTTP_X_FORWARDED_FOR', 'HTTP_X_REAL_IP', 'REMOTE_ADDR' ) as $header ) {

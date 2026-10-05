@@ -81,6 +81,10 @@ $options = array(
 	'isoft_fmf_enable_zip_cache',
 	'isoft_fmf_zip_cache_days',
 	'isoft_fmf_hotlink_protection',
+	'isoft_fmf_cache_friendly_links',
+	'isoft_fmf_public_api_enabled',
+	'isoft_fmf_public_api_cache_ttl',
+	'isoft_fmf_cache_friendly_rate_limit',
 	// Settings (files)
 	'isoft_fmf_allowed_extensions',
 	'isoft_fmf_cyrillic_titles',
@@ -135,6 +139,7 @@ $capabilities = array(
 	'isoft_fmf_view_logs',
 	'isoft_fmf_export_logs',
 	'isoft_fmf_manage_settings',
+	'isoft_fmf_record_downloads',
 );
 
 $role_names = array( 'subscriber', 'contributor', 'author', 'editor', 'administrator' );

@@ -270,7 +270,7 @@ HTACCESS;
 	 */
 	public static function maybe_register_capabilities(): void {
 		$role = get_role( 'administrator' );
-		if ( $role && ! $role->has_cap( 'isoft_fmf_manage_settings' ) ) {
+		if ( $role && ( ! $role->has_cap( 'isoft_fmf_manage_settings' ) || ! $role->has_cap( 'isoft_fmf_record_downloads' ) ) ) {
 			self::register_capabilities();
 
 			// The current user object cached its caps before we added ours.
@@ -317,6 +317,9 @@ HTACCESS;
 		) $charset_collate;"
 		);
 
+		// idempotency_key added 0.13.0 — lets a caller that reports downloads
+		// served elsewhere (edge / CDN) retry safely; NULLs never collide, so
+		// ordinary rows are unaffected.
 		// license_id_at_download added 0.11.0 — records which license governed
 		// this specific download at the moment it was served, so future license
 		// changes don't strip the legal trail. dbDelta ALTERs existing tables
@@ -332,6 +335,7 @@ HTACCESS;
 			user_agent              VARCHAR(500) DEFAULT NULL,
 			referer                 VARCHAR(2048) DEFAULT NULL,
 			license_id_at_download  BIGINT UNSIGNED DEFAULT NULL,
+			idempotency_key         VARCHAR(64) DEFAULT NULL,
 			downloaded_at           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			log_date                DATE NOT NULL DEFAULT '0000-00-00',
 			PRIMARY KEY (id),
@@ -339,6 +343,7 @@ HTACCESS;
 			INDEX idx_file_id (file_id),
 			INDEX idx_user_id (user_id),
 			INDEX idx_license_at_download (license_id_at_download),
+			UNIQUE KEY uq_file_idempotency (file_id,idempotency_key),
 			INDEX idx_downloaded_at (downloaded_at),
 			INDEX idx_log_date (log_date)
 		) $charset_collate;"
@@ -419,7 +424,7 @@ HTACCESS;
 			'contributor'   => array( 'isoft_fmf_view_downloads' ),
 			'author'        => array( 'isoft_fmf_view_downloads', 'isoft_fmf_create_downloads', 'isoft_fmf_edit_own_downloads' ),
 			'editor'        => array( 'isoft_fmf_view_downloads', 'isoft_fmf_create_downloads', 'isoft_fmf_edit_own_downloads', 'isoft_fmf_edit_all_downloads', 'isoft_fmf_delete_downloads', 'isoft_fmf_manage_categories', 'isoft_fmf_view_logs' ),
-			'administrator' => array( 'isoft_fmf_view_downloads', 'isoft_fmf_create_downloads', 'isoft_fmf_edit_own_downloads', 'isoft_fmf_edit_all_downloads', 'isoft_fmf_delete_downloads', 'isoft_fmf_manage_categories', 'isoft_fmf_view_logs', 'isoft_fmf_export_logs', 'isoft_fmf_manage_settings' ),
+			'administrator' => array( 'isoft_fmf_view_downloads', 'isoft_fmf_create_downloads', 'isoft_fmf_edit_own_downloads', 'isoft_fmf_edit_all_downloads', 'isoft_fmf_delete_downloads', 'isoft_fmf_manage_categories', 'isoft_fmf_view_logs', 'isoft_fmf_export_logs', 'isoft_fmf_manage_settings', 'isoft_fmf_record_downloads' ),
 		);
 
 		foreach ( $role_caps as $role_name => $caps ) {

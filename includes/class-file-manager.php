@@ -53,6 +53,45 @@ class ISOFT_FMF_File_Manager {
 	}
 
 	/**
+	 * Load the files of many downloads in one query and warm the per-download
+	 * cache, so a listing that then calls get_files() for each one costs a
+	 * single query instead of one per download.
+	 *
+	 * @param int[] $download_ids Download post IDs.
+	 */
+	public function prime_files( array $download_ids ): void {
+		$missing = array();
+		foreach ( array_unique( array_map( 'intval', $download_ids ) ) as $id ) {
+			if ( $id > 0 && false === wp_cache_get( "files_for_download_{$id}", self::CACHE_GROUP ) ) {
+				$missing[] = $id;
+			}
+		}
+		if ( ! $missing ) {
+			return;
+		}
+
+		global $wpdb;
+		$placeholders = implode( ',', array_fill( 0, count( $missing ), '%d' ) );
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare,WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Custom table read, cached below via wp_cache_set(); placeholder list is generated from count().
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT * FROM %i WHERE download_id IN ({$placeholders}) ORDER BY sort_order ASC, id ASC",
+				$this->table,
+				...$missing
+			)
+		) ?: array();
+		// phpcs:enable
+
+		$grouped = array_fill_keys( $missing, array() );
+		foreach ( $rows as $row ) {
+			$grouped[ (int) $row->download_id ][] = $row;
+		}
+		foreach ( $grouped as $id => $files ) {
+			wp_cache_set( "files_for_download_{$id}", $files, self::CACHE_GROUP, HOUR_IN_SECONDS );
+		}
+	}
+
+	/**
 	 * Get a single file record.
 	 */
 	public function get_file( int $file_id ): ?object {
@@ -126,6 +165,7 @@ class ISOFT_FMF_File_Manager {
 		$file_id = (int) $wpdb->insert_id;
 		self::bust_cache_for( $download_id, $file_id );
 		do_action( 'isoft_fmf_file_uploaded', $file_id, $download_id );
+		isoft_fmf_content_changed( 'download', $download_id );
 		return $file_id;
 	}
 
@@ -157,6 +197,7 @@ class ISOFT_FMF_File_Manager {
 		$file_id = (int) $wpdb->insert_id;
 		self::bust_cache_for( $download_id, $file_id );
 		do_action( 'isoft_fmf_file_uploaded', $file_id, $download_id );
+		isoft_fmf_content_changed( 'download', $download_id );
 		return $file_id;
 	}
 
@@ -182,6 +223,7 @@ class ISOFT_FMF_File_Manager {
 			$row = $this->get_file_uncached( $file_id );
 			if ( $row ) {
 				self::bust_cache_for( (int) $row->download_id, $file_id );
+				isoft_fmf_content_changed( 'download', (int) $row->download_id );
 			} else {
 				wp_cache_delete( "file_{$file_id}", self::CACHE_GROUP );
 			}
@@ -224,6 +266,7 @@ class ISOFT_FMF_File_Manager {
 		$result = $wpdb->delete( $this->table, array( 'id' => $file_id ), array( '%d' ) );
 		if ( false !== $result ) {
 			self::bust_cache_for( (int) $file->download_id, $file_id );
+			isoft_fmf_content_changed( 'download', (int) $file->download_id );
 		}
 		return false !== $result;
 	}
@@ -296,6 +339,7 @@ class ISOFT_FMF_File_Manager {
 		}
 		foreach ( array_keys( $download_ids ) as $download_id ) {
 			self::bust_cache_for( (int) $download_id );
+			isoft_fmf_content_changed( 'download', (int) $download_id );
 		}
 	}
 }
