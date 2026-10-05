@@ -148,6 +148,9 @@ class HelpersTest extends WP_UnitTestCase {
 	}
 
 	public function test_client_ip_prefers_cloudflare_then_xff_then_remote(): void {
+		// The legacy mode keeps the original trust-every-header order (a freshly
+		// activated install starts on a safe mode instead; see ClientIpTest).
+		update_option( ISOFT_FMF_Client_Ip::OPTION_MODE, ISOFT_FMF_Client_Ip::MODE_LEGACY );
 		$_SERVER['REMOTE_ADDR']           = '10.0.0.1';
 		$_SERVER['HTTP_X_FORWARDED_FOR']  = '203.0.113.7, 10.0.0.1';
 		$_SERVER['HTTP_CF_CONNECTING_IP'] = '198.51.100.4';
