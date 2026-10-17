@@ -15,9 +15,6 @@ class ClientIpTest extends WP_UnitTestCase {
 		parent::set_up();
 		delete_option( ISOFT_FMF_Client_Ip::OPTION_MODE );
 		delete_option( ISOFT_FMF_Client_Ip::OPTION_PROXIES );
-		delete_option( ISOFT_FMF_Client_Ip::OPTION_REFRESH );
-		delete_option( 'isoft_fmf_cloudflare_ranges' );
-		delete_option( 'isoft_fmf_cloudflare_ranges_fetched' );
 	}
 
 	private function resolve( array $server, string $mode ): ?string {
@@ -285,9 +282,28 @@ class ClientIpTest extends WP_UnitTestCase {
 		$this->assertSame( "10.0.0.0/8\n192.0.2.7", $clean );
 	}
 
-	// --- optional refresh ----------------------------------------------
+	// --- ranges filter --------------------------------------------------
 
-	public function test_refresh_makes_no_request_unless_enabled(): void {
+	public function test_ranges_filter_extends_the_list_and_drops_junk(): void {
+		add_filter( 'isoft_fmf_cloudflare_ranges', fn( array $r ): array => array_merge( $r, array( '192.0.2.0/24', 'not-a-range' ) ) );
+
+		$ranges = ISOFT_FMF_Client_Ip::cloudflare_ranges();
+
+		$this->assertContains( '192.0.2.0/24', $ranges );
+		$this->assertNotContains( 'not-a-range', $ranges );
+		$this->assertSame(
+			self::VISITOR,
+			$this->resolve(
+				array(
+					'REMOTE_ADDR'           => '192.0.2.9',
+					'HTTP_CF_CONNECTING_IP' => self::VISITOR,
+				),
+				'cloudflare'
+			)
+		);
+	}
+
+	public function test_the_plugin_never_makes_a_remote_request_to_resolve_an_ip(): void {
 		$calls = 0;
 		add_filter(
 			'pre_http_request',
@@ -297,54 +313,8 @@ class ClientIpTest extends WP_UnitTestCase {
 			}
 		);
 
-		ISOFT_FMF_Client_Ip::maybe_refresh_ranges();
-
-		$this->assertSame( 0, $calls );
-	}
-
-	public function test_refresh_stores_a_clean_list_and_keeps_the_old_one_on_bad_data(): void {
-		update_option( ISOFT_FMF_Client_Ip::OPTION_REFRESH, 1 );
-		$body = array(
-			'ips-v4' => "1.1.1.0/24\n2.2.0.0/16\n3.0.0.0/8\n4.4.4.0/24",
-			'ips-v6' => "2606:4700::/32\n2400:cb00::/32",
-		);
-		add_filter(
-			'pre_http_request',
-			function ( $pre, $args, $url ) use ( &$body ) {
-				$key = str_ends_with( $url, 'ips-v6' ) ? 'ips-v6' : 'ips-v4';
-				return array(
-					'headers'  => array(),
-					'body'     => $body[ $key ],
-					'response' => array( 'code' => 200 ),
-				);
-			},
-			10,
-			3
-		);
-
-		ISOFT_FMF_Client_Ip::maybe_refresh_ranges();
-		$this->assertContains( '1.1.1.0/24', ISOFT_FMF_Client_Ip::cloudflare_ranges() );
-
-		// A malformed response a week later must not replace the good list.
-		update_option( 'isoft_fmf_cloudflare_ranges_fetched', time() - 8 * DAY_IN_SECONDS );
-		$body['ips-v4'] = "<html>error</html>\n";
-		ISOFT_FMF_Client_Ip::maybe_refresh_ranges();
-		$this->assertContains( '1.1.1.0/24', ISOFT_FMF_Client_Ip::cloudflare_ranges() );
-	}
-
-	public function test_refresh_is_throttled_to_about_once_a_week(): void {
-		update_option( ISOFT_FMF_Client_Ip::OPTION_REFRESH, 1 );
-		update_option( 'isoft_fmf_cloudflare_ranges_fetched', time() - DAY_IN_SECONDS );
-		$calls = 0;
-		add_filter(
-			'pre_http_request',
-			function () use ( &$calls ) {
-				++$calls;
-				return new WP_Error( 'blocked' );
-			}
-		);
-
-		ISOFT_FMF_Client_Ip::maybe_refresh_ranges();
+		ISOFT_FMF_Client_Ip::resolve( array( 'REMOTE_ADDR' => self::CF_EDGE, 'HTTP_CF_CONNECTING_IP' => self::VISITOR ), 'cloudflare' );
+		ISOFT_FMF_Client_Ip::cloudflare_ranges();
 
 		$this->assertSame( 0, $calls );
 	}
@@ -368,7 +338,6 @@ class ClientIpTest extends WP_UnitTestCase {
 	public function test_settings_schema_knows_the_new_options_and_sanitises_them(): void {
 		$this->assertContains( 'isoft_fmf_client_ip_mode', ISOFT_FMF_Settings_Service::known_keys() );
 		$this->assertContains( 'isoft_fmf_trusted_proxies', ISOFT_FMF_Settings_Service::known_keys() );
-		$this->assertContains( 'isoft_fmf_cloudflare_ranges_refresh', ISOFT_FMF_Settings_Service::known_keys() );
 
 		$sanitizer = ISOFT_FMF_Settings_Service::sanitizer_for( 'isoft_fmf_client_ip_mode' );
 		$this->assertSame( 'direct', call_user_func( $sanitizer, 'bogus' ) );
