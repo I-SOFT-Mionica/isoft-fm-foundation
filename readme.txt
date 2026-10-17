@@ -300,7 +300,9 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 * **Optional public read-only REST API** for headless sites and apps. Turn it on under **Settings > Advanced**, where you can also set how long its answers may be cached. Visitors only see what they could already see on your site, server file paths are never exposed, and downloads that ask visitors to accept terms tell the app to do the same.
 * **Count downloads served elsewhere.** An edge server or CDN can report downloads afterwards, so download counts, HOT badges and the license-at-download record stay accurate, even when a report is retried.
 * **Better refresh signals.** Static sites and caches are told when files or licenses change, including after a broken-link repair, and bulk imports can announce themselves once instead of once per file.
+* **Visitor addresses can no longer be faked.** A new **Client IP source** setting (Settings > Security) makes the download limit and log believe forwarding headers only from Cloudflare or a proxy you list, so visitors behind Cloudflare are counted by their real address. Existing sites are asked once to choose; nothing changes until they do.
 * **Non-Latin file names** (e.g. Cyrillic) now arrive intact when downloaded.
+* **Fixed** list and grid blocks picking up the category icon styling.
 * **External-link downloads are now counted** like any other download.
 * Tested up to WordPress 7.1.
 
@@ -399,7 +401,7 @@ Existing data (downloads, categories, files, licenses, logs, per-user category p
 == Upgrade Notice ==
 
 = 0.13.0 =
-New optional cache-friendly download links and public REST API (both off until you enable them). Adds one column to the download log on update; no data is changed.
+New optional cache-friendly download links and public REST API (both off until you enable them), and a Client IP source setting you will be asked to review. Adds one column to the download log on update; no data is changed.
 
 = 0.11.0 =
 License inheritance from categories. Two new seeded licenses (Serbian PD, CC BY-SA 4.0). License chip on cards. Download log records its license. Click Restore seeded licenses on Downloads → Licenses. Known: assign one category per download — picker fix in next patch.
