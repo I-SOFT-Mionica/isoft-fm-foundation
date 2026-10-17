@@ -2,7 +2,9 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
-## [Unreleased]
+## [0.13.0] — 2026-10-17
+
+Headless readiness. Foundation can now sit behind a headless or statically generated frontend, a CDN, or a full-page cache without losing working download links, download counts, or the license audit trail. Everything is opt-in or additive; an existing site behaves exactly as before after updating.
 
 ### Security
 
@@ -10,10 +12,6 @@ All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads
 - The Cloudflare address list ships with the plugin and the plugin never fetches it from anywhere. Ranges Cloudflare adds later can be supplied with the `isoft_fmf_cloudflare_ranges` filter until the next plugin update.
 - IPv6 visitors are rate-limited per /64 (the block one visitor controls), so rotating through addresses does not dodge the limit. IPv4 is unchanged.
 - The download log and the rate limiter now share one resolver (`ISOFT_FMF_Client_Ip`); the new `isoft_fmf_client_ip` filter lets hosts with another proxy setup adjust the result.
-
-## [0.13.0] — 2026-10-04
-
-Headless readiness. Foundation can now sit behind a headless or statically generated frontend, a CDN, or a full-page cache without losing working download links, download counts, or the license audit trail. Everything is opt-in or additive; an existing site behaves exactly as before after updating.
 
 ### New
 
@@ -32,6 +30,7 @@ Headless readiness. Foundation can now sit behind a headless or statically gener
 
 ### Fixed
 
+- The list / grid shortcode wrapper `.isoft-fmf-list-wrap` no longer inherits the category card icon styles (flex layout, 64x64 size, centred margin) from a mis-grouped CSS selector (#58).
 - CSV exports pass the `$escape` argument to `fputcsv()` explicitly (PHP 8.4 deprecation); output is unchanged.
 
 ### Changed
