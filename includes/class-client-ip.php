@@ -28,15 +28,13 @@ class ISOFT_FMF_Client_Ip {
 	public const MODE_CLOUDFLARE = 'cloudflare';
 	public const MODE_PROXY      = 'proxy';
 
-	public const OPTION_MODE            = 'isoft_fmf_client_ip_mode';
-	public const OPTION_PROXIES         = 'isoft_fmf_trusted_proxies';
-	public const OPTION_REFRESH         = 'isoft_fmf_cloudflare_ranges_refresh';
-	private const OPTION_RANGES         = 'isoft_fmf_cloudflare_ranges';
-	private const OPTION_RANGES_FETCHED = 'isoft_fmf_cloudflare_ranges_fetched';
+	public const OPTION_MODE    = 'isoft_fmf_client_ip_mode';
+	public const OPTION_PROXIES = 'isoft_fmf_trusted_proxies';
 
 	/**
 	 * Cloudflare's published ranges (https://www.cloudflare.com/ips/), bundled
-	 * so no request is made at runtime. The optional refresh replaces them.
+	 * so no request is ever made. If Cloudflare adds ranges before a plugin
+	 * update, a site can extend the list with the isoft_fmf_cloudflare_ranges filter.
 	 */
 	private const CLOUDFLARE_V4 = array(
 		'173.245.48.0/20',
@@ -178,11 +176,15 @@ class ISOFT_FMF_Client_Ip {
 	 * @return string[] Cloudflare CIDR ranges (IPv4 and IPv6).
 	 */
 	public static function cloudflare_ranges(): array {
-		$stored = get_option( self::OPTION_RANGES, array() );
-		if ( is_array( $stored ) && $stored ) {
-			return $stored;
-		}
-		return array_merge( self::CLOUDFLARE_V4, self::CLOUDFLARE_V6 );
+		/**
+		 * Filters the Cloudflare address ranges (CIDR, IPv4 and IPv6) that are
+		 * allowed to supply CF-Connecting-IP. Add ranges Cloudflare published
+		 * after this plugin release.
+		 *
+		 * @param string[] $ranges Bundled ranges.
+		 */
+		$ranges = apply_filters( 'isoft_fmf_cloudflare_ranges', array_merge( self::CLOUDFLARE_V4, self::CLOUDFLARE_V6 ) );
+		return array_values( array_filter( (array) $ranges, array( self::class, 'valid_range' ) ) );
 	}
 
 	/**
@@ -273,45 +275,6 @@ class ISOFT_FMF_Client_Ip {
 		$items = preg_split( '/[\s,]+/', is_string( $value ) ? $value : '', -1, PREG_SPLIT_NO_EMPTY );
 		$items = array_unique( array_filter( (array) $items, array( self::class, 'valid_range' ) ) );
 		return implode( "\n", $items );
-	}
-
-	// -------------------------------------------------------------------------
-	// Optional range refresh (off by default; no outbound request otherwise)
-	// -------------------------------------------------------------------------
-
-	/**
-	 * Re-fetch Cloudflare's ranges when the owner opted in and the stored
-	 * copy is older than six days. Called from the daily cron. A response
-	 * that does not parse cleanly is discarded and the previous list stays.
-	 */
-	public static function maybe_refresh_ranges(): void {
-		if ( ! get_option( self::OPTION_REFRESH, 0 ) ) {
-			return;
-		}
-		if ( time() - (int) get_option( self::OPTION_RANGES_FETCHED, 0 ) < 6 * DAY_IN_SECONDS ) {
-			return;
-		}
-
-		$ranges = array();
-		foreach ( array( 'https://www.cloudflare.com/ips-v4', 'https://www.cloudflare.com/ips-v6' ) as $url ) {
-			$response = wp_safe_remote_get( $url, array( 'timeout' => 10 ) );
-			if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
-				return;
-			}
-			$lines = preg_split( '/\s+/', trim( (string) wp_remote_retrieve_body( $response ) ), -1, PREG_SPLIT_NO_EMPTY );
-			foreach ( (array) $lines as $line ) {
-				if ( ! self::valid_range( $line ) ) {
-					return;
-				}
-				$ranges[] = $line;
-			}
-		}
-		if ( count( $ranges ) < 5 ) {
-			return;
-		}
-
-		update_option( self::OPTION_RANGES, $ranges, false );
-		update_option( self::OPTION_RANGES_FETCHED, time(), false );
 	}
 
 	// -------------------------------------------------------------------------

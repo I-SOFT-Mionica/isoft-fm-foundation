@@ -208,13 +208,6 @@ const TAB_SCHEMAS = {
 			default:     '',
 		},
 		{
-			key:     'isoft_fmf_cloudflare_ranges_refresh',
-			label:   __( 'Keep the Cloudflare address list up to date', 'isoft-fm-foundation' ),
-			type:    'toggle',
-			help:    __( 'Fetches the published Cloudflare address list from cloudflare.com about once a week. Off by default; the plugin ships with the current list, so this is only needed if Cloudflare adds ranges.', 'isoft-fm-foundation' ),
-			default: 0,
-		},
-		{
 			key:     'isoft_fmf_rate_limit_per_hour',
 			label:   __( 'Rate Limit (per IP/hour)', 'isoft-fm-foundation' ),
 			type:    'number',
