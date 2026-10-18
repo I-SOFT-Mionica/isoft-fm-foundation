@@ -32,6 +32,9 @@ class ISOFT_FMF_Category_Pending {
 	/** @var int[]|null Request cache of pending term IDs. */
 	private static ?array $ids = null;
 
+	/** @var int[]|null Request cache of pending term IDs plus all their descendants. */
+	private static ?array $hidden = null;
+
 	public function register_hooks(): void {
 		add_filter( 'get_terms_args', array( $this, 'hide_in_term_queries' ), 20, 2 );
 		add_filter( 'get_the_terms', array( $this, 'hide_on_downloads' ), 20, 3 );
@@ -69,7 +72,8 @@ class ISOFT_FMF_Category_Pending {
 		} else {
 			delete_term_meta( $term_id, self::META );
 		}
-		self::$ids = null;
+		self::$ids    = null;
+		self::$hidden = null;
 
 		/**
 		 * Fires when a category enters or leaves the pending state.
@@ -102,6 +106,28 @@ class ISOFT_FMF_Category_Pending {
 			self::$ids = is_wp_error( $found ) ? array() : array_map( 'intval', $found );
 		}
 		return self::$ids;
+	}
+
+	/**
+	 * Pending categories and everything beneath them, as a plain ID list.
+	 * Used with get_terms()' 'exclude'. Not 'exclude_tree': WordPress expands
+	 * that with a nested get_terms() call, which would pass through this
+	 * filter again and never end.
+	 *
+	 * @return int[]
+	 */
+	public static function hidden_ids(): array {
+		if ( null === self::$hidden ) {
+			$all = self::ids();
+			foreach ( self::ids() as $id ) {
+				$children = get_term_children( $id, self::TAXONOMY );
+				if ( is_array( $children ) ) {
+					$all = array_merge( $all, array_map( 'intval', $children ) );
+				}
+			}
+			self::$hidden = array_values( array_unique( $all ) );
+		}
+		return self::$hidden;
 	}
 
 	/**
@@ -144,7 +170,10 @@ class ISOFT_FMF_Category_Pending {
 	 * @return array<string,mixed>
 	 */
 	public function hide_in_term_queries( array $args, array $taxonomies ): array {
-		if ( ! in_array( self::TAXONOMY, $taxonomies, true ) || ! empty( $args['isoft_fmf_include_pending'] ) || ! self::enforcing() ) {
+		// Per-object lookups (wp_get_object_terms) are Foundation's own plumbing:
+		// access roles, licenses, folders. Only the public display of a download's
+		// categories is filtered, by hide_on_downloads().
+		if ( ! in_array( self::TAXONOMY, $taxonomies, true ) || ! empty( $args['object_ids'] ) || ! empty( $args['isoft_fmf_include_pending'] ) || ! self::enforcing() ) {
 			return $args;
 		}
 		$pending = self::ids();
@@ -152,16 +181,18 @@ class ISOFT_FMF_Category_Pending {
 			return $args;
 		}
 
+		$hidden = self::hidden_ids();
+
 		if ( ! empty( $args['include'] ) ) {
-			// WordPress ignores exclude_tree next to include, so subtract here.
-			$args['include'] = array_values( array_diff( wp_parse_id_list( $args['include'] ), $this->with_descendants( $pending ) ) );
+			// WordPress ignores 'exclude' next to 'include', so subtract here.
+			$args['include'] = array_values( array_diff( wp_parse_id_list( $args['include'] ), $hidden ) );
 			if ( ! $args['include'] ) {
 				$args['include'] = array( 0 );
 			}
 			return $args;
 		}
 
-		$args['exclude_tree'] = array_values( array_unique( array_merge( wp_parse_id_list( $args['exclude_tree'] ?? array() ), $pending ) ) );
+		$args['exclude'] = array_values( array_unique( array_merge( wp_parse_id_list( $args['exclude'] ?? array() ), $hidden ) ) );
 		return $args;
 	}
 
@@ -205,23 +236,8 @@ class ISOFT_FMF_Category_Pending {
 		if ( self::TAXONOMY !== $taxonomy || ! self::ids() ) {
 			return $args;
 		}
-		$args['exclude_tree'] = array_values( array_unique( array_merge( wp_parse_id_list( $args['exclude_tree'] ?? array() ), self::ids() ) ) );
+		$args['exclude'] = array_values( array_unique( array_merge( wp_parse_id_list( $args['exclude'] ?? array() ), self::hidden_ids() ) ) );
 		return $args;
-	}
-
-	/**
-	 * @param int[] $ids Term IDs.
-	 * @return int[] The IDs plus every descendant.
-	 */
-	private function with_descendants( array $ids ): array {
-		$all = $ids;
-		foreach ( $ids as $id ) {
-			$children = get_term_children( $id, self::TAXONOMY );
-			if ( is_array( $children ) ) {
-				$all = array_merge( $all, array_map( 'intval', $children ) );
-			}
-		}
-		return array_values( array_unique( $all ) );
 	}
 
 	// -------------------------------------------------------------------------

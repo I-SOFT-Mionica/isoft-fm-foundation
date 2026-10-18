@@ -123,6 +123,21 @@ class PendingCategoryTest extends WP_UnitTestCase {
 		$this->assertSame( $args, ( new ISOFT_FMF_Category_Pending() )->hide_in_term_queries( $args, array( 'isoft_fmf_category' ) ) );
 	}
 
+	public function test_internal_object_term_lookups_still_see_a_pending_category(): void {
+		$download = self::factory()->post->create(
+			array(
+				'post_type'   => 'isoft_fmf_file',
+				'post_status' => 'publish',
+			)
+		);
+		$this->become( 'editor' );
+		wp_set_object_terms( $download, array( $this->held ), 'isoft_fmf_category' );
+		wp_set_current_user( 0 );
+
+		$this->assertSame( array( $this->held ), array_map( 'intval', wp_get_object_terms( $download, 'isoft_fmf_category', array( 'fields' => 'ids' ) ) ) );
+		$this->assertSame( $this->held, ISOFT_FMF_Files_Service::download_category_id( $download ) );
+	}
+
 	public function test_other_taxonomies_are_untouched(): void {
 		$args = array( 'taxonomy' => array( 'category' ) );
 
@@ -136,9 +151,11 @@ class PendingCategoryTest extends WP_UnitTestCase {
 				'post_status' => 'publish',
 			)
 		);
+		$this->become( 'editor' ); // Filing a download under a category is a manager's job.
 		wp_set_object_terms( $download, array( $this->held ), 'isoft_fmf_category' );
+		wp_set_current_user( 0 );
 
-		$this->assertSame( array(), get_the_terms( $download, 'isoft_fmf_category' ) );
+		$this->assertFalse( get_the_terms( $download, 'isoft_fmf_category' ), 'WordPress returns false when no terms are left' );
 
 		$this->become( 'editor' );
 		$this->assertCount( 1, get_the_terms( $download, 'isoft_fmf_category' ) );
@@ -162,7 +179,8 @@ class PendingCategoryTest extends WP_UnitTestCase {
 	public function test_sitemaps_exclude_pending_categories(): void {
 		$args = apply_filters( 'wp_sitemaps_taxonomies_query_args', array(), 'isoft_fmf_category' );
 
-		$this->assertContains( $this->held, $args['exclude_tree'] );
+		$this->assertContains( $this->held, $args['exclude'] );
+		$this->assertContains( $this->held_child, $args['exclude'], 'descendants are excluded too' );
 		$this->assertSame( array(), apply_filters( 'wp_sitemaps_taxonomies_query_args', array(), 'category' ) );
 	}
 
