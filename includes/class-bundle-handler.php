@@ -125,7 +125,7 @@ class ISOFT_FMF_Bundle_Handler {
 		}
 
 		$files       = ( new ISOFT_FMF_File_Manager() )->get_files( $download_id );
-		$local_files = array_filter( $files, fn( $f ): bool => 'external' !== $f->file_type );
+		$local_files = array_filter( $files, fn( $f ): bool => 'external' !== $f->file_type && empty( $f->is_unavailable ) );
 		if ( count( $local_files ) < 1 ) {
 			wp_die( esc_html__( 'This download has no files that can be bundled into a ZIP.', 'isoft-fm-foundation' ), 404 );
 		}

@@ -448,9 +448,10 @@ class ISOFT_FMF_Rest_Public {
 				'mime'         => $external ? null : (string) $file->file_mime,
 				'sha256'       => $external || '' === (string) $file->file_hash ? null : (string) $file->file_hash,
 				'url'          => $external ? esc_url_raw( (string) $file->external_url ) : null,
-				'download_url' => isoft_fmf_get_download_url( (int) $file->id, $id ),
+				'download_url' => empty( $file->is_unavailable ) ? isoft_fmf_get_download_url( (int) $file->id, $id ) : null,
 				'mirror'       => (bool) $file->is_mirror,
 				'missing'      => (bool) $file->is_missing,
+				'unavailable'  => ! empty( $file->is_unavailable ),
 				'count'        => (int) $file->download_count,
 				'order'        => (int) $file->sort_order,
 			);
@@ -541,7 +542,7 @@ class ISOFT_FMF_Rest_Public {
 			) : null,
 			'thumbnail'      => $thumbnail,
 			'files'          => $files,
-			'bundle_url'     => count( array_filter( $files, static fn( array $f ): bool => 'local' === $f['type'] ) ) > 1
+			'bundle_url'     => count( array_filter( $files, static fn( array $f ): bool => 'local' === $f['type'] && ! $f['unavailable'] ) ) > 1
 				&& get_option( 'isoft_fmf_enable_zip_bundle', 0 )
 				? isoft_fmf_get_bundle_url( $id )
 				: null,

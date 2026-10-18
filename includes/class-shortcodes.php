@@ -689,6 +689,11 @@ class ISOFT_FMF_Shortcodes {
 		$url          = isoft_fmf_get_download_url( (int) $file->id, $download_id );
 		$class        = trim( 'wp-element-button isoft-fmf-download-btn ' . $extra_class );
 
+		// Missing or held back: a passive label instead of a link.
+		if ( ! empty( $file->is_missing ) || ! empty( $file->is_unavailable ) ) {
+			return '<span class="isoft-fmf-file-missing-label">' . esc_html( isoft_fmf_unavailable_label() ) . '</span>';
+		}
+
 		if ( 'external' === $file->file_type ) {
 			$url = esc_url( $file->external_url );
 		}

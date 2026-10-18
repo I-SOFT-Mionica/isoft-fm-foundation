@@ -510,6 +510,11 @@ class ExtensionHandoffTest extends WP_UnitTestCase {
 			'isoft_fmf_category_is_pending'   => array( 'term_id' ),
 			'isoft_fmf_create_draft_download' => array( 'args' ),
 			'isoft_fmf_admin_parent_slug'     => array(),
+			'isoft_fmf_accept_file_content'   => array( 'file_id' ),
+			'isoft_fmf_relink_file'           => array( 'file_id', 'new_rel_path' ),
+			'isoft_fmf_set_file_unavailable'  => array( 'file_id', 'unavailable' ),
+			'isoft_fmf_file_is_unavailable'   => array( 'file_id' ),
+			'isoft_fmf_unavailable_label'     => array(),
 		);
 		foreach ( $expected as $function => $params ) {
 			$this->assertTrue( function_exists( $function ), $function );

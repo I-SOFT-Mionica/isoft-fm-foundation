@@ -54,6 +54,7 @@ class ISOFT_FMF_Settings_Service {
 				'isoft_fmf_enable_zip_cache'     => 'absint',
 				'isoft_fmf_zip_cache_days'       => 'absint',
 				'isoft_fmf_external_link_target' => array( self::class, 'sanitize_link_target' ),
+				'isoft_fmf_unavailable_label'    => 'sanitize_text_field',
 			),
 			'isoft_fmf_security'    => array(
 				'isoft_fmf_serve_method'              => 'sanitize_text_field',

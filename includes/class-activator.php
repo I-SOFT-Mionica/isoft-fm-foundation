@@ -311,6 +311,7 @@ HTACCESS;
 			external_url    VARCHAR(2048) DEFAULT NULL,
 			is_mirror       TINYINT(1) NOT NULL DEFAULT 0,
 			is_missing      TINYINT(1) NOT NULL DEFAULT 0,
+			is_unavailable  TINYINT(1) NOT NULL DEFAULT 0,
 			missing_since   DATETIME NULL DEFAULT NULL,
 			inode           BIGINT UNSIGNED NULL DEFAULT NULL,
 			download_count  BIGINT UNSIGNED NOT NULL DEFAULT 0,

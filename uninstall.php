@@ -66,6 +66,7 @@ $options = array(
 	'isoft_fmf_overwrite_pdf_thumbnail',
 	// Settings (display)
 	'isoft_fmf_default_button_text',
+	'isoft_fmf_unavailable_label',
 	'isoft_fmf_listing_layout',
 	'isoft_fmf_items_per_page',
 	'isoft_fmf_show_file_size',

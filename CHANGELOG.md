@@ -17,6 +17,13 @@ Public API for extensions. Everything is a new function or a hook with no defaul
 - **Pending categories.** `isoft_fmf_set_category_pending()` / `isoft_fmf_category_is_pending()`. A pending category and everything beneath it is hidden from visitors in category lists, shortcodes, blocks, the public REST API, a download's category list, the category archive (404) and sitemaps. Category managers, cron and WP-CLI still see it. The category list in the admin gets a Status column and an Approve action. Approving does not publish downloads. Existing categories are unaffected. New `isoft_fmf_category_pending_changed` action; `isoft_fmf_content_changed` now also fires with type `category`.
 - **`isoft_fmf_create_draft_download()`** accepts an optional `post_date` (`Y-m-d H:i:s`, site time).
 - **`isoft_fmf_admin_parent_slug()`** returns the Downloads menu slug for extensions that add submenus.
+- **`isoft_fmf_accept_file_content( $file_id )`** accepts a stored file's current content as its new baseline (re-hash, save hash and size) after an approved replacement on disk, so integrity checks stop flagging it. Runs the veto first; fires `isoft_fmf_file_replaced` only when the content changed. Until now there was no way to do this, so a legitimate out-of-band replacement stayed a mismatch forever.
+- **`isoft_fmf_relink_file( $file_id, $new_rel_path )`** points a file row at where its file was moved inside storage. It reuses the Broken Links reassign recovery (now shared with it): a move within the category folder updates the row, a move into another category's folder moves the download and its other files there.
+- **Unavailable files.** `isoft_fmf_set_file_unavailable()` / `isoft_fmf_file_is_unavailable()` hold a file back without deleting it: it stays listed with a passive label instead of a button, the download handler refuses it, ZIP bundles skip it, and the public API reports `unavailable` with no download link. New setting **Settings > Display > Text for files that cannot be downloaded right now** (default "Temporarily unavailable"), also used for files missing from disk. New `isoft_fmf_file_availability_changed` action. A new `is_unavailable` column is added on update.
+
+### Changed
+
+- The Broken Links screen's category-for-folder lookup walks the slug chain instead of loading every category.
 
 ### Security
 

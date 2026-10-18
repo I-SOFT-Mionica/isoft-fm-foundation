@@ -84,6 +84,11 @@ class ISOFT_FMF_Download_Handler {
 			set_transient( $ip_hash, $hits + 1, HOUR_IN_SECONDS );
 		}
 
+		// Held back by an administrator or an extension: listed, not served.
+		if ( ! empty( $file->is_unavailable ) ) {
+			wp_die( esc_html( isoft_fmf_unavailable_label() ), 403 );
+		}
+
 		do_action( 'isoft_fmf_before_download', $file_id, $download_id, get_current_user_id() );
 
 		// External links: redirect off-site. wp_safe_redirect() would reject

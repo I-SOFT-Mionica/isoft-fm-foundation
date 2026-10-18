@@ -517,6 +517,105 @@ function isoft_fmf_file_for_path( string $rel_path ): int {
 }
 
 /**
+ * Accept a stored file's current content as its new baseline: re-hash the
+ * file on disk and save the hash and size. Use after content changed on disk
+ * on purpose (an approved replacement) so integrity checks stop flagging it.
+ * Runs the isoft_fmf_pre_attach_file veto first (origin 'accept').
+ *
+ * @return array{changed:bool, file_hash:string, file_size:int}|WP_Error
+ */
+function isoft_fmf_accept_file_content( int $file_id ): array|WP_Error {
+	$manager = new ISOFT_FMF_File_Manager();
+	$file    = $manager->get_file( $file_id );
+	if ( ! $file || 'local' !== $file->file_type || empty( $file->file_path ) ) {
+		return new WP_Error( 'isoft_fmf_file_not_found', __( 'File not found.', 'isoft-fm-foundation' ), array( 'status' => 404 ) );
+	}
+
+	$base = realpath( isoft_fmf_files_dir() );
+	$raw  = isoft_fmf_files_dir() . '/' . $file->file_path;
+	$abs  = realpath( $raw );
+	if ( ! $base || ! $abs || is_link( $raw ) || ! isoft_fmf_path_within( $abs, $base ) || ! is_file( $abs ) ) {
+		return new WP_Error( 'isoft_fmf_file_not_on_disk', __( 'The stored file is not on disk.', 'isoft-fm-foundation' ), array( 'status' => 404 ) );
+	}
+
+	$refused = ISOFT_FMF_Files_Service::check_attach_allowed(
+		$abs,
+		array(
+			'download_id'   => (int) $file->download_id,
+			'file_id'       => $file_id,
+			'origin'        => 'accept',
+			'original_name' => basename( $abs ),
+		)
+	);
+	if ( $refused ) {
+		return $refused;
+	}
+
+	$hash = (string) hash_file( 'sha256', $abs );
+	$size = (int) filesize( $abs );
+	if ( $hash === (string) $file->file_hash && $size === (int) $file->file_size ) {
+		return array(
+			'changed'   => false,
+			'file_hash' => $hash,
+			'file_size' => $size,
+		);
+	}
+
+	$manager->update_content( $file_id, $hash, $size );
+
+	/** This action is documented in includes/class-broken-links-service.php */
+	do_action( 'isoft_fmf_file_replaced', $file_id, (int) $file->download_id );
+	isoft_fmf_content_changed( 'download', (int) $file->download_id );
+
+	return array(
+		'changed'   => true,
+		'file_hash' => $hash,
+		'file_size' => $size,
+	);
+}
+
+/**
+ * Point a file row at the place its file was moved to inside storage. A move
+ * within the same category folder updates the row; a move into another
+ * category's folder also moves the download (and its other files) to that
+ * category, exactly as the Broken Links "reassign" recovery does.
+ *
+ * @param int    $file_id      File row ID.
+ * @param string $new_rel_path New location, relative to isoft_fmf_files_dir().
+ * @return true|WP_Error
+ */
+function isoft_fmf_relink_file( int $file_id, string $new_rel_path ): bool|WP_Error {
+	return ( new ISOFT_FMF_Broken_Links_Service() )->relink( $file_id, $new_rel_path );
+}
+
+/**
+ * Make a file unavailable (kept and listed, but its button is passive and the
+ * download handler refuses it) or available again. For holding a file whose
+ * content is in question without deleting it.
+ */
+function isoft_fmf_set_file_unavailable( int $file_id, bool $unavailable ): bool {
+	return ( new ISOFT_FMF_File_Manager() )->set_unavailable( $file_id, $unavailable );
+}
+
+/**
+ * Whether a file is marked unavailable.
+ */
+function isoft_fmf_file_is_unavailable( int $file_id ): bool {
+	$file = ( new ISOFT_FMF_File_Manager() )->get_file( $file_id );
+	return $file && ! empty( $file->is_unavailable );
+}
+
+/**
+ * Text shown in place of the download button for a file that cannot be
+ * downloaded right now (missing on disk or marked unavailable). Site owners
+ * set it under Settings > Display.
+ */
+function isoft_fmf_unavailable_label(): string {
+	$label = trim( (string) get_option( 'isoft_fmf_unavailable_label', '' ) );
+	return '' !== $label ? $label : __( 'Temporarily unavailable', 'isoft-fm-foundation' );
+}
+
+/**
  * Slug of Foundation's top-level admin menu (the Downloads menu). Extensions
  * add their screens as submenus of it.
  */

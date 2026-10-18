@@ -92,6 +92,60 @@ class ISOFT_FMF_File_Manager {
 	}
 
 	/**
+	 * Rewrite the stored hash and size of a file row (content accepted as the
+	 * new baseline). Returns false when the row does not exist.
+	 */
+	public function update_content( int $file_id, string $sha256, int $size ): bool {
+		global $wpdb;
+		$file = $this->get_file_uncached( $file_id );
+		if ( ! $file ) {
+			return false;
+		}
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table write; cache invalidated below.
+		$wpdb->update(
+			$this->table,
+			array(
+				'file_hash' => $sha256,
+				'file_size' => $size,
+			),
+			array( 'id' => $file_id ),
+			array( '%s', '%d' ),
+			array( '%d' )
+		);
+		self::bust_cache_for( (int) $file->download_id, $file_id );
+		return true;
+	}
+
+	/**
+	 * Set or clear the "unavailable" flag (file kept, download refused).
+	 * Returns false when the row does not exist.
+	 */
+	public function set_unavailable( int $file_id, bool $unavailable ): bool {
+		global $wpdb;
+		$file = $this->get_file_uncached( $file_id );
+		if ( ! $file ) {
+			return false;
+		}
+		if ( (bool) ( $file->is_unavailable ?? false ) === $unavailable ) {
+			return true;
+		}
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table write; cache invalidated below.
+		$wpdb->update( $this->table, array( 'is_unavailable' => $unavailable ? 1 : 0 ), array( 'id' => $file_id ), array( '%d' ), array( '%d' ) );
+		self::bust_cache_for( (int) $file->download_id, $file_id );
+
+		/**
+		 * Fires when a file is made unavailable or available again.
+		 *
+		 * @param int  $file_id     File row ID.
+		 * @param int  $download_id Download post ID.
+		 * @param bool $unavailable True when downloads of it are now refused.
+		 */
+		do_action( 'isoft_fmf_file_availability_changed', $file_id, (int) $file->download_id, $unavailable );
+		isoft_fmf_content_changed( 'download', (int) $file->download_id );
+		return true;
+	}
+
+	/**
 	 * ID of a stored local file with this SHA-256, or 0.
 	 */
 	public function find_id_by_hash( string $sha256 ): int {
