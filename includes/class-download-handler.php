@@ -237,7 +237,7 @@ class ISOFT_FMF_Download_Handler {
 		$path = realpath( "{$base}/{$file->file_path}" );
 
 		// Path traversal guard: must stay within the isoft-fmf-files directory.
-		if ( $path && $base && str_starts_with( $path, $base ) ) {
+		if ( $path && $base && isoft_fmf_path_within( $path, $base ) ) {
 			return $path;
 		}
 

@@ -409,6 +409,21 @@ class ISOFT_FMF_Broken_Links_Service {
 		}
 		$target_abs = $target_dir . '/' . basename( (string) $file->file_name );
 
+		if ( ! empty( $uploaded_file['tmp_name'] ) ) {
+			$refused = ISOFT_FMF_Files_Service::check_attach_allowed(
+				(string) $uploaded_file['tmp_name'],
+				array(
+					'download_id'   => (int) $file->download_id,
+					'file_id'       => $file_id,
+					'origin'        => 'replace',
+					'original_name' => (string) ( $uploaded_file['name'] ?? '' ),
+				)
+			);
+			if ( $refused ) {
+				return $refused;
+			}
+		}
+
 		require_once ABSPATH . 'wp-admin/includes/file.php';
 		$upload = wp_handle_upload(
 			$uploaded_file,
@@ -450,6 +465,16 @@ class ISOFT_FMF_Broken_Links_Service {
 		);
 		self::refresh_inode( $file_id, $target_abs );
 		self::mark_healthy( $file_id, (int) $file->download_id );
+
+		/**
+		 * Fires after a stored file's content was replaced on purpose (its
+		 * hash changed). Lets integrity tooling record that the change was
+		 * intended instead of flagging it as tampering.
+		 *
+		 * @param int $file_id     File row ID.
+		 * @param int $download_id Download post ID.
+		 */
+		do_action( 'isoft_fmf_file_replaced', $file_id, (int) $file->download_id );
 
 		return array( 'message' => __( 'File reuploaded and relinked.', 'isoft-fm-foundation' ) );
 	}

@@ -135,6 +135,9 @@ add_action(
 		// Per-user write-side category ACL.
 		( new ISOFT_FMF_Category_ACL() )->register_hooks();
 
+		// Pending (not yet approved) categories, hidden from the public.
+		( new ISOFT_FMF_Category_Pending() )->register_hooks();
+
 		// Shortcodes (registered on all requests for REST/preview compatibility)
 		( new ISOFT_FMF_Shortcodes() )->register_hooks();
 

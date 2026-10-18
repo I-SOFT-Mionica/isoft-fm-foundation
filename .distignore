@@ -61,3 +61,6 @@ debug.log
 *.log
 *.map
 .cache
+
+# -- Developer documentation --
+docs

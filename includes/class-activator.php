@@ -321,6 +321,7 @@ HTACCESS;
 			INDEX idx_download_id (download_id),
 			INDEX idx_file_type (file_type),
 			INDEX idx_file_hash (file_hash),
+			INDEX idx_file_path (file_path(191)),
 			INDEX idx_is_missing (is_missing)
 		) $charset_collate;"
 		);

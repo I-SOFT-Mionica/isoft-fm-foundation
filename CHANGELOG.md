@@ -2,6 +2,31 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [Unreleased]
+
+Public API for extensions. Everything is a new function or a hook with no default callback, so an existing site behaves exactly as before. The full list, with the compatibility promise, is in `docs/PUBLIC-API.md`.
+
+### New
+
+- **`isoft_fmf_attach_file( $download_id, $source_abs, $args )`** puts a file that already exists on the server into the download's category folder and registers it. Modes `copy`, `move` (source removed only after the row is saved) and `in_place` (file already sits directly in the category folder; renamed to its sanitized name on disk if needed). A name clash returns `isoft_fmf_filename_collision`; symlinks and non-regular files are refused. PHP only, not reachable over REST.
+- **`isoft_fmf_pre_attach_file` filter** lets an extension refuse a file before it is stored, on every way of adding or replacing content: the upload form, `isoft_fmf_attach_file()`, import from disk and the Broken Links reupload. On the upload form it runs on the PHP temp file, before the file is copied into the public uploads directory. A refusal without a status becomes HTTP 422. No callback, no change.
+- **`isoft_fmf_file_replaced( $file_id, $download_id )`** action after a stored file's content is replaced on purpose (Broken Links reupload).
+- **`isoft_fmf_file_exists_by_hash( $sha256 )`** returns the ID of a stored file with that SHA-256, or 0.
+- **`isoft_fmf_get_local_files( $after_id, $limit )`** pages local file rows in ID order (id, download id, absolute path, hash, size, missing flag) for extensions that sweep storage.
+- **`isoft_fmf_category_for_folder()`** and **`isoft_fmf_file_for_path()`** look up the category that owns a storage folder and the file registered at a path. A new index on `file_path` keeps the second one fast; it is added on update.
+- **Pending categories.** `isoft_fmf_set_category_pending()` / `isoft_fmf_category_is_pending()`. A pending category and everything beneath it is hidden from visitors in category lists, shortcodes, blocks, the public REST API, a download's category list, the category archive (404) and sitemaps. Category managers, cron and WP-CLI still see it. The category list in the admin gets a Status column and an Approve action. Approving does not publish downloads. Existing categories are unaffected. New `isoft_fmf_category_pending_changed` action; `isoft_fmf_content_changed` now also fires with type `category`.
+- **`isoft_fmf_create_draft_download()`** accepts an optional `post_date` (`Y-m-d H:i:s`, site time).
+- **`isoft_fmf_admin_parent_slug()`** returns the Downloads menu slug for extensions that add submenus.
+
+### Security
+
+- Path checks on stored files (download handler, ZIP bundles, import from disk) now compare on a directory boundary. Before, a sibling folder such as `isoft-fmf-files-backup` passed the check for `isoft-fmf-files`.
+- The upload form's file size is now measured from the stored file instead of taken from the browser.
+
+### Documentation
+
+- `docs/PUBLIC-API.md`: the public API, including that a drive mounted at the storage root or at a category folder is supported while a symlink leading out of storage is not. A test fails if the document names something the code no longer has.
+
 ## [0.13.0] — 2026-10-17
 
 Headless readiness. Foundation can now sit behind a headless or statically generated frontend, a CDN, or a full-page cache without losing working download links, download counts, or the license audit trail. Everything is opt-in or additive; an existing site behaves exactly as before after updating.

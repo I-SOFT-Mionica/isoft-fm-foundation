@@ -236,7 +236,7 @@ class ISOFT_FMF_Bundle_Handler {
 				continue;
 			}
 			$abs = realpath( "{$base}/{$file->file_path}" );
-			if ( ! $abs || ! str_starts_with( $abs, $base ) || ! is_readable( $abs ) ) {
+			if ( ! $abs || ! isoft_fmf_path_within( $abs, $base ) || ! is_readable( $abs ) ) {
 				continue;
 			}
 
@@ -389,7 +389,7 @@ class ISOFT_FMF_Bundle_Handler {
 				continue;
 			}
 			$abs = realpath( "{$base}/{$file->file_path}" );
-			if ( $abs && str_starts_with( $abs, $base ) ) {
+			if ( $abs && isoft_fmf_path_within( $abs, $base ) ) {
 				$mtime = @filemtime( $abs );
 				if ( $mtime && $mtime > $max_mtime ) {
 					$max_mtime = $mtime;

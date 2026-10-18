@@ -92,6 +92,52 @@ class ISOFT_FMF_File_Manager {
 	}
 
 	/**
+	 * ID of a stored local file with this SHA-256, or 0.
+	 */
+	public function find_id_by_hash( string $sha256 ): int {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Dedup lookup on the write path; must be fresh.
+		$id = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE file_hash = %s ORDER BY id ASC LIMIT 1', $this->table, $sha256 ) );
+		return $id ? (int) $id : 0;
+	}
+
+	/**
+	 * ID of the file row registered at this storage-relative path, or 0.
+	 * The column is compared case-insensitively by the database, so the
+	 * candidates are re-checked byte for byte.
+	 */
+	public function find_id_by_path( string $rel_path ): int {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Existence lookup on the write path; must be fresh.
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT id, file_path FROM %i WHERE file_path = %s ORDER BY id ASC LIMIT 20', $this->table, $rel_path ) );
+		foreach ( (array) $rows as $row ) {
+			if ( (string) $row->file_path === $rel_path ) {
+				return (int) $row->id;
+			}
+		}
+		return 0;
+	}
+
+	/**
+	 * Local file rows in ID order, for sweeps in batches.
+	 *
+	 * @return object[] Columns: id, download_id, file_path, file_hash, file_size, is_missing.
+	 */
+	public function list_local_after( int $after_id, int $limit ): array {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Batch sweep; callers want current rows.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT id, download_id, file_path, file_hash, file_size, is_missing FROM %i WHERE id > %d AND file_type = 'local' AND file_path IS NOT NULL AND file_path <> '' ORDER BY id ASC LIMIT %d",
+				$this->table,
+				$after_id,
+				$limit
+			)
+		);
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
 	 * Get a single file record.
 	 */
 	public function get_file( int $file_id ): ?object {
