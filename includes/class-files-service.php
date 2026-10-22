@@ -448,14 +448,40 @@ class ISOFT_FMF_Files_Service {
 			);
 		}
 
-		// Path traversal guard — resolved path must stay under isoft_fmf_files_dir().
-		$base = realpath( isoft_fmf_files_dir() );
-		$abs  = realpath( "{$base}/{$rel_path}" );
-		if ( ! $abs || ! $base || ! isoft_fmf_path_within( $abs, $base ) || ! is_file( $abs ) ) {
+		// Only a file sitting directly in this download's own category folder
+		// (what browse_category() offers). Anything else in storage belongs to
+		// another category, the bundle cache or Foundation itself, and answers
+		// like a missing file. The permission check covers this download only.
+		$category_id = self::download_category_id( $download_id );
+		$base        = realpath( isoft_fmf_files_dir() );
+		$folder      = $category_id ? realpath( isoft_fmf_category_fs_path( $category_id ) ) : false;
+		$abs         = $base ? realpath( "{$base}/{$rel_path}" ) : false;
+		if ( ! $abs || ! $folder || dirname( $abs ) !== $folder || is_link( "{$base}/{$rel_path}" ) || ! is_file( $abs ) || str_starts_with( basename( $abs ), '.' ) ) {
 			return new WP_Error(
 				'isoft_fmf_file_not_found',
 				__( 'File not found.', 'isoft-fm-foundation' ),
 				array( 'status' => 404 )
+			);
+		}
+
+		// Store the canonical relative path, and never register a file twice.
+		$rel_path = ltrim( str_replace( '\\', '/', substr( $abs, strlen( $base ) ) ), '/' );
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Existence check on the write path.
+		$already = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE file_path = %s', "{$wpdb->prefix}isoft_fmf_files", $rel_path ) );
+		if ( $already > 0 ) {
+			return new WP_Error(
+				'isoft_fmf_already_registered',
+				__( 'This file is already registered.', 'isoft-fm-foundation' ),
+				array( 'status' => 409 )
+			);
+		}
+
+		if ( in_array( strtolower( pathinfo( $abs, PATHINFO_EXTENSION ) ), isoft_fmf_blocked_extensions(), true ) ) {
+			return new WP_Error(
+				'isoft_fmf_bad_filename',
+				__( 'This file type can never be registered: a web server could run it.', 'isoft-fm-foundation' ),
+				array( 'status' => 400 )
 			);
 		}
 

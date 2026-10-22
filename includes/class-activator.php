@@ -242,26 +242,9 @@ class ISOFT_FMF_Activator {
 	private static function create_file_storage(): void {
 		$dir = isoft_fmf_files_dir();
 
-		if ( ! file_exists( $dir ) ) {
-			wp_mkdir_p( $dir );
-		}
-
-		$htaccess = "{$dir}/.htaccess";
-		if ( ! file_exists( $htaccess ) ) {
-			$rules = <<<'HTACCESS'
-# I-Soft File Manager: Foundation: block all direct web access.
-# Files are served exclusively through the plugin's secure download handler.
-Options -Indexes
-<IfModule mod_authz_core.c>
-    Require all denied
-</IfModule>
-<IfModule !mod_authz_core.c>
-    Order deny,allow
-    Deny from all
-</IfModule>
-HTACCESS;
-			file_put_contents( $htaccess, $rules ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Runs during activation before WP_Filesystem is bootstrapped.
-		}
+		// .htaccess (Apache, LiteSpeed), web.config (IIS) and index.php. Other
+		// servers need a server rule; Site Health checks that it is in place.
+		ISOFT_FMF_Storage_Guard::write_guards();
 
 		// Bundle-cache subdir. Covered by the parent .htaccess above (deny-all
 		// cascades), so no second .htaccess needed — but we create the dir

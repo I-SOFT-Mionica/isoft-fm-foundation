@@ -313,6 +313,17 @@ function isoft_fmf_category_fs_path( int $term_id ): string {
  *   original_title — original stem kept for title autofill
  *   error          — human-readable error string, or null on success
  */
+/**
+ * Extensions that are refused on every upload, import and attach regardless
+ * of the allowed-extensions setting: scripts and server configuration a web
+ * server could run or obey if the storage folder were ever reachable.
+ *
+ * @return string[]
+ */
+function isoft_fmf_blocked_extensions(): array {
+	return array( 'php', 'php3', 'php4', 'php5', 'php7', 'php8', 'phtml', 'pht', 'phps', 'phar', 'shtml', 'cgi', 'pl', 'py', 'asp', 'aspx', 'jsp', 'htaccess', 'htpasswd', 'ini' );
+}
+
 function isoft_fmf_sanitize_filename( string $original_name ): array {
 	// 1. Strip duplicate extension
 	$name = isoft_fmf_strip_double_extension( $original_name );
@@ -321,7 +332,22 @@ function isoft_fmf_sanitize_filename( string $original_name ): array {
 	$ext           = strtolower( pathinfo( $name, PATHINFO_EXTENSION ) );
 	$original_stem = pathinfo( $name, PATHINFO_FILENAME );
 
-	// 3. Extension allow-list
+	// 3a. Hard floor: types a web server may execute or obey are refused
+	// whatever the allow-list says, including when it is empty.
+	if ( in_array( $ext, isoft_fmf_blocked_extensions(), true ) ) {
+		return array(
+			'slug'           => '',
+			'ext'            => $ext,
+			'original_title' => $original_stem,
+			'error'          => sprintf(
+				/* translators: %s: extension */
+				__( 'File type ".%s" can never be uploaded: a web server could run it.', 'isoft-fm-foundation' ),
+				$ext
+			),
+		);
+	}
+
+	// 3b. Extension allow-list (empty = everything outside the floor).
 	$allowed = isoft_fmf_get_settings()['allowed_extensions'];
 	if ( ! empty( $allowed ) && ! in_array( $ext, $allowed, true ) ) {
 		return array(

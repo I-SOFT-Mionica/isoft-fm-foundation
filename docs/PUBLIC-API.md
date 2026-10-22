@@ -78,6 +78,10 @@ Foundation resolves every stored path with `realpath()` and refuses anything out
 - A drive **mounted at** the storage root, or at a category folder's path, is supported: the resolved path stays inside storage.
 - A **symlink** that leads out of storage is not supported and will not serve. This is a deliberate security boundary; there is no setting to relax it.
 
+## Storage guards
+
+Foundation writes `.htaccess`, `web.config` and `index.php` into the storage root and keeps a small probe file there (`isoft-fmf-probe.txt`) for the Site Health reachability test. Extensions that walk storage (Sentinel's mirror watches) skip these, along with dot-files and `.bundle-cache/`. `isoft_fmf_blocked_extensions()` lists the file types that are refused everywhere.
+
 ## Compatibility promise
 
 The functions, hooks and signatures on this page are public API. Additions are backwards compatible (new optional parameters, new keys in arrays). Removals and meaning changes are announced in the changelog one release ahead.

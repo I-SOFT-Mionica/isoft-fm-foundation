@@ -141,6 +141,9 @@ add_action(
 		// One change hook (isoft_fmf_content_changed) for builds and caches.
 		( new ISOFT_FMF_Change_Announcer() )->register_hooks();
 
+		// Site Health check that the storage folder is not web-reachable.
+		( new ISOFT_FMF_Storage_Guard() )->register_hooks();
+
 		// Shortcodes (registered on all requests for REST/preview compatibility)
 		( new ISOFT_FMF_Shortcodes() )->register_hooks();
 

@@ -4,6 +4,13 @@ All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads
 
 ## [Unreleased]
 
+### Security
+
+- **File edits, deletions and reordering are limited to the download being edited.** The file routes checked permission on the download in the request but did not confirm the file belonged to it, so a user allowed to edit one download could change files of another, including in categories their category restrictions exclude. A file of another download now answers like a missing one. Reported privately by the headless partner project.
+- **Import from disk only registers untracked files from the download's own category folder.** It accepted any path inside storage, which let a user restricted to one category register files from another category's folder (or cached ZIP bundles) under their own download. Files already registered to a download are refused too.
+- **Script and server-configuration file types are refused on every upload, import and attach, whatever the allowed-extensions setting says** (`php` and its variants, `phtml`, `phar`, `shtml`, `cgi`, `pl`, `py`, `asp`, `aspx`, `jsp`, `.htaccess`, `.htpasswd`, `.ini`). Before, an empty allowed-extensions list switched the extension check off.
+- **Download storage is guarded on every web server.** Besides the `.htaccess` (Apache, LiteSpeed), activation now writes a `web.config` (IIS) and an `index.php`. Servers that read neither (nginx, Caddy, FrankenPHP) need one configuration rule: a new **Site Health** test requests a probe file from storage by URL and reports critical, with the rule for nginx and Caddy, when the folder is directly reachable. Documented in the readme.
+
 Public API for extensions. Everything is a new function or a hook with no default callback, so an existing site behaves exactly as before. The full list, with the compatibility promise, is in `docs/PUBLIC-API.md`.
 
 ### New
@@ -31,7 +38,7 @@ Public API for extensions. Everything is a new function or a hook with no defaul
 - **`isoft_fmf_content_changed` is now the one change hook.** It also fires when a download is saved, trashed or deleted, when categories or tags are created, edited or deleted (including Foundation's term meta such as icon, order and access role), and when terms are assigned. Static builds and caches no longer need to listen to WordPress's post and term hooks as well. Type `tag` is new.
 - The Broken Links screen's category-for-folder lookup walks the slug chain instead of loading every category.
 
-### Security
+### Security (continued)
 
 - Path checks on stored files (download handler, ZIP bundles, import from disk) now compare on a directory boundary. Before, a sibling folder such as `isoft-fmf-files-backup` passed the check for `isoft-fmf-files`.
 - The upload form's file size is now measured from the stored file instead of taken from the browser.

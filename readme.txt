@@ -60,6 +60,19 @@ The filesystem **is** the source of truth. Moving a download to a different cate
 * Database user with `CREATE`, `ALTER`, `INDEX`, `REFERENCES`, and `DROP` on the WordPress database (needed once on activation to create the plugin's tables; common on locked-down shared hosts to be missing)
 * Imagick PHP extension for PDF thumbnails
 
+= Nginx, Caddy and other servers =
+
+Downloads are stored in `wp-content/uploads/isoft-fmf-files/` and must only ever be served through the plugin, which checks who may download what. Apache, LiteSpeed and IIS keep that folder closed automatically. Nginx, Caddy and similar servers need one line in their configuration. **Tools > Site Health** checks this for you and shows the exact rule for your site when it is missing.
+
+For nginx, inside the `server` block:
+
+`location ^~ /wp-content/uploads/isoft-fmf-files/ { deny all; return 403; }`
+
+For Caddy:
+
+`@isoftfmf path /wp-content/uploads/isoft-fmf-files/*`
+`respond @isoftfmf 403`
+
 == Frequently Asked Questions ==
 
 = Why not just use the default WordPress Media Library? =

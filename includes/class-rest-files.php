@@ -179,6 +179,23 @@ class ISOFT_FMF_Rest_Files {
 		return $download_id > 0 && current_user_can( 'edit_post', $download_id );
 	}
 
+	/**
+	 * The file named in the URL, only when it belongs to the download named in
+	 * the URL. The permission check covers that download; a file of any other
+	 * download answers exactly like a missing one.
+	 */
+	private function file_of_download( WP_REST_Request $request ): stdClass|WP_Error {
+		$file = $this->service->get( (int) $request->get_param( 'file_id' ) );
+		if ( null === $file || (int) $file->download_id !== (int) $request->get_param( 'id' ) ) {
+			return new WP_Error(
+				'isoft_fmf_file_not_found',
+				__( 'File not found.', 'isoft-fm-foundation' ),
+				array( 'status' => 404 )
+			);
+		}
+		return $file;
+	}
+
 	// ---------------------------------------------------------------------
 	// Endpoint handlers
 	// ---------------------------------------------------------------------
@@ -256,6 +273,20 @@ class ISOFT_FMF_Rest_Files {
 			);
 		}
 
+		// Every file in the order must belong to this download; the permission
+		// check only covers this one.
+		$download_id = (int) $request->get_param( 'id' );
+		foreach ( array_keys( $order ) as $file_id ) {
+			$file = $this->service->get( absint( $file_id ) );
+			if ( null === $file || (int) $file->download_id !== $download_id ) {
+				return new WP_Error(
+					'isoft_fmf_file_not_found',
+					__( 'File not found.', 'isoft-fm-foundation' ),
+					array( 'status' => 404 )
+				);
+			}
+		}
+
 		$this->service->reorder( $order );
 		return new WP_REST_Response( array( 'ok' => true ), 200 );
 	}
@@ -266,15 +297,11 @@ class ISOFT_FMF_Rest_Files {
 	}
 
 	public function update( WP_REST_Request $request ): WP_REST_Response|WP_Error {
-		$file_id = (int) $request->get_param( 'file_id' );
-		$file    = $this->service->get( $file_id );
-		if ( null === $file ) {
-			return new WP_Error(
-				'isoft_fmf_file_not_found',
-				__( 'File not found.', 'isoft-fm-foundation' ),
-				array( 'status' => 404 )
-			);
+		$file = $this->file_of_download( $request );
+		if ( is_wp_error( $file ) ) {
+			return $file;
 		}
+		$file_id = (int) $file->id;
 
 		$title       = (string) $request->get_param( 'title' );
 		$description = (string) $request->get_param( 'description' );
@@ -294,15 +321,11 @@ class ISOFT_FMF_Rest_Files {
 	}
 
 	public function delete( WP_REST_Request $request ): WP_REST_Response|WP_Error {
-		$file_id = (int) $request->get_param( 'file_id' );
-		$file    = $this->service->get( $file_id );
-		if ( null === $file ) {
-			return new WP_Error(
-				'isoft_fmf_file_not_found',
-				__( 'File not found.', 'isoft-fm-foundation' ),
-				array( 'status' => 404 )
-			);
+		$file = $this->file_of_download( $request );
+		if ( is_wp_error( $file ) ) {
+			return $file;
 		}
+		$file_id = (int) $file->id;
 
 		if ( ! $this->service->delete( $file_id ) ) {
 			return new WP_Error(
