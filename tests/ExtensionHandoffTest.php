@@ -518,6 +518,8 @@ class ExtensionHandoffTest extends WP_UnitTestCase {
 			'isoft_fmf_download_is_public'    => array( 'download_id' ),
 			'isoft_fmf_category_is_public'    => array( 'term_id' ),
 			'isoft_fmf_public_file'           => array( 'file_id' ),
+			'isoft_fmf_features'              => array(),
+			'isoft_fmf_has_feature'           => array( 'feature' ),
 		);
 		foreach ( $expected as $function => $params ) {
 			$this->assertTrue( function_exists( $function ), $function );

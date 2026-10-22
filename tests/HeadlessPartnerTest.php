@@ -209,6 +209,36 @@ class HeadlessPartnerTest extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'cache_friendly_links', $data['settings'] );
 	}
 
+	public function test_features_are_the_same_in_php_and_over_http(): void {
+		$this->assertSame( isoft_fmf_features(), $this->rest( '/info' )->get_data()['features'] );
+		$this->assertTrue( isoft_fmf_has_feature( 'public_rule' ) );
+		$this->assertTrue( isoft_fmf_has_feature( 'thumbnail_sizes' ) );
+		$this->assertFalse( isoft_fmf_has_feature( 'teleportation' ) );
+
+		add_filter( 'isoft_fmf_features', fn( array $f ): array => array_merge( $f, array( 'sentinel_scan', 'public_rule' ) ) );
+		$this->assertTrue( isoft_fmf_has_feature( 'sentinel_scan' ) );
+		$this->assertSame( array_unique( isoft_fmf_features() ), isoft_fmf_features(), 'no duplicates' );
+	}
+
+	public function test_thumbnail_lists_every_size_for_srcset(): void {
+		$id    = $this->download( $this->category( 'Open' ) );
+		$image = self::factory()->attachment->create_upload_object( DIR_TESTDATA . '/images/canola.jpg', $id );
+		set_post_thumbnail( $id, $image );
+
+		$thumb = $this->rest( "/downloads/{$id}" )->get_data()['thumbnail'];
+
+		$this->assertSame( $image, $thumb['id'] );
+		$this->assertArrayHasKey( 'full', $thumb['sizes'] );
+		$this->assertArrayHasKey( 'thumbnail', $thumb['sizes'] );
+		foreach ( $thumb['sizes'] as $name => $size ) {
+			$this->assertSame( array( 'width', 'height', 'mime_type', 'source_url' ), array_keys( $size ), $name );
+			$this->assertSame( 'image/jpeg', $size['mime_type'], $name );
+			$this->assertStringStartsWith( 'http', $size['source_url'], $name );
+		}
+		$this->assertLessThan( $thumb['sizes']['full']['width'], $thumb['sizes']['thumbnail']['width'] );
+		wp_delete_attachment( $image, true );
+	}
+
 	public function test_info_does_not_exist_while_the_api_is_off(): void {
 		delete_option( 'isoft_fmf_public_api_enabled' );
 

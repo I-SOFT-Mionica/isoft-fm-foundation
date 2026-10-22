@@ -707,6 +707,51 @@ function isoft_fmf_public_file( int $file_id ): ?array {
 }
 
 /**
+ * What this Foundation can do, as stable feature identifiers. Code running in
+ * the same WordPress (a headless module, an extension) checks these instead
+ * of function_exists() or version numbers; clients outside WordPress read the
+ * same list from GET /public/info.
+ *
+ * Identifiers are only ever added, never renamed or removed without a
+ * deprecation release.
+ *
+ * @return string[]
+ */
+function isoft_fmf_features(): array {
+	$features = array(
+		'public_api',
+		'gates',
+		'record_downloads',
+		'record_idempotency',
+		'content_changed',
+		'pending_categories',
+		'unavailable_files',
+		'category_path',
+		'public_rule',
+		'attach_file',
+		'pre_attach_veto',
+		'file_state',
+		'thumbnail_sizes',
+	);
+
+	/**
+	 * Filters the feature list (isoft_fmf_features() and GET /public/info).
+	 * Extensions may add their own identifiers, prefixed with their slug.
+	 *
+	 * @param string[] $features Feature identifiers.
+	 */
+	$features = (array) apply_filters( 'isoft_fmf_features', $features );
+	return array_values( array_unique( array_map( 'strval', $features ) ) );
+}
+
+/**
+ * Whether this Foundation has a feature (see isoft_fmf_features()).
+ */
+function isoft_fmf_has_feature( string $feature ): bool {
+	return in_array( $feature, isoft_fmf_features(), true );
+}
+
+/**
  * Slug of Foundation's top-level admin menu (the Downloads menu). Extensions
  * add their screens as submenus of it.
  */

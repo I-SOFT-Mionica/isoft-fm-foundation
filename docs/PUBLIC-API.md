@@ -48,7 +48,9 @@ The public REST API applies the same rule: downloads under a pending category ar
 
 ## Feature detection
 
-`GET /isoft-fm-foundation/v1/public/info` (only while the public API is on) returns `name`, `version`, `api` (1), `features` (for example `public_api`, `gates`, `record_downloads`, `record_idempotency`, `content_changed`, `pending_categories`, `unavailable_files`, `category_path`) and a few public `settings`. Filter `isoft_fmf_public_api_features`. Clients should test features, not version numbers.
+In PHP: `isoft_fmf_features(): string[]` and `isoft_fmf_has_feature( $feature ): bool`. Over HTTP: `GET /isoft-fm-foundation/v1/public/info` (only while the public API is on) returns `name`, `version`, `api` (1), the same `features` and a few public `settings`. Identifiers: `public_api`, `gates`, `record_downloads`, `record_idempotency`, `content_changed`, `pending_categories`, `unavailable_files`, `category_path`, `public_rule`, `attach_file`, `pre_attach_veto`, `file_state`, `thumbnail_sizes`. They are only ever added. Filter `isoft_fmf_features` (extensions add identifiers prefixed with their slug). Test features, not version numbers.
+
+A download's `thumbnail` carries `sizes`: every generated size plus `full`, each with `width`, `height`, `mime_type`, `source_url`, in the shape of WordPress' REST `media_details.sizes`.
 
 Categories in the public API carry `path`: the slug chain from the top (`reports/2026`), the same as the storage folder and the archive URL.
 

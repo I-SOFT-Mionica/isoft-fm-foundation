@@ -293,36 +293,44 @@ class ISOFT_FMF_Rest_Public {
 	}
 
 	/**
+	 * Every generated size of an image, in the shape of WordPress' own REST
+	 * media_details.sizes (keyed by size name, plus 'full'), so front ends can
+	 * build srcset without a second request.
+	 *
+	 * @return array<string, array{width:int, height:int, mime_type:string, source_url:string}>
+	 */
+	private function image_sizes( int $attachment_id ): array {
+		$meta  = wp_get_attachment_metadata( $attachment_id );
+		$names = array_keys( is_array( $meta ) && ! empty( $meta['sizes'] ) ? (array) $meta['sizes'] : array() );
+		$mime  = (string) get_post_mime_type( $attachment_id );
+		$sizes = array();
+		foreach ( array_merge( $names, array( 'full' ) ) as $name ) {
+			$src = wp_get_attachment_image_src( $attachment_id, $name );
+			if ( ! $src ) {
+				continue;
+			}
+			$sizes[ $name ] = array(
+				'width'      => (int) $src[1],
+				'height'     => (int) $src[2],
+				'mime_type'  => (string) ( $meta['sizes'][ $name ]['mime-type'] ?? $mime ),
+				'source_url' => (string) $src[0],
+			);
+		}
+		return $sizes;
+	}
+
+	/**
 	 * What this Foundation can do, for clients that adapt to the installed
 	 * version (SDKs, gateways, build tools). Exists only while the public API
 	 * is on, like every other public route.
 	 */
 	public function info(): WP_REST_Response {
-		/**
-		 * Filters the feature list announced by GET /public/info.
-		 *
-		 * @param string[] $features Feature identifiers.
-		 */
-		$features = (array) apply_filters(
-			'isoft_fmf_public_api_features',
-			array(
-				'public_api',
-				'gates',
-				'record_downloads',
-				'record_idempotency',
-				'content_changed',
-				'pending_categories',
-				'unavailable_files',
-				'category_path',
-			)
-		);
-
 		return new WP_REST_Response(
 			array(
 				'name'     => 'isoft-fm-foundation',
 				'version'  => ISOFT_FMF_VERSION,
 				'api'      => 1,
-				'features' => array_values( array_unique( array_map( 'strval', $features ) ) ),
+				'features' => isoft_fmf_features(),
 				'settings' => array(
 					'cache_friendly_links' => (bool) get_option( 'isoft_fmf_cache_friendly_links', 0 ),
 					'zip_bundles'          => (bool) get_option( 'isoft_fmf_enable_zip_bundle', 0 ),
@@ -541,6 +549,7 @@ class ISOFT_FMF_Rest_Public {
 				'width'  => (int) $src[1],
 				'height' => (int) $src[2],
 				'alt'    => (string) get_post_meta( $thumb_id, '_wp_attachment_image_alt', true ),
+				'sizes'  => $this->image_sizes( $thumb_id ),
 			);
 		}
 
@@ -720,7 +729,10 @@ class ISOFT_FMF_Rest_Public {
 					'description' => 'Role required to download.',
 				),
 				'license'        => array( 'type' => array( 'object', 'null' ) ),
-				'thumbnail'      => array( 'type' => array( 'object', 'null' ) ),
+				'thumbnail'      => array(
+					'type'        => array( 'object', 'null' ),
+					'description' => 'Featured image: id, url, width, height, alt, and sizes (keyed by size name plus full: width, height, mime_type, source_url, as WordPress media_details.sizes).',
+				),
 				'files'          => array(
 					'type'  => 'array',
 					'items' => array( 'type' => 'object' ),
