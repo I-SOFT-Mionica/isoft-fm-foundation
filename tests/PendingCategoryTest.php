@@ -138,6 +138,16 @@ class PendingCategoryTest extends WP_UnitTestCase {
 		$this->assertSame( $this->held, ISOFT_FMF_Files_Service::download_category_id( $download ) );
 	}
 
+	public function test_the_cached_category_tree_stays_complete_after_a_visitor_rebuilds_it(): void {
+		delete_option( 'isoft_fmf_category_children' );
+		ISOFT_FMF_Category_Pending::flush();
+
+		$this->listed(); // A visitor's query rebuilds the tree while the filter is active.
+
+		$this->assertContains( $this->held_child, get_term_children( $this->held, 'isoft_fmf_category' ) );
+		$this->assertArrayHasKey( $this->held, (array) get_option( 'isoft_fmf_category_children' ) );
+	}
+
 	public function test_other_taxonomies_are_untouched(): void {
 		$args = array( 'taxonomy' => array( 'category' ) );
 

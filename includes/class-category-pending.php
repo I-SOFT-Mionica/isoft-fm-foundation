@@ -35,8 +35,16 @@ class ISOFT_FMF_Category_Pending {
 	/** @var int[]|null Request cache of pending term IDs plus all their descendants. */
 	private static ?array $hidden = null;
 
+	/**
+	 * True while the filter itself is working. Finding descendants makes
+	 * WordPress rebuild its category tree with a nested get_terms() call; that
+	 * call must see every category and must not re-enter the filter.
+	 */
+	private static bool $busy = false;
+
 	public function register_hooks(): void {
 		add_filter( 'get_terms_args', array( $this, 'hide_in_term_queries' ), 20, 2 );
+		add_action( 'clean_term_cache', array( self::class, 'flush' ), 10, 2 );
 		add_filter( 'get_the_terms', array( $this, 'hide_on_downloads' ), 20, 3 );
 		add_action( 'template_redirect', array( $this, 'block_archive' ), 5 );
 		add_filter( 'wp_sitemaps_taxonomies_query_args', array( $this, 'hide_in_sitemaps' ), 20, 2 );
@@ -87,6 +95,20 @@ class ISOFT_FMF_Category_Pending {
 	}
 
 	/**
+	 * Drop the request caches when WordPress clears the category cache (a
+	 * category was added, edited or removed).
+	 *
+	 * @param int[]|int $ids      Term IDs.
+	 * @param string    $taxonomy Taxonomy.
+	 */
+	public static function flush( $ids = array(), $taxonomy = '' ): void {
+		if ( '' === $taxonomy || self::TAXONOMY === $taxonomy ) {
+			self::$ids    = null;
+			self::$hidden = null;
+		}
+	}
+
+	/**
 	 * IDs of every pending category.
 	 *
 	 * @return int[]
@@ -118,14 +140,20 @@ class ISOFT_FMF_Category_Pending {
 	 */
 	public static function hidden_ids(): array {
 		if ( null === self::$hidden ) {
-			$all = self::ids();
-			foreach ( self::ids() as $id ) {
-				$children = get_term_children( $id, self::TAXONOMY );
-				if ( is_array( $children ) ) {
-					$all = array_merge( $all, array_map( 'intval', $children ) );
+			$was        = self::$busy;
+			self::$busy = true; // The tree lookups below must see every category.
+			try {
+				$all = self::ids();
+				foreach ( self::ids() as $id ) {
+					$children = get_term_children( $id, self::TAXONOMY );
+					if ( is_array( $children ) ) {
+						$all = array_merge( $all, array_map( 'intval', $children ) );
+					}
 				}
+				self::$hidden = array_values( array_unique( $all ) );
+			} finally {
+				self::$busy = $was;
 			}
-			self::$hidden = array_values( array_unique( $all ) );
 		}
 		return self::$hidden;
 	}
@@ -153,7 +181,7 @@ class ISOFT_FMF_Category_Pending {
 	 * Whether the current request must not see pending categories. Managers
 	 * and background jobs are exempt.
 	 */
-	private static function enforcing(): bool {
+	public static function enforcing(): bool {
 		if ( wp_doing_cron() || ( defined( 'WP_CLI' ) && WP_CLI ) ) {
 			return false;
 		}
@@ -173,15 +201,30 @@ class ISOFT_FMF_Category_Pending {
 		// Per-object lookups (wp_get_object_terms) are Foundation's own plumbing:
 		// access roles, licenses, folders. Only the public display of a download's
 		// categories is filtered, by hide_on_downloads().
-		if ( ! in_array( self::TAXONOMY, $taxonomies, true ) || ! empty( $args['object_ids'] ) || ! empty( $args['isoft_fmf_include_pending'] ) || ! self::enforcing() ) {
-			return $args;
-		}
-		$pending = self::ids();
-		if ( ! $pending ) {
+		// Leave WordPress's own plumbing alone. Its internal lookups (resolving a
+		// tax_query, get_term_by(), rebuilding the category tree it caches in an
+		// option) all ask with 'get' => 'all'; filtering them would make a
+		// tax_query that excludes pending categories vanish, or store a pruned
+		// tree. Only display queries are filtered.
+		if ( self::$busy
+			|| ! in_array( self::TAXONOMY, $taxonomies, true )
+			|| ! empty( $args['object_ids'] )
+			|| ! empty( $args['isoft_fmf_include_pending'] )
+			|| 'all' === ( $args['get'] ?? '' )
+			|| 'id=>parent' === ( $args['fields'] ?? '' )
+		) {
 			return $args;
 		}
 
-		$hidden = self::hidden_ids();
+		self::$busy = true;
+		try {
+			$hidden = self::enforcing() && self::ids() ? self::hidden_ids() : array();
+		} finally {
+			self::$busy = false;
+		}
+		if ( ! $hidden ) {
+			return $args;
+		}
 
 		if ( ! empty( $args['include'] ) ) {
 			// WordPress ignores 'exclude' next to 'include', so subtract here.

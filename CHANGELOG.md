@@ -21,8 +21,13 @@ Public API for extensions. Everything is a new function or a hook with no defaul
 - **`isoft_fmf_relink_file( $file_id, $new_rel_path )`** points a file row at where its file was moved inside storage. It reuses the Broken Links reassign recovery (now shared with it): a move within the category folder updates the row, a move into another category's folder moves the download and its other files there.
 - **Unavailable files.** `isoft_fmf_set_file_unavailable()` / `isoft_fmf_file_is_unavailable()` hold a file back without deleting it: it stays listed with a passive label instead of a button, the download handler refuses it, ZIP bundles skip it, and the public API reports `unavailable` with no download link. New setting **Settings > Display > Text for files that cannot be downloaded right now** (default "Temporarily unavailable"), also used for files missing from disk. New `isoft_fmf_file_availability_changed` action. A new `is_unavailable` column is added on update.
 
+- **One rule for "public".** `isoft_fmf_download_is_public()`, `isoft_fmf_category_is_public()` and `isoft_fmf_public_file()` answer whether an anonymous visitor may see a download or category, or download a file (and where it lives), with the whole rule: status, password, access role, pending categories, unavailable and missing files, "external links only". Headless front ends and extensions call these instead of re-implementing the rule.
+- **`GET /public/info`** reports version, API level and a feature list, so SDKs and gateways can adapt to the installed Foundation. Exists only while the public API is on.
+- **Public API**: categories carry `path` (slug chain, same as folder and archive URL); downloads under a pending category are left out (lists keep correct totals, singles answer 404); download content is rendered with the download as the global post, so blocks and shortcodes inside it see the right post.
+
 ### Changed
 
+- **`isoft_fmf_content_changed` is now the one change hook.** It also fires when a download is saved, trashed or deleted, when categories or tags are created, edited or deleted (including Foundation's term meta such as icon, order and access role), and when terms are assigned. Static builds and caches no longer need to listen to WordPress's post and term hooks as well. Type `tag` is new.
 - The Broken Links screen's category-for-folder lookup walks the slug chain instead of loading every category.
 
 ### Security

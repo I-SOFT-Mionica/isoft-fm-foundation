@@ -151,6 +151,16 @@ class ISOFT_FMF_Rest_Public {
 
 		register_rest_route(
 			self::NS,
+			'/public/info',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'info' ),
+				'permission_callback' => '__return_true',
+			)
+		);
+
+		register_rest_route(
+			self::NS,
 			'/public/categories',
 			array(
 				array(
@@ -184,6 +194,17 @@ class ISOFT_FMF_Rest_Public {
 		}
 
 		$tax_query = array();
+
+		// Downloads filed under a pending category stay out until it is approved.
+		if ( ISOFT_FMF_Category_Pending::enforcing() && ISOFT_FMF_Category_Pending::hidden_ids() ) {
+			$tax_query[] = array(
+				'taxonomy'         => 'isoft_fmf_category',
+				'field'            => 'term_id',
+				'terms'            => ISOFT_FMF_Category_Pending::hidden_ids(),
+				'operator'         => 'NOT IN',
+				'include_children' => false,
+			);
+		}
 		if ( (int) $request['category'] > 0 ) {
 			$tax_query[] = array(
 				'taxonomy'         => 'isoft_fmf_category',
@@ -250,12 +271,64 @@ class ISOFT_FMF_Rest_Public {
 			|| 'publish' !== $post->post_status
 			|| post_password_required( $post )
 			|| ! $this->access()->can_access_download( (int) $post->ID )
+			|| $this->in_hidden_category( (int) $post->ID )
 		) {
 			// Same answer for "missing" and "not allowed": nothing to probe.
 			return new WP_Error( 'isoft_fmf_not_found', __( 'Download not found.', 'isoft-fm-foundation' ), array( 'status' => 404 ) );
 		}
 
 		return $this->with_cache_headers( new WP_REST_Response( $this->item( $post, $request ) ), $request, get_post_modified_time( 'U', true, $post ) );
+	}
+
+	/**
+	 * Whether the download is filed under a category the requester may not see
+	 * because it (or an ancestor) is pending.
+	 */
+	private function in_hidden_category( int $download_id ): bool {
+		if ( ! ISOFT_FMF_Category_Pending::enforcing() || ! ISOFT_FMF_Category_Pending::hidden_ids() ) {
+			return false;
+		}
+		$terms = wp_get_object_terms( $download_id, 'isoft_fmf_category', array( 'fields' => 'ids' ) );
+		return (bool) array_intersect( array_map( 'intval', is_array( $terms ) ? $terms : array() ), ISOFT_FMF_Category_Pending::hidden_ids() );
+	}
+
+	/**
+	 * What this Foundation can do, for clients that adapt to the installed
+	 * version (SDKs, gateways, build tools). Exists only while the public API
+	 * is on, like every other public route.
+	 */
+	public function info(): WP_REST_Response {
+		/**
+		 * Filters the feature list announced by GET /public/info.
+		 *
+		 * @param string[] $features Feature identifiers.
+		 */
+		$features = (array) apply_filters(
+			'isoft_fmf_public_api_features',
+			array(
+				'public_api',
+				'gates',
+				'record_downloads',
+				'record_idempotency',
+				'content_changed',
+				'pending_categories',
+				'unavailable_files',
+				'category_path',
+			)
+		);
+
+		return new WP_REST_Response(
+			array(
+				'name'     => 'isoft-fm-foundation',
+				'version'  => ISOFT_FMF_VERSION,
+				'api'      => 1,
+				'features' => array_values( array_unique( array_map( 'strval', $features ) ) ),
+				'settings' => array(
+					'cache_friendly_links' => (bool) get_option( 'isoft_fmf_cache_friendly_links', 0 ),
+					'zip_bundles'          => (bool) get_option( 'isoft_fmf_enable_zip_bundle', 0 ),
+				),
+			)
+		);
 	}
 
 	/**
@@ -355,6 +428,7 @@ class ISOFT_FMF_Rest_Public {
 				'description' => $term->description,
 				'icon'        => (string) get_term_meta( $term->term_id, '_isoft_fmf_cat_icon', true ),
 				'sort_order'  => (int) get_term_meta( $term->term_id, '_isoft_fmf_cat_sort_order', true ),
+				'path'        => rawurldecode( isoft_fmf_category_folder_path( (int) $term->term_id ) ),
 			);
 			if ( $include_folder ) {
 				$item['folder'] = isoft_fmf_category_folder_path( (int) $term->term_id );
@@ -511,12 +585,26 @@ class ISOFT_FMF_Rest_Public {
 			);
 		}
 
+		// Render with the download as the global post, as a theme would: blocks
+		// and shortcodes in the content that read get_the_ID() then see it.
+		$previous        = $GLOBALS['post'] ?? null;
+		$GLOBALS['post'] = $post; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Restored right below.
+		setup_postdata( $post );
+		$content         = (string) apply_filters( 'the_content', $post->post_content ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core filter, same as the core REST posts controller.
+		$excerpt         = html_entity_decode( wp_strip_all_tags( get_the_excerpt( $post ) ), ENT_QUOTES, 'UTF-8' );
+		$GLOBALS['post'] = $previous; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Restoring the original.
+		if ( $previous instanceof WP_Post ) {
+			setup_postdata( $previous );
+		} else {
+			wp_reset_postdata();
+		}
+
 		return array(
 			'id'             => $id,
 			'title'          => html_entity_decode( get_the_title( $post ), ENT_QUOTES, 'UTF-8' ),
 			'slug'           => $post->post_name,
-			'excerpt'        => html_entity_decode( wp_strip_all_tags( get_the_excerpt( $post ) ), ENT_QUOTES, 'UTF-8' ),
-			'content'        => apply_filters( 'the_content', $post->post_content ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core filter, same as the core REST posts controller.
+			'excerpt'        => $excerpt,
+			'content'        => $content,
 			'date'           => get_post_time( 'c', true, $post ),
 			'modified'       => get_post_modified_time( 'c', true, $post ),
 			'link'           => get_permalink( $post ),
@@ -676,6 +764,10 @@ class ISOFT_FMF_Rest_Public {
 					'description' => array( 'type' => 'string' ),
 					'icon'        => array( 'type' => 'string' ),
 					'sort_order'  => array( 'type' => 'integer' ),
+					'path'        => array(
+						'type'        => 'string',
+						'description' => 'Slug chain from the top category, e.g. "reports/2026". Same as the storage folder and the archive URL.',
+					),
 				),
 			),
 		);

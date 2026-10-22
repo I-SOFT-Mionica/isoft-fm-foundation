@@ -616,6 +616,97 @@ function isoft_fmf_unavailable_label(): string {
 }
 
 /**
+ * Whether a category is visible to an anonymous visitor: neither it nor any
+ * ancestor requires a role, and it is not pending (or beneath a pending one).
+ */
+function isoft_fmf_category_is_public( int $term_id ): bool {
+	$term = get_term( $term_id, 'isoft_fmf_category' );
+	if ( ! $term instanceof WP_Term || ISOFT_FMF_Category_Pending::is_hidden( $term_id ) ) {
+		return false;
+	}
+	$guard = 0;
+	while ( $term instanceof WP_Term && $guard++ < 50 ) {
+		$role = (string) get_term_meta( $term->term_id, '_isoft_fmf_cat_access_role', true );
+		if ( '' !== $role && 'public' !== $role ) {
+			return false;
+		}
+		$term = $term->parent ? get_term( (int) $term->parent, 'isoft_fmf_category' ) : null;
+	}
+	return true;
+}
+
+/**
+ * Whether an anonymous visitor may see and download a download: published,
+ * no password, effective access role public, and not filed under a pending
+ * category. The single rule for "public"; extensions and headless front ends
+ * call this instead of re-implementing it.
+ */
+function isoft_fmf_download_is_public( int $download_id ): bool {
+	$post   = get_post( $download_id );
+	$public = $post instanceof WP_Post
+		&& 'isoft_fmf_file' === $post->post_type
+		&& 'publish' === $post->post_status
+		&& '' === $post->post_password
+		&& 'public' === ( new ISOFT_FMF_Access_Control() )->effective_role_for( $download_id );
+
+	if ( $public && ISOFT_FMF_Category_Pending::ids() ) {
+		$terms = wp_get_object_terms( $download_id, 'isoft_fmf_category', array( 'fields' => 'ids' ) );
+		foreach ( is_array( $terms ) ? $terms : array() as $term_id ) {
+			if ( ISOFT_FMF_Category_Pending::is_hidden( (int) $term_id ) ) {
+				$public = false;
+				break;
+			}
+		}
+	}
+
+	/**
+	 * Filters whether a download counts as public (visible and downloadable
+	 * by an anonymous visitor).
+	 *
+	 * @param bool $public      Result of Foundation's rule.
+	 * @param int  $download_id Download post ID.
+	 */
+	return (bool) apply_filters( 'isoft_fmf_download_is_public', $public, $download_id );
+}
+
+/**
+ * A local file an anonymous visitor may download, with where it lives, or
+ * null. Applies the whole rule: the download is public, the file is local,
+ * not missing, not marked unavailable, not hidden by "external links only",
+ * and its path resolves to a regular file inside storage.
+ *
+ * @return array{id:int, download_id:int, abs_path:string, rel_path:string, name:string, size:int, mime:string, sha256:string}|null
+ */
+function isoft_fmf_public_file( int $file_id ): ?array {
+	$file = ( new ISOFT_FMF_File_Manager() )->get_file( $file_id );
+	if ( ! $file || 'local' !== $file->file_type || empty( $file->file_path ) || ! empty( $file->is_missing ) || ! empty( $file->is_unavailable ) ) {
+		return null;
+	}
+	$download_id = (int) $file->download_id;
+	if ( get_post_meta( $download_id, '_isoft_fmf_external_only', true ) || ! isoft_fmf_download_is_public( $download_id ) ) {
+		return null;
+	}
+
+	$base = realpath( isoft_fmf_files_dir() );
+	$raw  = isoft_fmf_files_dir() . '/' . $file->file_path;
+	$abs  = realpath( $raw );
+	if ( ! $base || ! $abs || is_link( $raw ) || ! isoft_fmf_path_within( $abs, $base ) || ! is_file( $abs ) ) {
+		return null;
+	}
+
+	return array(
+		'id'          => (int) $file->id,
+		'download_id' => $download_id,
+		'abs_path'    => $abs,
+		'rel_path'    => (string) $file->file_path,
+		'name'        => (string) $file->file_name,
+		'size'        => (int) $file->file_size,
+		'mime'        => (string) $file->file_mime,
+		'sha256'      => (string) $file->file_hash,
+	);
+}
+
+/**
  * Slug of Foundation's top-level admin menu (the Downloads menu). Extensions
  * add their screens as submenus of it.
  */
@@ -1156,10 +1247,12 @@ function isoft_fmf_record_download( int $file_id, array $context = array() ): ?i
 }
 
 /**
- * Announce that public-facing FMF content changed outside the post / term
- * save hooks WordPress already fires: file rows (added, edited, reordered,
- * removed) and licenses. Static site builders, page caches and CDNs hook
- * here to refresh.
+ * Announce that public-facing FMF content changed. This is the one hook a
+ * static site build, page cache or CDN needs: it fires for file rows (added,
+ * edited, reordered, removed, replaced, held back), licenses, pending state,
+ * and, through ISOFT_FMF_Change_Announcer, for downloads saved or deleted,
+ * category and tag edits (including their Foundation term meta) and term
+ * assignments.
  *
  * Download counters are deliberately not announced — they change on every
  * download and would turn into a rebuild per click.
@@ -1168,8 +1261,8 @@ function isoft_fmf_record_download( int $file_id, array $context = array() ): ?i
  * for many objects in one request. Importers can wrap their work in
  * isoft_fmf_suspend_content_changed() / isoft_fmf_resume_content_changed().
  *
- * @param string $object_type 'download' (its files changed) or 'license'.
- * @param int    $object_id   Download post ID or license ID.
+ * @param string $object_type 'download', 'license', 'category' or 'tag'.
+ * @param int    $object_id   Download post ID, license ID or term ID.
  */
 function isoft_fmf_content_changed( string $object_type, int $object_id ): void {
 	$state = &isoft_fmf_content_changed_state();
@@ -1182,7 +1275,7 @@ function isoft_fmf_content_changed( string $object_type, int $object_id ): void 
 	/**
 	 * Fires when FMF content changed outside post / term saves.
 	 *
-	 * @param string $object_type 'download', 'license', 'category' (a category became pending or was approved), or 'bulk' (object id 0) after a suspended batch.
+	 * @param string $object_type 'download', 'license', 'category', 'tag', or 'bulk' (object id 0) after a suspended batch.
 	 * @param int    $object_id   Download post ID or license ID.
 	 */
 	do_action( 'isoft_fmf_content_changed', $object_type, $object_id );

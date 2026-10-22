@@ -36,6 +36,22 @@ Conventions: functions are plain functions with the `isoft_fmf_` prefix. Nothing
 | `isoft_fmf_record_download( $file_id, $context )` | Record a download served elsewhere (see `idempotency_key`) |
 | `isoft_fmf_client_ip()` | The visitor's address, honouring the Client IP source setting |
 
+## What counts as public
+
+One rule, so front ends, gateways and extensions never re-implement it:
+
+- `isoft_fmf_download_is_public( $download_id ): bool` - published, no password, effective access role public, not under a pending category. Filter `isoft_fmf_download_is_public`.
+- `isoft_fmf_category_is_public( $term_id ): bool` - neither it nor any ancestor requires a role, and it is not pending.
+- `isoft_fmf_public_file( $file_id ): ?array` - a local file an anonymous visitor may download, with `id`, `download_id`, `abs_path`, `rel_path`, `name`, `size`, `mime`, `sha256`; null when the download is not public, the file is external, missing or unavailable, the download is "external links only", or the path does not resolve inside storage.
+
+The public REST API applies the same rule: downloads under a pending category are left out of lists (totals stay right) and answer 404 singly, and unavailable files carry no `download_url`.
+
+## Feature detection
+
+`GET /isoft-fm-foundation/v1/public/info` (only while the public API is on) returns `name`, `version`, `api` (1), `features` (for example `public_api`, `gates`, `record_downloads`, `record_idempotency`, `content_changed`, `pending_categories`, `unavailable_files`, `category_path`) and a few public `settings`. Filter `isoft_fmf_public_api_features`. Clients should test features, not version numbers.
+
+Categories in the public API carry `path`: the slug chain from the top (`reports/2026`), the same as the storage folder and the archive URL.
+
 ## Pending categories
 
 A category can be held back from the public until approved: it exists and files can be filed in it, but it (and everything beneath it) is hidden from visitors in category lists, shortcodes, blocks, the public REST API, download category lists, the category archive (404) and sitemaps.
@@ -49,7 +65,7 @@ A category can be held back from the public until approved: it exists and files 
 
 ## Hooks
 
-Actions: `isoft_fmf_file_uploaded( $file_id, $download_id )`, `isoft_fmf_file_deleted`, `isoft_fmf_file_replaced( $file_id, $download_id )` (content replaced on purpose: a Broken Links reupload or `isoft_fmf_accept_file_content()`), `isoft_fmf_file_availability_changed( $file_id, $download_id, $unavailable )`, `isoft_fmf_integrity_check_complete( $summary )`, `isoft_fmf_download_logged`, `isoft_fmf_content_changed( $type, $id )` with `isoft_fmf_suspend_content_changed()` / `isoft_fmf_resume_content_changed()`.
+Actions: `isoft_fmf_file_uploaded( $file_id, $download_id )`, `isoft_fmf_file_deleted`, `isoft_fmf_file_replaced( $file_id, $download_id )` (content replaced on purpose: a Broken Links reupload or `isoft_fmf_accept_file_content()`), `isoft_fmf_file_availability_changed( $file_id, $download_id, $unavailable )`, `isoft_fmf_integrity_check_complete( $summary )`, `isoft_fmf_download_logged`, `isoft_fmf_content_changed( $type, $id )` with `isoft_fmf_suspend_content_changed()` / `isoft_fmf_resume_content_changed()`. This is the one hook a static build or cache needs: it fires for downloads saved, trashed or deleted, file changes, licenses, category and tag edits (including Foundation term meta), term assignments and pending state. `$type` is `download`, `license`, `category`, `tag`, or `bulk` (id 0) after a suspended batch. It can fire more than once per request; listeners should be idempotent.
 
 Filter `isoft_fmf_pre_attach_file( true|WP_Error $allowed, string $abs_path, array $context )`: return a `WP_Error` to refuse a file before it is stored. It runs on every way of adding or replacing file content: the upload form (on the PHP temp file, before it is copied into the public uploads directory), `isoft_fmf_attach_file()`, import from disk, the Broken Links reupload, and `isoft_fmf_accept_file_content()`. `$context` has `download_id`, `origin` (`upload`, `attach`, `import`, `replace`, `accept`), `original_name` and whatever the caller passed. A refusal without a status becomes HTTP 422. With no callback attached nothing changes.
 
