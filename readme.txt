@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.1
 Requires PHP: 8.4
-Stable tag: 0.13.0
+Stable tag: 0.14.0-dev
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
