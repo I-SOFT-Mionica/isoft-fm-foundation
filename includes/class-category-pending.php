@@ -235,6 +235,7 @@ class ISOFT_FMF_Category_Pending {
 			return $args;
 		}
 
+		// phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_exclude -- A get_terms() query, not a post query; excludes the few pending categories, which is the point of this filter.
 		$args['exclude'] = array_values( array_unique( array_merge( wp_parse_id_list( $args['exclude'] ?? array() ), $hidden ) ) );
 		return $args;
 	}
@@ -279,6 +280,7 @@ class ISOFT_FMF_Category_Pending {
 		if ( self::TAXONOMY !== $taxonomy || ! self::ids() ) {
 			return $args;
 		}
+		// phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_exclude -- Sitemap term query, not a post query; excludes the few pending categories.
 		$args['exclude'] = array_values( array_unique( array_merge( wp_parse_id_list( $args['exclude'] ?? array() ), self::hidden_ids() ) ) );
 		return $args;
 	}
