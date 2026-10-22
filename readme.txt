@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.1
 Requires PHP: 8.4
-Stable tag: 0.14.0-dev
+Stable tag: 0.14.0
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -16,9 +16,17 @@ Document and download manager with real on-disk folder organization, per-departm
 
 Unlike standard media plugins that dump every upload into a single dated folder, Foundation is designed for municipalities, universities, libraries, and any team that needs to manage thousands of public documents, maintain a strict category tree, and give different departments their own secure upload spaces.
 
-= What's new in 0.12.0 =
+= What's new in 0.14.0 =
 
-The entire admin is rebuilt on React and a public REST API. Statistics, Download Log, Broken Links, Licenses, and Settings load as Gutenberg-native single-page apps under a redesigned **Downloads → Tools** menu; navigating between them is instant after the first load. The download post-edit screen now runs on the block editor with a right-hand sidebar for version, license, agreement, and access role. The Broken Links recovery flow has been rebuilt around a per-row modal. Existing data is preserved on upgrade — see the changelog for full details.
+**A security update, recommended for every site.** Editors who are limited to certain categories can now only change, reorder or import files inside the downloads and folders they are allowed to work in. Script and server-configuration files are refused on every upload, whatever the allowed-file-types setting says. The download storage folder is closed on Apache, LiteSpeed and IIS automatically, and **Tools > Site Health** now checks it is closed on nginx and other servers too, showing the one line to add if it is not.
+
+Also new:
+
+* **Pending categories.** A category can be held back from the public until someone approves it; its downloads stay hidden in the meantime.
+* **Hold a file without deleting it.** A file can be marked unavailable: it stays listed with a short message you choose (default "Temporarily unavailable") instead of a download button.
+* **Ready for add-ons and headless sites.** One clear rule for what counts as public, one change signal for page caches and static builds, image sizes in the public data API, and a documented set of functions add-ons can rely on.
+
+Since 0.12, Foundation also gained optional cache-friendly download links, an optional public read-only data API, counting of downloads served by a CDN or edge server, and protection against faked visitor addresses (see 0.13.0 in the changelog).
 
 = Key features =
 
@@ -305,6 +313,17 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 
 == Changelog ==
 
+= 0.14.0 =
+
+**Security update, plus pending categories and file holds.**
+
+* **Security:** editors limited to certain categories can only edit, delete, reorder or import files within the downloads and category folders they may work in. Import from disk only accepts untracked files from the download's own folder.
+* **Security:** script and server-configuration file types (PHP and its variants, .htaccess, .user.ini and similar) are refused on every upload, import and attach, even if the allowed-file-types setting is empty or lists them.
+* **Security:** the download storage folder now also carries IIS and directory-listing guards, and a new **Site Health** test checks that it cannot be opened by URL, with the rule to add for nginx and Caddy when it can.
+* **Pending categories:** hold a category back from the public until it is approved, with an Approve action in the category list.
+* **Unavailable files:** keep a file listed with a passive message instead of a download button; the wording is set under **Settings > Display**.
+* **For add-ons and headless sites:** one public-visibility rule, a single change signal for caches and static builds, feature detection, image sizes and category paths in the public data API, and a documented public API.
+
 = 0.13.0 =
 
 **Works behind static sites, CDNs and page caches.**
@@ -412,6 +431,9 @@ Existing data (downloads, categories, files, licenses, logs, per-user category p
 * **Inline metadata editing** directly from the file list.
 
 == Upgrade Notice ==
+
+= 0.14.0 =
+Security update, recommended for all sites: tighter file permission checks for category-restricted editors, executable file types always refused, and a Site Health check that download storage is closed on every web server. Adds a column and an index on update; no data is changed.
 
 = 0.13.0 =
 New optional cache-friendly download links and public REST API (both off until you enable them), and a Client IP source setting you will be asked to review. Adds one column to the download log on update; no data is changed.
