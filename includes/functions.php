@@ -29,14 +29,24 @@ function isoft_fmf_create_draft_download( array $args ): int|false {
 		return false;
 	}
 
-	$post_id = wp_insert_post(
-		array(
-			'post_title'   => $title,
-			'post_status'  => 'draft',
-			'post_type'    => 'isoft_fmf_file',
-			'post_content' => wp_kses_post( $args['description'] ?? '' ),
-		)
+	$postarr = array(
+		'post_title'   => $title,
+		'post_status'  => 'draft',
+		'post_type'    => 'isoft_fmf_file',
+		'post_content' => wp_kses_post( $args['description'] ?? '' ),
 	);
+
+	// Optional publication date, site time 'Y-m-d H:i:s'. Anything that is not
+	// a real date in that format is ignored rather than guessed at.
+	if ( ! empty( $args['post_date'] ) && is_string( $args['post_date'] ) ) {
+		$date = DateTimeImmutable::createFromFormat( '!Y-m-d H:i:s', $args['post_date'], wp_timezone() );
+		if ( $date && $date->format( 'Y-m-d H:i:s' ) === $args['post_date'] ) {
+			$postarr['post_date']     = $args['post_date'];
+			$postarr['post_date_gmt'] = get_gmt_from_date( $args['post_date'] );
+		}
+	}
+
+	$post_id = wp_insert_post( $postarr );
 
 	if ( is_wp_error( $post_id ) ) {
 		return false;
@@ -303,6 +313,17 @@ function isoft_fmf_category_fs_path( int $term_id ): string {
  *   original_title — original stem kept for title autofill
  *   error          — human-readable error string, or null on success
  */
+/**
+ * Extensions that are refused on every upload, import and attach regardless
+ * of the allowed-extensions setting: scripts and server configuration a web
+ * server could run or obey if the storage folder were ever reachable.
+ *
+ * @return string[]
+ */
+function isoft_fmf_blocked_extensions(): array {
+	return array( 'php', 'php3', 'php4', 'php5', 'php7', 'php8', 'phtml', 'pht', 'phps', 'phar', 'shtml', 'cgi', 'pl', 'py', 'asp', 'aspx', 'jsp', 'htaccess', 'htpasswd', 'ini' );
+}
+
 function isoft_fmf_sanitize_filename( string $original_name ): array {
 	// 1. Strip duplicate extension
 	$name = isoft_fmf_strip_double_extension( $original_name );
@@ -311,7 +332,22 @@ function isoft_fmf_sanitize_filename( string $original_name ): array {
 	$ext           = strtolower( pathinfo( $name, PATHINFO_EXTENSION ) );
 	$original_stem = pathinfo( $name, PATHINFO_FILENAME );
 
-	// 3. Extension allow-list
+	// 3a. Hard floor: types a web server may execute or obey are refused
+	// whatever the allow-list says, including when it is empty.
+	if ( in_array( $ext, isoft_fmf_blocked_extensions(), true ) ) {
+		return array(
+			'slug'           => '',
+			'ext'            => $ext,
+			'original_title' => $original_stem,
+			'error'          => sprintf(
+				/* translators: %s: extension */
+				__( 'File type ".%s" can never be uploaded: a web server could run it.', 'isoft-fm-foundation' ),
+				$ext
+			),
+		);
+	}
+
+	// 3b. Extension allow-list (empty = everything outside the floor).
 	$allowed = isoft_fmf_get_settings()['allowed_extensions'];
 	if ( ! empty( $allowed ) && ! in_array( $ext, $allowed, true ) ) {
 		return array(
@@ -380,6 +416,388 @@ function isoft_fmf_strip_double_extension( string $filename ): string {
 function isoft_fmf_filename_collision( string $slug, int $category_id ): bool {
 	$path = isoft_fmf_category_fs_path( $category_id ) . '/' . $slug;
 	return file_exists( $path );
+}
+
+/**
+ * Whether $path lies inside $base, compared on a directory boundary. Both
+ * should already be realpath()-resolved. A plain str_starts_with() would
+ * accept a sibling such as ".../isoft-fmf-files-backup" for the base
+ * ".../isoft-fmf-files".
+ */
+function isoft_fmf_path_within( string $path, string $base ): bool {
+	$base = rtrim( $base, '/\\' );
+	if ( '' === $base ) {
+		return false;
+	}
+	return $path === $base || str_starts_with( $path, $base . '/' ) || str_starts_with( $path, $base . DIRECTORY_SEPARATOR );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Public API for extensions (see docs/PUBLIC-API.md). Signatures are stable.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * ID of a stored local file with this SHA-256, or 0 (also for input that is
+ * not 64 hex characters). Lets a caller skip re-uploading identical content.
+ */
+function isoft_fmf_file_exists_by_hash( string $sha256 ): int {
+	$sha256 = strtolower( trim( $sha256 ) );
+	if ( 1 !== preg_match( '/^[a-f0-9]{64}$/', $sha256 ) ) {
+		return 0;
+	}
+	return ( new ISOFT_FMF_File_Manager() )->find_id_by_hash( $sha256 );
+}
+
+/**
+ * Place a file that already exists on the server into the download's
+ * category folder and register it. PHP only: not reachable over REST or AJAX.
+ *
+ * @param int    $download_id Download post ID; it needs a category.
+ * @param string $source_abs  Absolute path of a regular file (symlinks are refused).
+ * @param array  $args {
+ *     @type string $mode          'copy' (default), 'move' (source removed only after the row is saved)
+ *                                 or 'in_place' (source already sits directly in the download's category
+ *                                 folder; renamed to its sanitized name if needed, then registered).
+ *     @type string $original_name Name to sanitize. Default: basename of the source.
+ *     @type string $title         Default: isoft_fmf_autofill_title() of the name.
+ *     @type array  $context       Passed to the isoft_fmf_pre_attach_file filter, e.g. array( 'origin' => 'sentinel' ).
+ * }
+ * @return int|WP_Error New file ID. A name clash is the isoft_fmf_filename_collision error; nothing is renamed silently.
+ */
+function isoft_fmf_attach_file( int $download_id, string $source_abs, array $args = array() ): int|WP_Error {
+	return ( new ISOFT_FMF_Files_Service() )->attach( $download_id, $source_abs, $args );
+}
+
+/**
+ * Local file rows in ID order, for extensions that sweep storage in batches.
+ * Keep your own cursor (the last ID you saw).
+ *
+ * @param int $after_id Return rows with an ID greater than this.
+ * @param int $limit    1 to 1000, default 200.
+ * @return array<int, array{id:int, download_id:int, abs_path:string, file_hash:string, file_size:int, is_missing:bool}>
+ */
+function isoft_fmf_get_local_files( int $after_id = 0, int $limit = 200 ): array {
+	$rows = ( new ISOFT_FMF_File_Manager() )->list_local_after( max( 0, $after_id ), max( 1, min( 1000, $limit ) ) );
+	$base = isoft_fmf_files_dir();
+	$out  = array();
+	foreach ( $rows as $row ) {
+		$out[] = array(
+			'id'          => (int) $row->id,
+			'download_id' => (int) $row->download_id,
+			'abs_path'    => $base . '/' . ltrim( (string) $row->file_path, '/' ),
+			'file_hash'   => (string) $row->file_hash,
+			'file_size'   => (int) $row->file_size,
+			'is_missing'  => (bool) $row->is_missing,
+		);
+	}
+	return $out;
+}
+
+/**
+ * Category term ID that owns a storage folder, or 0. The reverse of
+ * isoft_fmf_category_folder_path(): walks the slug chain from the top.
+ * Pending categories count; this is a lookup, not a visibility check.
+ *
+ * @param string $rel_folder Folder relative to isoft_fmf_files_dir(), no leading slash.
+ */
+function isoft_fmf_category_for_folder( string $rel_folder ): int {
+	$rel_folder = trim( str_replace( '\\', '/', $rel_folder ), '/' );
+	if ( '' === $rel_folder ) {
+		return 0;
+	}
+	$parent = 0;
+	foreach ( explode( '/', $rel_folder ) as $segment ) {
+		if ( '' === $segment || '.' === $segment || '..' === $segment ) {
+			return 0;
+		}
+		$ids = get_terms(
+			array(
+				'taxonomy'                  => 'isoft_fmf_category',
+				'slug'                      => $segment,
+				'parent'                    => $parent,
+				'hide_empty'                => false,
+				'number'                    => 1,
+				'fields'                    => 'ids',
+				'isoft_fmf_include_pending' => true,
+			)
+		);
+		if ( is_wp_error( $ids ) || empty( $ids ) ) {
+			return 0;
+		}
+		$parent = (int) $ids[0];
+	}
+	return $parent;
+}
+
+/**
+ * ID of the file row registered at this path, or 0.
+ *
+ * @param string $rel_path Path relative to isoft_fmf_files_dir().
+ */
+function isoft_fmf_file_for_path( string $rel_path ): int {
+	$rel_path = ltrim( str_replace( '\\', '/', $rel_path ), '/' );
+	if ( '' === $rel_path ) {
+		return 0;
+	}
+	return ( new ISOFT_FMF_File_Manager() )->find_id_by_path( $rel_path );
+}
+
+/**
+ * Accept a stored file's current content as its new baseline: re-hash the
+ * file on disk and save the hash and size. Use after content changed on disk
+ * on purpose (an approved replacement) so integrity checks stop flagging it.
+ * Runs the isoft_fmf_pre_attach_file veto first (origin 'accept').
+ *
+ * @return array{changed:bool, file_hash:string, file_size:int}|WP_Error
+ */
+function isoft_fmf_accept_file_content( int $file_id ): array|WP_Error {
+	$manager = new ISOFT_FMF_File_Manager();
+	$file    = $manager->get_file( $file_id );
+	if ( ! $file || 'local' !== $file->file_type || empty( $file->file_path ) ) {
+		return new WP_Error( 'isoft_fmf_file_not_found', __( 'File not found.', 'isoft-fm-foundation' ), array( 'status' => 404 ) );
+	}
+
+	$base = realpath( isoft_fmf_files_dir() );
+	$raw  = isoft_fmf_files_dir() . '/' . $file->file_path;
+	$abs  = realpath( $raw );
+	if ( ! $base || ! $abs || is_link( $raw ) || ! isoft_fmf_path_within( $abs, $base ) || ! is_file( $abs ) ) {
+		return new WP_Error( 'isoft_fmf_file_not_on_disk', __( 'The stored file is not on disk.', 'isoft-fm-foundation' ), array( 'status' => 404 ) );
+	}
+
+	$refused = ISOFT_FMF_Files_Service::check_attach_allowed(
+		$abs,
+		array(
+			'download_id'   => (int) $file->download_id,
+			'file_id'       => $file_id,
+			'origin'        => 'accept',
+			'original_name' => basename( $abs ),
+		)
+	);
+	if ( $refused ) {
+		return $refused;
+	}
+
+	$hash = (string) hash_file( 'sha256', $abs );
+	$size = (int) filesize( $abs );
+	if ( $hash === (string) $file->file_hash && $size === (int) $file->file_size ) {
+		return array(
+			'changed'   => false,
+			'file_hash' => $hash,
+			'file_size' => $size,
+		);
+	}
+
+	$manager->update_content( $file_id, $hash, $size );
+
+	/** This action is documented in includes/class-broken-links-service.php */
+	do_action( 'isoft_fmf_file_replaced', $file_id, (int) $file->download_id );
+	isoft_fmf_content_changed( 'download', (int) $file->download_id );
+
+	return array(
+		'changed'   => true,
+		'file_hash' => $hash,
+		'file_size' => $size,
+	);
+}
+
+/**
+ * Point a file row at the place its file was moved to inside storage. A move
+ * within the same category folder updates the row; a move into another
+ * category's folder also moves the download (and its other files) to that
+ * category, exactly as the Broken Links "reassign" recovery does.
+ *
+ * @param int    $file_id      File row ID.
+ * @param string $new_rel_path New location, relative to isoft_fmf_files_dir().
+ * @return true|WP_Error
+ */
+function isoft_fmf_relink_file( int $file_id, string $new_rel_path ): bool|WP_Error {
+	return ( new ISOFT_FMF_Broken_Links_Service() )->relink( $file_id, $new_rel_path );
+}
+
+/**
+ * Make a file unavailable (kept and listed, but its button is passive and the
+ * download handler refuses it) or available again. For holding a file whose
+ * content is in question without deleting it.
+ */
+function isoft_fmf_set_file_unavailable( int $file_id, bool $unavailable ): bool {
+	return ( new ISOFT_FMF_File_Manager() )->set_unavailable( $file_id, $unavailable );
+}
+
+/**
+ * Whether a file is marked unavailable.
+ */
+function isoft_fmf_file_is_unavailable( int $file_id ): bool {
+	$file = ( new ISOFT_FMF_File_Manager() )->get_file( $file_id );
+	return $file && ! empty( $file->is_unavailable );
+}
+
+/**
+ * Text shown in place of the download button for a file that cannot be
+ * downloaded right now (missing on disk or marked unavailable). Site owners
+ * set it under Settings > Display.
+ */
+function isoft_fmf_unavailable_label(): string {
+	$label = trim( (string) get_option( 'isoft_fmf_unavailable_label', '' ) );
+	return '' !== $label ? $label : __( 'Temporarily unavailable', 'isoft-fm-foundation' );
+}
+
+/**
+ * Whether a category is visible to an anonymous visitor: neither it nor any
+ * ancestor requires a role, and it is not pending (or beneath a pending one).
+ */
+function isoft_fmf_category_is_public( int $term_id ): bool {
+	$term = get_term( $term_id, 'isoft_fmf_category' );
+	if ( ! $term instanceof WP_Term || ISOFT_FMF_Category_Pending::is_hidden( $term_id ) ) {
+		return false;
+	}
+	$guard = 0;
+	while ( $term instanceof WP_Term && $guard++ < 50 ) {
+		$role = (string) get_term_meta( $term->term_id, '_isoft_fmf_cat_access_role', true );
+		if ( '' !== $role && 'public' !== $role ) {
+			return false;
+		}
+		$term = $term->parent ? get_term( (int) $term->parent, 'isoft_fmf_category' ) : null;
+	}
+	return true;
+}
+
+/**
+ * Whether an anonymous visitor may see and download a download: published,
+ * no password, effective access role public, and not filed under a pending
+ * category. The single rule for "public"; extensions and headless front ends
+ * call this instead of re-implementing it.
+ */
+function isoft_fmf_download_is_public( int $download_id ): bool {
+	$post   = get_post( $download_id );
+	$public = $post instanceof WP_Post
+		&& 'isoft_fmf_file' === $post->post_type
+		&& 'publish' === $post->post_status
+		&& '' === $post->post_password
+		&& 'public' === ( new ISOFT_FMF_Access_Control() )->effective_role_for( $download_id );
+
+	if ( $public && ISOFT_FMF_Category_Pending::ids() ) {
+		$terms = wp_get_object_terms( $download_id, 'isoft_fmf_category', array( 'fields' => 'ids' ) );
+		foreach ( is_array( $terms ) ? $terms : array() as $term_id ) {
+			if ( ISOFT_FMF_Category_Pending::is_hidden( (int) $term_id ) ) {
+				$public = false;
+				break;
+			}
+		}
+	}
+
+	/**
+	 * Filters whether a download counts as public (visible and downloadable
+	 * by an anonymous visitor).
+	 *
+	 * @param bool $public      Result of Foundation's rule.
+	 * @param int  $download_id Download post ID.
+	 */
+	return (bool) apply_filters( 'isoft_fmf_download_is_public', $public, $download_id );
+}
+
+/**
+ * A local file an anonymous visitor may download, with where it lives, or
+ * null. Applies the whole rule: the download is public, the file is local,
+ * not missing, not marked unavailable, not hidden by "external links only",
+ * and its path resolves to a regular file inside storage.
+ *
+ * @return array{id:int, download_id:int, abs_path:string, rel_path:string, name:string, size:int, mime:string, sha256:string}|null
+ */
+function isoft_fmf_public_file( int $file_id ): ?array {
+	$file = ( new ISOFT_FMF_File_Manager() )->get_file( $file_id );
+	if ( ! $file || 'local' !== $file->file_type || empty( $file->file_path ) || ! empty( $file->is_missing ) || ! empty( $file->is_unavailable ) ) {
+		return null;
+	}
+	$download_id = (int) $file->download_id;
+	if ( get_post_meta( $download_id, '_isoft_fmf_external_only', true ) || ! isoft_fmf_download_is_public( $download_id ) ) {
+		return null;
+	}
+
+	$base = realpath( isoft_fmf_files_dir() );
+	$raw  = isoft_fmf_files_dir() . '/' . $file->file_path;
+	$abs  = realpath( $raw );
+	if ( ! $base || ! $abs || is_link( $raw ) || ! isoft_fmf_path_within( $abs, $base ) || ! is_file( $abs ) ) {
+		return null;
+	}
+
+	return array(
+		'id'          => (int) $file->id,
+		'download_id' => $download_id,
+		'abs_path'    => $abs,
+		'rel_path'    => (string) $file->file_path,
+		'name'        => (string) $file->file_name,
+		'size'        => (int) $file->file_size,
+		'mime'        => (string) $file->file_mime,
+		'sha256'      => (string) $file->file_hash,
+	);
+}
+
+/**
+ * What this Foundation can do, as stable feature identifiers. Code running in
+ * the same WordPress (a headless module, an extension) checks these instead
+ * of function_exists() or version numbers; clients outside WordPress read the
+ * same list from GET /public/info.
+ *
+ * Identifiers are only ever added, never renamed or removed without a
+ * deprecation release.
+ *
+ * @return string[]
+ */
+function isoft_fmf_features(): array {
+	$features = array(
+		'public_api',
+		'gates',
+		'record_downloads',
+		'record_idempotency',
+		'content_changed',
+		'pending_categories',
+		'unavailable_files',
+		'category_path',
+		'public_rule',
+		'attach_file',
+		'pre_attach_veto',
+		'file_state',
+		'thumbnail_sizes',
+	);
+
+	/**
+	 * Filters the feature list (isoft_fmf_features() and GET /public/info).
+	 * Extensions may add their own identifiers, prefixed with their slug.
+	 *
+	 * @param string[] $features Feature identifiers.
+	 */
+	$features = (array) apply_filters( 'isoft_fmf_features', $features );
+	return array_values( array_unique( array_map( 'strval', $features ) ) );
+}
+
+/**
+ * Whether this Foundation has a feature (see isoft_fmf_features()).
+ */
+function isoft_fmf_has_feature( string $feature ): bool {
+	return in_array( $feature, isoft_fmf_features(), true );
+}
+
+/**
+ * Slug of Foundation's top-level admin menu (the Downloads menu). Extensions
+ * add their screens as submenus of it.
+ */
+function isoft_fmf_admin_parent_slug(): string {
+	return 'edit.php?post_type=isoft_fmf_file';
+}
+
+/**
+ * Mark a category as pending (hidden from the public until approved) or
+ * approve it. See ISOFT_FMF_Category_Pending.
+ */
+function isoft_fmf_set_category_pending( int $term_id, bool $pending ): bool {
+	return ISOFT_FMF_Category_Pending::set( $term_id, $pending );
+}
+
+/**
+ * Whether a category is pending approval.
+ */
+function isoft_fmf_category_is_pending( int $term_id ): bool {
+	return ISOFT_FMF_Category_Pending::is_pending( $term_id );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -900,10 +1318,12 @@ function isoft_fmf_record_download( int $file_id, array $context = array() ): ?i
 }
 
 /**
- * Announce that public-facing FMF content changed outside the post / term
- * save hooks WordPress already fires: file rows (added, edited, reordered,
- * removed) and licenses. Static site builders, page caches and CDNs hook
- * here to refresh.
+ * Announce that public-facing FMF content changed. This is the one hook a
+ * static site build, page cache or CDN needs: it fires for file rows (added,
+ * edited, reordered, removed, replaced, held back), licenses, pending state,
+ * and, through ISOFT_FMF_Change_Announcer, for downloads saved or deleted,
+ * category and tag edits (including their Foundation term meta) and term
+ * assignments.
  *
  * Download counters are deliberately not announced — they change on every
  * download and would turn into a rebuild per click.
@@ -912,8 +1332,8 @@ function isoft_fmf_record_download( int $file_id, array $context = array() ): ?i
  * for many objects in one request. Importers can wrap their work in
  * isoft_fmf_suspend_content_changed() / isoft_fmf_resume_content_changed().
  *
- * @param string $object_type 'download' (its files changed) or 'license'.
- * @param int    $object_id   Download post ID or license ID.
+ * @param string $object_type 'download', 'license', 'category' or 'tag'.
+ * @param int    $object_id   Download post ID, license ID or term ID.
  */
 function isoft_fmf_content_changed( string $object_type, int $object_id ): void {
 	$state = &isoft_fmf_content_changed_state();
@@ -926,7 +1346,7 @@ function isoft_fmf_content_changed( string $object_type, int $object_id ): void 
 	/**
 	 * Fires when FMF content changed outside post / term saves.
 	 *
-	 * @param string $object_type 'download', 'license', or 'bulk' (object id 0) after a suspended batch.
+	 * @param string $object_type 'download', 'license', 'category', 'tag', or 'bulk' (object id 0) after a suspended batch.
 	 * @param int    $object_id   Download post ID or license ID.
 	 */
 	do_action( 'isoft_fmf_content_changed', $object_type, $object_id );

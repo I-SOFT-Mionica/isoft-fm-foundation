@@ -2,6 +2,51 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.14.0] — 2026-10-22
+
+### Security
+
+- **File edits, deletions and reordering are limited to the download being edited.** The file routes checked permission on the download in the request but did not confirm the file belonged to it, so a user allowed to edit one download could change files of another, including in categories their category restrictions exclude. A file of another download now answers like a missing one. Reported privately by the headless partner project.
+- **Import from disk only registers untracked files from the download's own category folder.** It accepted any path inside storage, which let a user restricted to one category register files from another category's folder (or cached ZIP bundles) under their own download. Files already registered to a download are refused too.
+- **Script and server-configuration file types are refused on every upload, import and attach, whatever the allowed-extensions setting says** (`php` and its variants, `phtml`, `phar`, `shtml`, `cgi`, `pl`, `py`, `asp`, `aspx`, `jsp`, `.htaccess`, `.htpasswd`, `.ini`). Before, an empty allowed-extensions list switched the extension check off.
+- **Download storage is guarded on every web server.** Besides the `.htaccess` (Apache, LiteSpeed), activation now writes a `web.config` (IIS) and an `index.php`. Servers that read neither (nginx, Caddy, FrankenPHP) need one configuration rule: a new **Site Health** test requests a probe file from storage by URL and reports critical, with the rule for nginx and Caddy, when the folder is directly reachable. Documented in the readme.
+
+Public API for extensions. Everything is a new function or a hook with no default callback, so an existing site behaves exactly as before. The full list, with the compatibility promise, is in `docs/PUBLIC-API.md`.
+
+### New
+
+- **`isoft_fmf_attach_file( $download_id, $source_abs, $args )`** puts a file that already exists on the server into the download's category folder and registers it. Modes `copy`, `move` (source removed only after the row is saved) and `in_place` (file already sits directly in the category folder; renamed to its sanitized name on disk if needed). A name clash returns `isoft_fmf_filename_collision`; symlinks and non-regular files are refused. PHP only, not reachable over REST.
+- **`isoft_fmf_pre_attach_file` filter** lets an extension refuse a file before it is stored, on every way of adding or replacing content: the upload form, `isoft_fmf_attach_file()`, import from disk and the Broken Links reupload. On the upload form it runs on the PHP temp file, before the file is copied into the public uploads directory. A refusal without a status becomes HTTP 422. No callback, no change.
+- **`isoft_fmf_file_replaced( $file_id, $download_id )`** action after a stored file's content is replaced on purpose (Broken Links reupload).
+- **`isoft_fmf_file_exists_by_hash( $sha256 )`** returns the ID of a stored file with that SHA-256, or 0.
+- **`isoft_fmf_get_local_files( $after_id, $limit )`** pages local file rows in ID order (id, download id, absolute path, hash, size, missing flag) for extensions that sweep storage.
+- **`isoft_fmf_category_for_folder()`** and **`isoft_fmf_file_for_path()`** look up the category that owns a storage folder and the file registered at a path. A new index on `file_path` keeps the second one fast; it is added on update.
+- **Pending categories.** `isoft_fmf_set_category_pending()` / `isoft_fmf_category_is_pending()`. A pending category and everything beneath it is hidden from visitors in category lists, shortcodes, blocks, the public REST API, a download's category list, the category archive (404) and sitemaps. Category managers, cron and WP-CLI still see it. The category list in the admin gets a Status column and an Approve action. Approving does not publish downloads. Existing categories are unaffected. New `isoft_fmf_category_pending_changed` action; `isoft_fmf_content_changed` now also fires with type `category`.
+- **`isoft_fmf_create_draft_download()`** accepts an optional `post_date` (`Y-m-d H:i:s`, site time).
+- **`isoft_fmf_admin_parent_slug()`** returns the Downloads menu slug for extensions that add submenus.
+- **`isoft_fmf_accept_file_content( $file_id )`** accepts a stored file's current content as its new baseline (re-hash, save hash and size) after an approved replacement on disk, so integrity checks stop flagging it. Runs the veto first; fires `isoft_fmf_file_replaced` only when the content changed. Until now there was no way to do this, so a legitimate out-of-band replacement stayed a mismatch forever.
+- **`isoft_fmf_relink_file( $file_id, $new_rel_path )`** points a file row at where its file was moved inside storage. It reuses the Broken Links reassign recovery (now shared with it): a move within the category folder updates the row, a move into another category's folder moves the download and its other files there.
+- **Unavailable files.** `isoft_fmf_set_file_unavailable()` / `isoft_fmf_file_is_unavailable()` hold a file back without deleting it: it stays listed with a passive label instead of a button, the download handler refuses it, ZIP bundles skip it, and the public API reports `unavailable` with no download link. New setting **Settings > Display > Text for files that cannot be downloaded right now** (default "Temporarily unavailable"), also used for files missing from disk. New `isoft_fmf_file_availability_changed` action. A new `is_unavailable` column is added on update.
+
+- **One rule for "public".** `isoft_fmf_download_is_public()`, `isoft_fmf_category_is_public()` and `isoft_fmf_public_file()` answer whether an anonymous visitor may see a download or category, or download a file (and where it lives), with the whole rule: status, password, access role, pending categories, unavailable and missing files, "external links only". Headless front ends and extensions call these instead of re-implementing the rule.
+- **Feature detection.** `isoft_fmf_features()` / `isoft_fmf_has_feature()` in PHP, and `GET /public/info` (version, API level, the same feature list) for clients outside WordPress; the endpoint exists only while the public API is on. Filter `isoft_fmf_features`.
+- **Thumbnail sizes in the public API.** `thumbnail.sizes` lists every generated size plus `full` (width, height, mime type, URL), shaped like WordPress' `media_details.sizes`, so front ends can build `srcset`.
+- **Public API**: categories carry `path` (slug chain, same as folder and archive URL); downloads under a pending category are left out (lists keep correct totals, singles answer 404); download content is rendered with the download as the global post, so blocks and shortcodes inside it see the right post.
+
+### Changed
+
+- **`isoft_fmf_content_changed` is now the one change hook.** It also fires when a download is saved, trashed or deleted, when categories or tags are created, edited or deleted (including Foundation's term meta such as icon, order and access role), and when terms are assigned. Static builds and caches no longer need to listen to WordPress's post and term hooks as well. Type `tag` is new.
+- The Broken Links screen's category-for-folder lookup walks the slug chain instead of loading every category.
+
+### Security (continued)
+
+- Path checks on stored files (download handler, ZIP bundles, import from disk) now compare on a directory boundary. Before, a sibling folder such as `isoft-fmf-files-backup` passed the check for `isoft-fmf-files`.
+- The upload form's file size is now measured from the stored file instead of taken from the browser.
+
+### Documentation
+
+- `docs/PUBLIC-API.md`: the public API, including that a drive mounted at the storage root or at a category folder is supported while a symlink leading out of storage is not. A test fails if the document names something the code no longer has.
+
 ## [0.13.0] — 2026-10-17
 
 Headless readiness. Foundation can now sit behind a headless or statically generated frontend, a CDN, or a full-page cache without losing working download links, download counts, or the license audit trail. Everything is opt-in or additive; an existing site behaves exactly as before after updating.

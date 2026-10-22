@@ -3,7 +3,7 @@
  * Plugin Name: I-Soft File Manager: Foundation
  * Plugin URI:  https://github.com/I-SOFT-Mionica/isoft-fm-foundation
  * Description: Hierarchical file download manager — categories, multi-file entries, secure download handler, audit logging, and role-based access control.
- * Version:     0.13.0
+ * Version:     0.14.0
  * Author:      I-SOFT Mionica
  * Author URI:  https://github.com/I-SOFT-Mionica
  * License:     GPL v2 or later
@@ -16,7 +16,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-const ISOFT_FMF_VERSION = '0.13.0';
+const ISOFT_FMF_VERSION = '0.14.0';
 define( 'ISOFT_FMF_PLUGIN_FILE', __FILE__ );
 define( 'ISOFT_FMF_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'ISOFT_FMF_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -134,6 +134,15 @@ add_action(
 
 		// Per-user write-side category ACL.
 		( new ISOFT_FMF_Category_ACL() )->register_hooks();
+
+		// Pending (not yet approved) categories, hidden from the public.
+		( new ISOFT_FMF_Category_Pending() )->register_hooks();
+
+		// One change hook (isoft_fmf_content_changed) for builds and caches.
+		( new ISOFT_FMF_Change_Announcer() )->register_hooks();
+
+		// Site Health check that the storage folder is not web-reachable.
+		( new ISOFT_FMF_Storage_Guard() )->register_hooks();
 
 		// Shortcodes (registered on all requests for REST/preview compatibility)
 		( new ISOFT_FMF_Shortcodes() )->register_hooks();

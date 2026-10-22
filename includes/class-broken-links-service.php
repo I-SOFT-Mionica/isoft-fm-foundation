@@ -187,8 +187,6 @@ class ISOFT_FMF_Broken_Links_Service {
 			return self::not_found();
 		}
 
-		$download_id = (int) $file->download_id;
-
 		$candidate = ISOFT_FMF_File_Integrity::find_anywhere( $file );
 		if ( ! $candidate ) {
 			return new WP_Error(
@@ -197,6 +195,58 @@ class ISOFT_FMF_Broken_Links_Service {
 				array( 'status' => 404 )
 			);
 		}
+
+		return $this->relink_to( $file, $candidate );
+	}
+
+	/**
+	 * Point a file row at a known new location inside storage (public API:
+	 * isoft_fmf_relink_file()). Same recovery as reassign(), without the search:
+	 * the caller already knows where the file went.
+	 */
+	public function relink( int $file_id, string $new_rel_path ): bool|WP_Error {
+		$file = $this->files->get_file( $file_id );
+		if ( ! $file || 'local' !== $file->file_type ) {
+			return self::not_found();
+		}
+
+		$new_rel_path = ltrim( str_replace( '\\', '/', $new_rel_path ), '/' );
+		$base         = realpath( isoft_fmf_files_dir() );
+		$raw          = isoft_fmf_files_dir() . '/' . $new_rel_path;
+		$abs          = realpath( $raw );
+		if ( '' === $new_rel_path || ! $base || ! $abs || is_link( $raw ) || ! isoft_fmf_path_within( $abs, $base ) || ! is_file( $abs ) ) {
+			return new WP_Error(
+				'isoft_fmf_bad_target',
+				__( 'The new location is not a regular file inside storage.', 'isoft-fm-foundation' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$rel = self::relativize( $abs );
+		if ( $rel === (string) $file->file_path ) {
+			return true;
+		}
+		$other = isoft_fmf_file_for_path( $rel );
+		if ( $other && $other !== $file_id ) {
+			return new WP_Error(
+				'isoft_fmf_already_registered',
+				__( 'Another file is already registered at that location.', 'isoft-fm-foundation' ),
+				array( 'status' => 409 )
+			);
+		}
+
+		$result = $this->relink_to( $file, $abs );
+		return is_wp_error( $result ) ? $result : true;
+	}
+
+	/**
+	 * Shared by reassign() and relink(): the file now lives at $candidate.
+	 * Same category folder: update the row. Another category's folder: move
+	 * the download and its other files to that category.
+	 */
+	private function relink_to( object $file, string $candidate ): array|WP_Error {
+		$file_id       = (int) $file->id;
+		$download_id   = (int) $file->download_id;
 		$candidate_rel = self::relativize( $candidate );
 		$new_cat_path  = dirname( $candidate_rel );
 
@@ -214,6 +264,25 @@ class ISOFT_FMF_Broken_Links_Service {
 		}
 
 		global $wpdb;
+
+		// Moved or renamed within its own category folder: only the row changes.
+		if ( (int) $new_term->term_id === self::download_category_id( $download_id ) ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table; cache invalidated below.
+			$wpdb->update(
+				"{$wpdb->prefix}isoft_fmf_files",
+				array(
+					'file_path' => $candidate_rel,
+					'file_name' => basename( $candidate ),
+				),
+				array( 'id' => $file_id ),
+				array( '%s', '%s' ),
+				array( '%d' )
+			);
+			self::refresh_inode( $file_id, $candidate );
+			self::mark_healthy( $file_id, $download_id );
+			return array( 'message' => __( 'File relinked.', 'isoft-fm-foundation' ) );
+		}
+
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Same.
 		$others_broken = (int) $wpdb->get_var(
 			$wpdb->prepare(
@@ -409,6 +478,21 @@ class ISOFT_FMF_Broken_Links_Service {
 		}
 		$target_abs = $target_dir . '/' . basename( (string) $file->file_name );
 
+		if ( ! empty( $uploaded_file['tmp_name'] ) ) {
+			$refused = ISOFT_FMF_Files_Service::check_attach_allowed(
+				(string) $uploaded_file['tmp_name'],
+				array(
+					'download_id'   => (int) $file->download_id,
+					'file_id'       => $file_id,
+					'origin'        => 'replace',
+					'original_name' => (string) ( $uploaded_file['name'] ?? '' ),
+				)
+			);
+			if ( $refused ) {
+				return $refused;
+			}
+		}
+
 		require_once ABSPATH . 'wp-admin/includes/file.php';
 		$upload = wp_handle_upload(
 			$uploaded_file,
@@ -450,6 +534,16 @@ class ISOFT_FMF_Broken_Links_Service {
 		);
 		self::refresh_inode( $file_id, $target_abs );
 		self::mark_healthy( $file_id, (int) $file->download_id );
+
+		/**
+		 * Fires after a stored file's content was replaced on purpose (its
+		 * hash changed). Lets integrity tooling record that the change was
+		 * intended instead of flagging it as tampering.
+		 *
+		 * @param int $file_id     File row ID.
+		 * @param int $download_id Download post ID.
+		 */
+		do_action( 'isoft_fmf_file_replaced', $file_id, (int) $file->download_id );
 
 		return array( 'message' => __( 'File reuploaded and relinked.', 'isoft-fm-foundation' ) );
 	}
@@ -520,25 +614,13 @@ class ISOFT_FMF_Broken_Links_Service {
 	}
 
 	/**
-	 * Linear scan of isoft_fmf_category terms looking for one whose folder
-	 * matches $path. Category counts are in the hundreds — fine for linear.
+	 * Category that owns a storage folder, via the public slug-chain lookup
+	 * (isoft_fmf_category_for_folder()).
 	 */
 	public static function find_term_by_folder_path( string $path ): ?object {
-		$terms = get_terms(
-			array(
-				'taxonomy'   => 'isoft_fmf_category',
-				'hide_empty' => false,
-			)
-		);
-		if ( is_wp_error( $terms ) || ! $terms ) {
-			return null;
-		}
-		foreach ( $terms as $term ) {
-			if ( isoft_fmf_category_folder_path( (int) $term->term_id ) === $path ) {
-				return $term;
-			}
-		}
-		return null;
+		$term_id = isoft_fmf_category_for_folder( $path );
+		$term    = $term_id ? get_term( $term_id, 'isoft_fmf_category' ) : null;
+		return $term instanceof WP_Term ? $term : null;
 	}
 
 	private static function refresh_inode( int $file_id, string $abs_path ): void {

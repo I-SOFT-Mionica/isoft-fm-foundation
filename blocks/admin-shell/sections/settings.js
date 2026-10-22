@@ -152,6 +152,14 @@ const TAB_SCHEMAS = {
 			],
 		},
 		{
+			key:         'isoft_fmf_unavailable_label',
+			label:       __( 'Text for files that cannot be downloaded right now', 'isoft-fm-foundation' ),
+			type:        'text',
+			placeholder: __( 'Temporarily unavailable', 'isoft-fm-foundation' ),
+			help:        __( 'Shown instead of the download button when a file is missing from disk or held back. Leave empty to use "Temporarily unavailable".', 'isoft-fm-foundation' ),
+			default:     '',
+		},
+		{
 			key:     'isoft_fmf_enable_zip_bundle',
 			label:   __( 'Show a "Download all as ZIP" button on multi-file downloads', 'isoft-fm-foundation' ),
 			type:    'toggle',

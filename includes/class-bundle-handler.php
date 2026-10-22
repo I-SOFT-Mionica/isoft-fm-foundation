@@ -125,7 +125,7 @@ class ISOFT_FMF_Bundle_Handler {
 		}
 
 		$files       = ( new ISOFT_FMF_File_Manager() )->get_files( $download_id );
-		$local_files = array_filter( $files, fn( $f ): bool => 'external' !== $f->file_type );
+		$local_files = array_filter( $files, fn( $f ): bool => 'external' !== $f->file_type && empty( $f->is_unavailable ) );
 		if ( count( $local_files ) < 1 ) {
 			wp_die( esc_html__( 'This download has no files that can be bundled into a ZIP.', 'isoft-fm-foundation' ), 404 );
 		}
@@ -236,7 +236,7 @@ class ISOFT_FMF_Bundle_Handler {
 				continue;
 			}
 			$abs = realpath( "{$base}/{$file->file_path}" );
-			if ( ! $abs || ! str_starts_with( $abs, $base ) || ! is_readable( $abs ) ) {
+			if ( ! $abs || ! isoft_fmf_path_within( $abs, $base ) || ! is_readable( $abs ) ) {
 				continue;
 			}
 
@@ -389,7 +389,7 @@ class ISOFT_FMF_Bundle_Handler {
 				continue;
 			}
 			$abs = realpath( "{$base}/{$file->file_path}" );
-			if ( $abs && str_starts_with( $abs, $base ) ) {
+			if ( $abs && isoft_fmf_path_within( $abs, $base ) ) {
 				$mtime = @filemtime( $abs );
 				if ( $mtime && $mtime > $max_mtime ) {
 					$max_mtime = $mtime;

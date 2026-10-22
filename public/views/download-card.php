@@ -49,7 +49,7 @@ $bundle_enabled   = $can_access
 	&& get_option( 'isoft_fmf_enable_zip_bundle', 0 )
 	&& class_exists( 'ZipArchive' );
 $bundleable_files = $bundle_enabled
-	? array_filter( $files, fn( $f ): bool => 'external' !== $f->file_type && empty( $f->is_missing ) )
+	? array_filter( $files, fn( $f ): bool => 'external' !== $f->file_type && empty( $f->is_missing ) && empty( $f->is_unavailable ) )
 	: array();
 $show_bundle_btn  = $bundle_enabled && count( $bundleable_files ) >= 2;
 $bundle_size      = $show_bundle_btn ? (int) array_sum( array_column( $bundleable_files, 'file_size' ) ) : 0;
@@ -228,7 +228,7 @@ $use_summary  = $is_multi && ! $expand_files;
 		$title      = $file->title ?: $file->file_name ?: $file->external_url ?: get_the_title( $post->ID );
 		$date       = $file->created_at ?? '';
 		$hidden_id  = 'isoft-fmf-agree-content-' . (int) $file->id;
-		$is_missing = ! empty( $file->is_missing );
+		$is_missing = ! empty( $file->is_missing ) || ! empty( $file->is_unavailable );
 		$item_class = 'isoft-fmf-file-item' . ( $is_missing ? ' isoft-fmf-file-item--missing' : '' );
 		?>
 	<div class="<?php echo esc_attr( $item_class ); ?>">
@@ -283,7 +283,7 @@ $use_summary  = $is_multi && ! $expand_files;
 		<div class="isoft-fmf-file-item__action">
 			<?php if ( $is_missing ) : ?>
 				<span class="isoft-fmf-file-missing-label">
-					<?php esc_html_e( 'Temporarily unavailable', 'isoft-fm-foundation' ); ?>
+					<?php echo esc_html( isoft_fmf_unavailable_label() ); ?>
 				</span>
 			<?php elseif ( $can_access ) : ?>
 				<?php if ( $require_agree ) : ?>
