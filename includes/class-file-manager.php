@@ -348,9 +348,9 @@ class ISOFT_FMF_File_Manager {
 	}
 
 	/**
-	 * Remove a file record. The physical file on disk is left in place —
-	 * the category folder is the source of truth; deletion is a separate
-	 * concern handled by the caller if needed.
+	 * Remove a file record only; the physical file on disk is left in place.
+	 * An editor's delete goes through ISOFT_FMF_Files_Service::delete(),
+	 * which also removes the stored file.
 	 */
 	public function delete_file( int $file_id ): bool {
 		global $wpdb;

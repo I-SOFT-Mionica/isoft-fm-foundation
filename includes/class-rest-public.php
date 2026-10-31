@@ -529,7 +529,7 @@ class ISOFT_FMF_Rest_Public {
 				'size'         => $external ? null : (int) $file->file_size,
 				'mime'         => $external ? null : (string) $file->file_mime,
 				'sha256'       => $external || '' === (string) $file->file_hash ? null : (string) $file->file_hash,
-				'url'          => $external ? esc_url_raw( (string) $file->external_url ) : null,
+				'url'          => $external && empty( $file->is_unavailable ) ? esc_url_raw( (string) $file->external_url ) : null,
 				'download_url' => empty( $file->is_unavailable ) ? isoft_fmf_get_download_url( (int) $file->id, $id ) : null,
 				'mirror'       => (bool) $file->is_mirror,
 				'missing'      => (bool) $file->is_missing,

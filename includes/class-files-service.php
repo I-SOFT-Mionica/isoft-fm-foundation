@@ -45,8 +45,56 @@ class ISOFT_FMF_Files_Service {
 		return $this->files->update_meta( $file_id, $title, $description );
 	}
 
+	/**
+	 * Delete a file the way an editor means it: the row, and the stored file
+	 * on disk unless another row still points at it. File_Manager::delete_file()
+	 * stays record-only for callers that manage disk themselves (Broken Links
+	 * detach, demo content).
+	 */
 	public function delete( int $file_id ): bool {
-		return $this->files->delete_file( $file_id );
+		$file = $this->files->get_file( $file_id );
+		if ( ! $file || ! $this->files->delete_file( $file_id ) ) {
+			return false;
+		}
+		$this->remove_from_disk( $file );
+		return true;
+	}
+
+	/**
+	 * Remove a deleted file's content from storage. Only a local file inside
+	 * storage, only a regular file, and never one another row still uses.
+	 */
+	private function remove_from_disk( object $file ): void {
+		if ( 'local' !== $file->file_type || empty( $file->file_path ) || $this->files->find_id_by_path( (string) $file->file_path ) ) {
+			return;
+		}
+		/**
+		 * Whether deleting a file also removes it from storage. Return false
+		 * to keep the old behaviour (record only), e.g. where storage is a
+		 * mirror that another system owns.
+		 *
+		 * @param bool   $remove Default true.
+		 * @param object $file   The deleted file row.
+		 */
+		if ( ! apply_filters( 'isoft_fmf_delete_file_from_disk', true, $file ) ) {
+			return;
+		}
+		$base = realpath( isoft_fmf_files_dir() );
+		$abs  = $base ? realpath( "{$base}/{$file->file_path}" ) : false;
+		if ( ! $abs || ! isoft_fmf_path_within( $abs, $base ) || ! is_file( $abs ) || is_link( "{$base}/{$file->file_path}" ) ) {
+			return;
+		}
+		wp_delete_file( $abs );
+		if ( ! file_exists( $abs ) ) {
+			/**
+			 * A deleted file's content was removed from storage.
+			 *
+			 * @param string $rel_path    Storage-relative path it had.
+			 * @param int    $file_id     The deleted file row ID.
+			 * @param int    $download_id Its download.
+			 */
+			do_action( 'isoft_fmf_file_removed_from_disk', (string) $file->file_path, (int) $file->id, (int) $file->download_id );
+		}
 	}
 
 	/**

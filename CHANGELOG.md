@@ -2,6 +2,16 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [Unreleased]
+
+### Changed
+
+- **Deleting a file removes it from storage too.** Until now Delete removed only the file's entry, and the file itself stayed in the download folder with no way to remove it from the admin. Now the stored file goes with it, unless another entry still uses the same file. Sites whose storage is a mirror owned by another system can keep the old behaviour with the filter `isoft_fmf_delete_file_from_disk`. New action `isoft_fmf_file_removed_from_disk( $rel_path, $file_id, $download_id )`. Broken Links "Detach" still removes only the entry.
+
+### Fixed
+
+- The public REST API no longer returns the address of an external link that is marked unavailable, matching the download card.
+
 ## [0.14.0] — 2026-10-22
 
 ### Security
