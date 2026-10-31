@@ -7,6 +7,7 @@ All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads
 ### Changed
 
 - **Deleting a file removes it from storage too.** Until now Delete removed only the file's entry, and the file itself stayed in the download folder with no way to remove it from the admin. Now the stored file goes with it, unless another entry still uses the same file. Sites whose storage is a mirror owned by another system can keep the old behaviour with the filter `isoft_fmf_delete_file_from_disk`. New action `isoft_fmf_file_removed_from_disk( $rel_path, $file_id, $download_id )`. Broken Links "Detach" still removes only the entry.
+- **A category can be deleted only when nothing is left in it, and then its folder goes too.** Deleting is refused while the category has downloads, subcategories, or anything in its folder: files that arrived by sync or upload outside WordPress, files of downloads in the Trash, unfinished transfers. The message names what is left. Otherwise the folder is removed with the category (system files such as `Thumbs.db`, `.DS_Store` and `desktop.ini` do not count; filter `isoft_fmf_category_folder_clutter`). If the folder cannot be removed at that moment, the category stays as well. Before, the category was deleted and a non-empty folder was left behind with a warning, and deleting a parent category left its subcategories' folders inside a folder that no longer matched the tree.
 
 ### Fixed
 

@@ -9,8 +9,8 @@
  *   created  → folder created on disk
  *   edited   → if slug or parent changed, old folder is renamed, all
  *               isoft_fmf_files.file_path rows with the old prefix are updated
- *   deleted  → folder is LEFT on disk (files are the source of truth;
- *               a notice is shown if the folder is non-empty)
+ *   deleted  → refused while the category has downloads, subcategories or
+ *               anything in its folder; otherwise the folder is removed
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -271,93 +271,166 @@ class ISOFT_FMF_Category_Folders {
 			wp_send_json_error( array( 'message' => __( 'Insufficient permissions to delete this category.', 'isoft-fm-foundation' ) ), 403 );
 		}
 
-		$count = $this->count_downloads_in_category( $term_id );
-		if ( $count < 1 ) {
+		$message = $this->delete_blocker( $term_id );
+		if ( '' === $message ) {
 			return;
 		}
-
-		$term = get_term( $term_id, 'isoft_fmf_category' );
-		$name = $term ? $term->name : "#{$term_id}";
-
-		$message = sprintf(
-			/* translators: 1: category name, 2: number of downloads */
-			_n(
-				'Cannot delete "%1$s": %2$d download is still in this category. Move or delete it first.',
-				'Cannot delete "%1$s": %2$d downloads are still in this category. Move or delete them first.',
-				$count,
-				'isoft-fm-foundation'
-			),
-			$name,
-			$count
-		);
 
 		isoft_fmf_notify_admin( $message, 'error' );
 		wp_die( '0' );
 	}
 
 	/**
-	 * Before a term is deleted: block if any downloads are still assigned to it
-	 * (would become orphaned), otherwise remove the folder if it is empty.
+	 * Before a term is deleted: refuse while the category still has downloads,
+	 * subcategories or anything in its folder; otherwise remove the folder.
+	 * The folder is removed here, before the term goes, so a folder that cannot
+	 * be removed (something arrived in the meantime, a mount point) keeps the
+	 * category too.
 	 */
 	public function on_pre_delete( int $term_id, string $taxonomy ): void {
 		if ( 'isoft_fmf_category' !== $taxonomy ) {
 			return;
 		}
 
-		$count = $this->count_downloads_in_category( $term_id );
-
-		if ( $count > 0 ) {
-			$term = get_term( $term_id, 'isoft_fmf_category' );
-			$name = $term ? $term->name : "#{$term_id}";
-
-			wp_die(
-				sprintf(
-					esc_html(
-						/* translators: 1: category name, 2: number of downloads */
-						_n(
-							'Cannot delete "%1$s": %2$d download is still in this category. Move or delete it first.',
-							'Cannot delete "%1$s": %2$d downloads are still in this category. Move or delete them first.',
-							$count,
-							'isoft-fm-foundation'
-						)
-					),
-					esc_html( $name ),
-					(int) $count
-				),
-				esc_html__( 'Category Not Empty', 'isoft-fm-foundation' ),
-				array(
-					'back_link' => true,
-					'response'  => 409,
-				)
-			);
+		$message = $this->delete_blocker( $term_id );
+		if ( '' === $message ) {
+			$message = $this->remove_folder( $term_id );
 		}
-
-		// No downloads — remove the folder if it is also empty on disk.
-		$fs_path = isoft_fmf_category_fs_path( $term_id );
-		if ( ! file_exists( $fs_path ) ) {
+		if ( '' === $message ) {
 			return;
 		}
 
-		$contents = array_filter(
-			(array) glob( "{$fs_path}/{,.}*", GLOB_BRACE ),
-			fn ( string $p ): bool => ! in_array( basename( $p ), array( '.', '..' ), true )
+		wp_die(
+			esc_html( $message ),
+			esc_html__( 'Category Not Empty', 'isoft-fm-foundation' ),
+			array(
+				'back_link' => true,
+				'response'  => 409,
+			)
 		);
+	}
 
-		if ( empty( $contents ) ) {
-			self::wp_fs()->rmdir( $fs_path, false );
-		} else {
-			// Folder has leftover files not tracked in DB — leave it, warn admin.
-			add_action(
-				'admin_notices',
-				function () use ( $fs_path ): void {
-					echo '<div class="notice notice-warning"><p>' . sprintf(
-					/* translators: %s: folder path */
-						esc_html__( 'I-Soft File Manager: Foundation: the folder "%s" was not deleted because it still contains untracked files. Remove them manually.', 'isoft-fm-foundation' ),
-						esc_html( $fs_path )
-					) . '</p></div>';
-				}
+	/**
+	 * Why this category cannot be deleted yet, or '' when it can.
+	 */
+	private function delete_blocker( int $term_id ): string {
+		$term = get_term( $term_id, 'isoft_fmf_category' );
+		$name = $term && ! is_wp_error( $term ) ? $term->name : "#{$term_id}";
+
+		$count = $this->count_downloads_in_category( $term_id );
+		if ( $count > 0 ) {
+			return sprintf(
+				/* translators: 1: category name, 2: number of downloads */
+				_n(
+					'Cannot delete "%1$s": %2$d download is still in this category. Move or delete it first.',
+					'Cannot delete "%1$s": %2$d downloads are still in this category. Move or delete them first.',
+					$count,
+					'isoft-fm-foundation'
+				),
+				$name,
+				$count
 			);
 		}
+
+		$children = get_terms(
+			array(
+				'taxonomy'                  => 'isoft_fmf_category',
+				'parent'                    => $term_id,
+				'hide_empty'                => false,
+				'fields'                    => 'ids',
+				'isoft_fmf_include_pending' => true,
+			)
+		);
+		$children = is_array( $children ) ? count( $children ) : 0;
+		if ( $children > 0 ) {
+			return sprintf(
+				/* translators: 1: category name, 2: number of subcategories */
+				_n(
+					'Cannot delete "%1$s": it has %2$d subcategory. Move or delete it first.',
+					'Cannot delete "%1$s": it has %2$d subcategories. Move or delete them first.',
+					$children,
+					'isoft-fm-foundation'
+				),
+				$name,
+				$children
+			);
+		}
+
+		$items = self::folder_items( isoft_fmf_category_fs_path( $term_id ) );
+		if ( $items ) {
+			return sprintf(
+				/* translators: 1: category name, 2: number of items, 3: up to five file or folder names */
+				_n(
+					'Cannot delete "%1$s": its folder still contains %2$d item (%3$s). Remove it from the folder first. Files of downloads in the Trash count too, and a folder kept in sync from elsewhere has to be emptied at the source.',
+					'Cannot delete "%1$s": its folder still contains %2$d items (%3$s). Remove them from the folder first. Files of downloads in the Trash count too, and a folder kept in sync from elsewhere has to be emptied at the source.',
+					count( $items ),
+					'isoft-fm-foundation'
+				),
+				$name,
+				count( $items ),
+				implode( ', ', array_slice( $items, 0, 5 ) ) . ( count( $items ) > 5 ? ', ...' : '' )
+			);
+		}
+
+		return '';
+	}
+
+	/**
+	 * Names in a folder that keep it from being empty: everything except the
+	 * system clutter file managers leave behind (removed with the folder).
+	 *
+	 * @return string[]
+	 */
+	private static function folder_items( string $path ): array {
+		if ( ! is_dir( $path ) ) {
+			return array();
+		}
+		$names = scandir( $path );
+		if ( false === $names ) {
+			return array( '?' );
+		}
+		return array_values( array_diff( $names, array( '.', '..' ), self::clutter() ) );
+	}
+
+	/**
+	 * File names that do not count as content in a category folder.
+	 *
+	 * @return string[]
+	 */
+	private static function clutter(): array {
+		/**
+		 * File names a category folder may contain and still count as empty
+		 * when the category is deleted. They are removed with the folder.
+		 *
+		 * @param string[] $names Default: .DS_Store, Thumbs.db, desktop.ini.
+		 */
+		return (array) apply_filters( 'isoft_fmf_category_folder_clutter', array( '.DS_Store', 'Thumbs.db', 'desktop.ini' ) );
+	}
+
+	/**
+	 * Remove an empty category folder (and its clutter). '' on success or when
+	 * there is no folder; otherwise why it could not be removed.
+	 */
+	private function remove_folder( int $term_id ): string {
+		$path = isoft_fmf_category_fs_path( $term_id );
+		if ( ! file_exists( $path ) && ! is_link( $path ) ) {
+			return '';
+		}
+		if ( is_dir( $path ) && ! is_link( $path ) ) {
+			foreach ( self::clutter() as $name ) {
+				if ( is_file( "{$path}/{$name}" ) ) {
+					wp_delete_file( "{$path}/{$name}" );
+				}
+			}
+			if ( self::wp_fs()->rmdir( $path, false ) || ! file_exists( $path ) ) {
+				return '';
+			}
+		}
+		return sprintf(
+			/* translators: %s: folder path */
+			__( 'Cannot delete this category: its folder "%s" could not be removed. It may have received files just now, or be a link or a mounted drive. Check the folder and try again.', 'isoft-fm-foundation' ),
+			$path
+		);
 	}
 
 	/**
