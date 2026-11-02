@@ -295,4 +295,106 @@ class FileStateApiTest extends WP_UnitTestCase {
 		$wp_rest_server = null;
 		delete_option( 'isoft_fmf_public_api_enabled' );
 	}
+
+	public function test_public_api_hides_the_url_of_a_held_back_external_link(): void {
+		update_option( 'isoft_fmf_public_api_enabled', 1 );
+		global $wp_rest_server;
+		$wp_rest_server = new WP_REST_Server();
+		do_action( 'rest_api_init' );
+		( new ISOFT_FMF_Access_Control() )->recompute_effective_role( $this->download_id );
+		$held = (int) $this->files->add_external_link( $this->download_id, 'https://example.org/held', array( 'title' => 'Held' ) );
+		$this->files->add_external_link( $this->download_id, 'https://example.org/open', array( 'title' => 'Open' ) );
+		isoft_fmf_set_file_unavailable( $held, true );
+
+		$data = $wp_rest_server->dispatch( new WP_REST_Request( 'GET', '/isoft-fm-foundation/v1/public/downloads/' . $this->download_id ) )->get_data();
+		$urls = array_column( $data['files'], 'url', 'title' );
+
+		$this->assertNull( $urls['Held'] );
+		$this->assertSame( 'https://example.org/open', $urls['Open'] );
+		$this->assertStringNotContainsString( 'example.org/held', (string) wp_json_encode( $data ) );
+
+		$wp_rest_server = null;
+		delete_option( 'isoft_fmf_public_api_enabled' );
+	}
+
+	// --- delete removes the stored file ---------------------------------
+
+	public function test_deleting_a_file_removes_it_from_disk_and_announces_it(): void {
+		$id      = $this->stored( 'gone.txt', 'personal data' );
+		$abs     = $this->abs( $id );
+		$removed = array();
+		add_action(
+			'isoft_fmf_file_removed_from_disk',
+			function ( $rel_path, $file_id ) use ( &$removed ): void {
+				$removed[] = array( $rel_path, $file_id );
+			},
+			10,
+			2
+		);
+		$rel = $this->files->get_file( $id )->file_path;
+
+		$this->assertTrue( ( new ISOFT_FMF_Files_Service() )->delete( $id ) );
+
+		$this->assertFileDoesNotExist( $abs );
+		$this->assertNull( $this->files->get_file( $id ) );
+		$this->assertSame( array( array( $rel, $id ) ), $removed );
+	}
+
+	public function test_a_file_another_row_still_uses_stays_on_disk(): void {
+		$id    = $this->stored( 'shared.txt', 'x' );
+		$abs   = $this->abs( $id );
+		$other = (int) $this->files->add_local_file(
+			$this->download( $this->category_id ),
+			array(
+				'title'     => 'Same file',
+				'file_name' => 'shared.txt',
+				'file_path' => $this->files->get_file( $id )->file_path,
+			)
+		);
+
+		( new ISOFT_FMF_Files_Service() )->delete( $id );
+
+		$this->assertFileExists( $abs );
+		$this->assertNotNull( $this->files->get_file( $other ) );
+	}
+
+	public function test_the_filter_keeps_the_file_on_disk(): void {
+		$id  = $this->stored( 'kept.txt', 'x' );
+		$abs = $this->abs( $id );
+		add_filter( 'isoft_fmf_delete_file_from_disk', '__return_false' );
+
+		$this->assertTrue( ( new ISOFT_FMF_Files_Service() )->delete( $id ) );
+
+		$this->assertFileExists( $abs );
+		$this->assertNull( $this->files->get_file( $id ) );
+	}
+
+	public function test_a_path_outside_storage_is_never_removed(): void {
+		$name    = 'isoft-fmf-outside-' . wp_generate_password( 8, false ) . '.txt';
+		$outside = dirname( isoft_fmf_files_dir() ) . '/' . $name;
+		file_put_contents( $outside, 'x' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Test fixture.
+		$this->cleanup[] = $outside;
+		$rel             = '../' . $name;
+		$id              = (int) $this->files->add_local_file(
+			$this->download_id,
+			array(
+				'title'     => 'Escape',
+				'file_name' => 'x.txt',
+				'file_path' => $rel,
+			)
+		);
+
+		( new ISOFT_FMF_Files_Service() )->delete( $id );
+
+		$this->assertFileExists( $outside );
+	}
+
+	public function test_the_record_only_manager_call_still_leaves_disk_alone(): void {
+		$id  = $this->stored( 'detached.txt', 'x' );
+		$abs = $this->abs( $id );
+
+		$this->assertTrue( $this->files->delete_file( $id ) );
+
+		$this->assertFileExists( $abs );
+	}
 }

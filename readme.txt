@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.1
 Requires PHP: 8.4
-Stable tag: 0.14.0
+Stable tag: 0.14.1
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -15,6 +15,10 @@ Document and download manager with real on-disk folder organization, per-departm
 **I-Soft File Manager: Foundation** is a modular download manager built for modern WordPress.
 
 Unlike standard media plugins that dump every upload into a single dated folder, Foundation is designed for municipalities, universities, libraries, and any team that needs to manage thousands of public documents, maintain a strict category tree, and give different departments their own secure upload spaces.
+
+= What's new in 0.14.1 =
+
+**Delete now really deletes.** Deleting a file removes it from the download folder too, not only from the list, so a file uploaded by mistake (one with personal data, say) is really gone. A category can be deleted once nothing is left in it, and its folder goes with it; while anything remains, the message tells you what. If you keep the download folder in sync with another place, see "I keep the download folder in sync with rclone or a similar tool" in the FAQ.
 
 = What's new in 0.14.0 =
 
@@ -105,7 +109,15 @@ Open their user profile (**Users → Edit User**), scroll to **I-Soft File Manag
 
 = What happens to downloads if I delete a category? =
 
-Deletion is blocked if any download is still assigned to that category — the files would otherwise be orphaned. Reassign or delete the downloads first, then delete the category.
+Nothing is lost: a category can only be deleted when it is empty. While it still has downloads, subcategories or any file in its folder (including files of downloads in the Trash and files copied there from outside WordPress), deleting is refused and the message tells you what is left. Move or delete those first. Once the category is empty, its folder is removed with it.
+
+= I keep the download folder in sync with rclone or a similar tool. What should I know? =
+
+Foundation works with the folder as it is on the server, so the direction of your sync matters.
+
+* **The folder is filled from another place** (a shared drive or a cloud folder copied to the site): delete and rename files and categories at the source. A file deleted only on the site comes back with the next sync. Where the source should always win, a developer can switch off removing deleted files from the folder with the `isoft_fmf_delete_file_from_disk` filter.
+* **The folder is backed up to another place:** a plain sync removes deleted files from the backup as well. To keep them for a while, sync with a dated backup folder, for example `rclone sync <storage> <remote>:files --backup-dir <remote>:deleted/2026-11-02`.
+* A category cannot be deleted while a transfer into its folder is still running.
 
 = What file types are allowed? =
 
@@ -313,6 +325,12 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 
 == Changelog ==
 
+= 0.14.1 =
+
+* **Changed:** deleting a file also removes it from the download folder, unless another entry still uses the same file. Broken Links "Detach" still removes only the entry.
+* **Changed:** a category can be deleted only when it has no downloads, no subcategories and nothing in its folder; its folder is then removed with it.
+* **Fixed:** the public data API no longer shows the address of an external link that is marked unavailable.
+
 = 0.14.0 =
 
 **Security update, plus pending categories and file holds.**
@@ -431,6 +449,9 @@ Existing data (downloads, categories, files, licenses, logs, per-user category p
 * **Inline metadata editing** directly from the file list.
 
 == Upgrade Notice ==
+
+= 0.14.1 =
+Deleting a file now also removes it from the download folder, and an empty category's folder is removed with the category. If your download folder is filled by a sync from another place, read the new FAQ entry on sync tools before updating.
 
 = 0.14.0 =
 Security update, recommended for all sites: tighter file permission checks for category-restricted editors, executable file types always refused, and a Site Health check that download storage is closed on every web server. Adds a column and an index on update; no data is changed.
