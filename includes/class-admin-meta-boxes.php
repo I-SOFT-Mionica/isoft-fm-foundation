@@ -85,7 +85,7 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 				'nonce'   => wp_create_nonce( 'isoft_fmf_admin' ),
 				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
 				'i18n'    => array(
-					'confirmDelete' => __( 'Remove this file from the download?', 'isoft-fm-foundation' ),
+					'confirmDelete' => __( 'Delete this file? It is removed from the download and from the download folder on the server.', 'isoft-fm-foundation' ),
 					'edit'          => __( 'Edit', 'isoft-fm-foundation' ),
 					'remove'        => __( 'Remove', 'isoft-fm-foundation' ),
 					'mirror'        => __( 'Mirror', 'isoft-fm-foundation' ),
