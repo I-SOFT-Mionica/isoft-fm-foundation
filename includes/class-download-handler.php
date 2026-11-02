@@ -167,7 +167,7 @@ class ISOFT_FMF_Download_Handler {
 	 * Auto-mode used to dispatch X-Sendfile / X-Accel-Redirect based on
 	 * SERVER_SOFTWARE alone — but the server string says nothing about whether
 	 * mod_xsendfile is loaded or the /isoft-fmf-internal/ alias is configured.
-	 * On the very first real install (kc.mionica.rs, 2026-06-19) every download
+	 * On an early production install (2026-06-19) every download
 	 * silently failed because the host advertised nginx but had no alias set.
 	 *
 	 * Until a real capability probe ships, auto-mode resolves to 'php' — the
