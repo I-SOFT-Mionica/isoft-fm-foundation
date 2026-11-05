@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.1
 Requires PHP: 8.4
-Stable tag: 0.14.1
+Stable tag: 0.14.2-dev
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -15,6 +15,10 @@ Document and download manager with real on-disk folder organization, per-departm
 **I-Soft File Manager: Foundation** is a modular download manager built for modern WordPress.
 
 Unlike standard media plugins that dump every upload into a single dated folder, Foundation is designed for municipalities, universities, libraries, and any team that needs to manage thousands of public documents, maintain a strict category tree, and give different departments their own secure upload spaces.
+
+= What's new in 0.14.2 =
+
+**Download lists look right wherever you place them.** Lists, buttons and the licence agreement dialog are now styled and working when you show them through a page builder's saved templates, global widgets, theme templates (header, footer, single post, archive), loop items or popups, not only when the shortcode sits directly on the page. Pages without downloads still load nothing extra.
 
 = What's new in 0.14.1 =
 
@@ -133,7 +137,7 @@ Yes. The plugin detects FSE themes and injects the download card via the `the_co
 
 = Does it work with Elementor, WPBakery, Divi, Beaver Builder, or Bricks? =
 
-Yes. Foundation ships eight shortcodes that drop into every major builder's HTML or Shortcode widget. See the [full shortcode reference](#shortcodes) below for attributes; the [builder widget table](#shortcodes) at the end of that section shows which widget to paste into in each builder. Native, point-and-click widgets for each builder are planned as separate companion plugins.
+Yes. Foundation ships eight shortcodes that drop into every major builder's HTML or Shortcode widget. See the [full shortcode reference](#shortcodes) below for attributes; the [builder widget table](#shortcodes) at the end of that section shows which widget to paste into in each builder. Lists and buttons are styled and working anywhere the builder shows them: on the page itself, in saved templates and global widgets, in theme templates such as a header, footer or single-post template, in loop items and in popups. Native, point-and-click widgets for each builder are planned as separate companion plugins.
 
 = The plugin installed but every upload fails with "Could not save file record." What's wrong? =
 
@@ -325,6 +329,10 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 
 == Changelog ==
 
+= 0.14.2 =
+
+* **Fixed:** download lists, buttons and the licence agreement dialog shown through page builder templates, theme templates, loop items or popups were unstyled, and the agreement dialog did not open. They now load their styles and scripts wherever they appear.
+
 = 0.14.1 =
 
 * **Changed:** deleting a file also removes it from the download folder, unless another entry still uses the same file. Broken Links "Detach" still removes only the entry.
@@ -449,6 +457,9 @@ Existing data (downloads, categories, files, licenses, logs, per-user category p
 * **Inline metadata editing** directly from the file list.
 
 == Upgrade Notice ==
+
+= 0.14.2 =
+Download lists and buttons placed through page builder templates, theme templates or popups are now styled and working.
 
 = 0.14.1 =
 Deleting a file now also removes it from the download folder, and an empty category's folder is removed with the category. If your download folder is filled by a sync from another place, read the new FAQ entry on sync tools before updating.
