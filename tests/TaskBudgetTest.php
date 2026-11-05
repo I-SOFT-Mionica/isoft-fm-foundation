@@ -222,8 +222,11 @@ class TaskBudgetTest extends WP_UnitTestCase {
 		add_filter( 'isoft_fmf_pdf_thumbnail_async', '__return_false' );
 		$download = $this->download();
 
-		// Not a renderable PDF: Imagick (or its absence) fails the render.
-		$file_id = $this->file( $download, 'broken.pdf', 'not really a pdf' );
+		// Detected as a PDF, but not renderable: Imagick (or its absence) fails the render.
+		$file_id = $this->file( $download, 'broken.pdf', "%PDF-1.4
+1 0 obj << /Type /Catalog /Pages 9 0 R >> endobj
+garbage
+" );
 
 		$this->assertNotNull( ( new ISOFT_FMF_File_Manager() )->get_file( $file_id ) );
 		$this->assertFalse( has_post_thumbnail( $download ) );
@@ -272,7 +275,8 @@ class TaskBudgetTest extends WP_UnitTestCase {
 
 		$bundle_url = static function () use ( $download, $wp_rest_server ) {
 			$response = $wp_rest_server->dispatch( new WP_REST_Request( 'GET', '/isoft-fm-foundation/v1/public/downloads/' . $download ) );
-			return $response->get_data()['bundle_url'] ?? 'missing';
+			$data = $response->get_data();
+			return array_key_exists( 'bundle_url', $data ) ? $data['bundle_url'] : 'missing';
 		};
 
 		$this->assertIsString( $bundle_url() );
