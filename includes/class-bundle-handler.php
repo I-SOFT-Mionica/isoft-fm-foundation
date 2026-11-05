@@ -130,6 +130,13 @@ class ISOFT_FMF_Bundle_Handler {
 			wp_die( esc_html__( 'This download has no files that can be bundled into a ZIP.', 'isoft-fm-foundation' ), 404 );
 		}
 
+		// Too large to build on request: the button is not offered for these,
+		// so this is a direct or stale link.
+		$total_bytes = (int) array_sum( array_column( $local_files, 'file_size' ) );
+		if ( ! isoft_fmf_bundle_fits( count( $local_files ), $total_bytes ) ) {
+			wp_die( esc_html__( 'These files are too large to download as one ZIP. Please download them one by one.', 'isoft-fm-foundation' ), 422 );
+		}
+
 		do_action( 'isoft_fmf_before_bundle_download', $download_id, get_current_user_id() );
 
 		// Cache fast path: if a fresh cached bundle exists for this download,
@@ -216,6 +223,22 @@ class ISOFT_FMF_Bundle_Handler {
 		// built-in tempnam() has the same semantics — atomic create with a
 		// unique suffix under the OS temp dir — and is always available.
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_tempnam -- See note above; wp_tempnam() not available here.
+		$free = function_exists( 'disk_free_space' ) ? @disk_free_space( sys_get_temp_dir() ) : false; // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- Unreadable free space means "unknown", not an error.
+		$need = (int) array_sum( array_column( $files, 'file_size' ) );
+		if ( false !== $free && $free < $need * 1.1 ) {
+			ISOFT_FMF_Task_Budget::report(
+				'bundle',
+				'disk',
+				sprintf(
+					/* translators: 1: space needed, 2: free space */
+					__( 'A ZIP needs about %1$s of temporary space; %2$s is free.', 'isoft-fm-foundation' ),
+					size_format( $need ),
+					size_format( (int) $free )
+				)
+			);
+			wp_die( esc_html__( 'The ZIP could not be prepared right now. Please download the files one by one.', 'isoft-fm-foundation' ), 503 );
+		}
+
 		$tmp = tempnam( sys_get_temp_dir(), 'isoft_fmf_bundle_' );
 		if ( ! $tmp ) {
 			wp_die( esc_html__( 'Could not create a temporary file for the ZIP bundle.', 'isoft-fm-foundation' ), 500 );
@@ -249,6 +272,11 @@ class ISOFT_FMF_Bundle_Handler {
 
 			if ( $zip->addFile( $abs, $name ) ) {
 				++$added;
+				// Already-compressed formats gain nothing from deflate; storing
+				// them as they are saves most of the CPU a bundle costs.
+				if ( self::is_compressed( $name ) ) {
+					$zip->setCompressionName( $name, ZipArchive::CM_STORE );
+				}
 			}
 		}
 
@@ -270,6 +298,18 @@ class ISOFT_FMF_Bundle_Handler {
 		}
 
 		$this->dispatch_zip( $download_id, $files, $served_path, $added, $is_temp );
+	}
+
+	/**
+	 * Whether a file name has an already-compressed format.
+	 */
+	private static function is_compressed( string $name ): bool {
+		$ext = strtolower( pathinfo( $name, PATHINFO_EXTENSION ) );
+		return in_array(
+			$ext,
+			array( 'pdf', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'heic', 'zip', 'gz', 'tgz', 'bz2', 'xz', '7z', 'rar', 'docx', 'xlsx', 'pptx', 'odt', 'ods', 'odp', 'epub', 'mp3', 'm4a', 'ogg', 'mp4', 'm4v', 'mov', 'webm', 'mkv', 'avi' ),
+			true
+		);
 	}
 
 	/**

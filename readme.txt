@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.1
 Requires PHP: 8.4
-Stable tag: 0.14.2-dev
+Stable tag: 0.15.0-dev
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -16,11 +16,16 @@ Document and download manager with real on-disk folder organization, per-departm
 
 Unlike standard media plugins that dump every upload into a single dated folder, Foundation is designed for municipalities, universities, libraries, and any team that needs to manage thousands of public documents, maintain a strict category tree, and give different departments their own secure upload spaces.
 
-= What's new in 0.14.2 =
+= What's new in 0.15.0 =
+
+**Heavy work no longer slows your site down.** Tasks that can take a lot of time or memory now work within safe limits and stop cleanly instead of failing half-way:
+
+* **PDF thumbnails are made in the background,** so uploading a large or complicated PDF is as quick as any other upload. A PDF that is too heavy to draw simply gets no thumbnail; the file itself is never affected.
+* **The integrity check works through big libraries in steps,** continuing in the background until every file is checked, instead of running into the server's time limit.
+* **"Download all" ZIPs have a sensible size limit,** and are built faster because PDFs, images and Office files are packed without recompressing.
+* If anything does stop early, you see a short notice, and **Tools > Site Health > Info** lists what stopped and why.
 
 **Download lists look right wherever you place them.** Lists, buttons and the licence agreement dialog are now styled and working when you show them through a page builder's saved templates, global widgets, theme templates (header, footer, single post, archive), loop items or popups, not only when the shortcode sits directly on the page. Pages without downloads still load nothing extra.
-
-= What's new in 0.14.1 =
 
 **Delete now really deletes.** Deleting a file removes it from the download folder too, not only from the list, so a file uploaded by mistake (one with personal data, say) is really gone. A category can be deleted once nothing is left in it, and its folder goes with it; while anything remains, the message tells you what. If you keep the download folder in sync with another place, see "I keep the download folder in sync with rclone or a similar tool" in the FAQ.
 
@@ -329,12 +334,14 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 
 == Changelog ==
 
-= 0.14.2 =
+= 0.15.0 =
 
+* **New:** heavy tasks work within time and memory limits and stop cleanly; anything that stops is shown in a notice and under Tools > Site Health > Info.
+* **Changed:** PDF thumbnails are made in the background after the upload, with limits on memory, disk and time. PDFs over 200 MB get no thumbnail. Uploads through the block editor now get thumbnails too.
+* **Changed:** the integrity check works in steps and continues in the background on large libraries.
+* **Changed:** "Download all" ZIPs are limited to 100 files and 512 MB by default, and are built faster.
+* **Changed:** the Broken Links search for a moved file stops after a short time on very large storage instead of hanging.
 * **Fixed:** download lists, buttons and the licence agreement dialog shown through page builder templates, theme templates, loop items or popups were unstyled, and the agreement dialog did not open. They now load their styles and scripts wherever they appear.
-
-= 0.14.1 =
-
 * **Changed:** deleting a file also removes it from the download folder, unless another entry still uses the same file. Broken Links "Detach" still removes only the entry.
 * **Changed:** a category can be deleted only when it has no downloads, no subcategories and nothing in its folder; its folder is then removed with it.
 * **Fixed:** the public data API no longer shows the address of an external link that is marked unavailable.
@@ -458,11 +465,8 @@ Existing data (downloads, categories, files, licenses, logs, per-user category p
 
 == Upgrade Notice ==
 
-= 0.14.2 =
-Download lists and buttons placed through page builder templates, theme templates or popups are now styled and working.
-
-= 0.14.1 =
-Deleting a file now also removes it from the download folder, and an empty category's folder is removed with the category. If your download folder is filled by a sync from another place, read the new FAQ entry on sync tools before updating.
+= 0.15.0 =
+Deleting a file now also removes it from the download folder, and an empty category's folder is removed with the category. If your download folder is filled by a sync from another place, read the FAQ entry on sync tools before updating. Also: PDF thumbnails are made in the background, heavy tasks stay within safe limits, and download lists work inside page builder templates.
 
 = 0.14.0 =
 Security update, recommended for all sites: tighter file permission checks for category-restricted editors, executable file types always refused, and a Site Health check that download storage is closed on every web server. Adds a column and an index on update; no data is changed.

@@ -19,8 +19,11 @@ defined( 'ABSPATH' ) || exit;
 class ISOFT_FMF_File_Integrity {
 
 	private const CRON_HOOK           = 'isoft_fmf_integrity_check';
+	public const CONTINUE_HOOK        = 'isoft_fmf_integrity_continue';
 	private const CHUNK_SIZE          = 200;
 	private const LOCK_OPTION         = 'isoft_fmf_integrity_running';
+	private const PROGRESS_OPTION     = 'isoft_fmf_integrity_progress';
+	private const CONTINUE_DELAY      = 30;   // seconds between budgeted slices of one scan.
 	private const LOCK_FALLBACK_TTL   = 600;  // 10 min — used when PHP reports no execution-time limit.
 	private const LOCK_CEILING        = 1800; // 30 min — even if PHP reports "unlimited" or a huge limit, never wait longer than this before treating as crashed.
 	private const LOCK_BUFFER_SECONDS = 30;   // grace beyond max_execution_time before we call it stale.
@@ -28,6 +31,13 @@ class ISOFT_FMF_File_Integrity {
 	public function register_hooks(): void {
 		add_action( 'init', array( $this, 'maybe_schedule' ) );
 		add_action( self::CRON_HOOK, array( $this, 'run_scheduled_check' ) );
+		add_action( self::CONTINUE_HOOK, array( $this, 'run_scheduled_check' ) );
+		add_action(
+			'isoft_fmf_deactivate',
+			static function (): void {
+				wp_unschedule_hook( self::CONTINUE_HOOK );
+			}
+		);
 		add_action( 'update_option_isoft_fmf_integrity_check_enabled', array( $this, 'reschedule' ), 10, 0 );
 		add_action( 'update_option_isoft_fmf_integrity_check_time', array( $this, 'reschedule' ), 10, 0 );
 		add_action( 'admin_post_isoft_fmf_integrity_check_now', array( $this, 'handle_run_now' ) );
@@ -313,22 +323,15 @@ class ISOFT_FMF_File_Integrity {
 			);
 		}
 
-		// Extend PHP's per-request time budget if the host lets us — many
-		// shared hosts disable set_time_limit via disable_functions. If the
-		// call no-ops, the lock TTL kicks in for recovery (next manual run
-		// auto-recovers past the stale threshold).
-		$limits = self::server_limits();
-		if ( $limits['can_extend_time'] ) {
-			// Stopgap until the post-v1 chunked-background refactor (transients +
-			// WP-Cron self-rescheduling) replaces this single-shot run. Plugin
-			// Check flags any set_time_limit use generically; WP core uses the
-			// same pattern in cron.php / upgrade.php / importers. The @ is
-			// because hosts often add set_time_limit to a runtime deny-list.
-			// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,Squiz.PHP.DiscouragedFunctions.Discouraged -- See above.
-			@set_time_limit( 0 );
-		}
-
-		$summary = array(
+		// The scan works within a time and memory budget. When the budget runs
+		// out it saves where it got to and continues in a follow-up cron run,
+		// so a large library is checked in slices instead of one request that
+		// PHP may cut off half-way.
+		$budget   = new ISOFT_FMF_Task_Budget( 'integrity' );
+		$progress = get_option( self::PROGRESS_OPTION, null );
+		$resuming = is_array( $progress ) && isset( $progress['last_id'], $progress['summary'] );
+		$last_id  = $resuming ? (int) $progress['last_id'] : 0;
+		$summary  = $resuming ? (array) $progress['summary'] : array(
 			'checked'     => 0,
 			'healed'      => 0,
 			'relinked'    => 0,
@@ -341,16 +344,16 @@ class ISOFT_FMF_File_Integrity {
 			global $wpdb;
 
 			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Scheduled scan of file rows; rows touched once per run, cache layer would never be hit.
-			$offset = 0;
 			while ( true ) {
 				$rows = $wpdb->get_results(
 					$wpdb->prepare(
 						"SELECT * FROM {$wpdb->prefix}isoft_fmf_files
 						  WHERE file_type = 'local'
+						    AND id > %d
 						  ORDER BY id ASC
-						  LIMIT %d OFFSET %d",
-						self::CHUNK_SIZE,
-						$offset
+						  LIMIT %d",
+						$last_id,
+						self::CHUNK_SIZE
 					)
 				);
 				if ( ! $rows ) {
@@ -363,12 +366,17 @@ class ISOFT_FMF_File_Integrity {
 					if ( isset( $summary[ $outcome ] ) ) {
 						++$summary[ $outcome ];
 					}
-				}
+					$last_id = (int) $row->id;
 
-				$offset += self::CHUNK_SIZE;
+					// Checked after each file, so every slice makes progress.
+					if ( $budget->exhausted() ) {
+						return $this->pause( $last_id, $summary, $budget );
+					}
+				}
 			}
 
 			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			delete_option( self::PROGRESS_OPTION );
 			$summary['finished_at'] = current_time( 'mysql' );
 			update_option( 'isoft_fmf_integrity_last_run', $summary, false );
 
@@ -396,6 +404,46 @@ class ISOFT_FMF_File_Integrity {
 			// recovered by lock_state()'s staleness check on the next attempt.
 			delete_option( self::LOCK_OPTION );
 		}
+	}
+
+	/**
+	 * Save where the scan got to and schedule the next slice.
+	 *
+	 * @param array<string, mixed> $summary Counts so far.
+	 * @return array<string, mixed> The summary, marked partial.
+	 */
+	private function pause( int $last_id, array $summary, ISOFT_FMF_Task_Budget $budget ): array {
+		update_option(
+			self::PROGRESS_OPTION,
+			array(
+				'last_id' => $last_id,
+				'summary' => $summary,
+				'reason'  => $budget->reason(),
+			),
+			false
+		);
+		if ( ! wp_next_scheduled( self::CONTINUE_HOOK ) ) {
+			wp_schedule_single_event( time() + self::CONTINUE_DELAY, self::CONTINUE_HOOK );
+		}
+
+		$summary['partial'] = true;
+		return $summary;
+	}
+
+	/**
+	 * Progress of a scan that is continuing in the background, or null.
+	 *
+	 * @return array{checked: int, reason: string}|null
+	 */
+	public static function progress(): ?array {
+		$progress = get_option( self::PROGRESS_OPTION, null );
+		if ( ! is_array( $progress ) || ! isset( $progress['summary'] ) ) {
+			return null;
+		}
+		return array(
+			'checked' => (int) ( $progress['summary']['checked'] ?? 0 ),
+			'reason'  => (string) ( $progress['reason'] ?? '' ),
+		);
 	}
 
 	/**
@@ -607,6 +655,8 @@ class ISOFT_FMF_File_Integrity {
 		$args = $base;
 		if ( is_array( $result ) && ! empty( $result['skipped'] ) ) {
 			$args['isoft_fmf_running'] = 1;
+		} elseif ( is_array( $result ) && ! empty( $result['partial'] ) ) {
+			$args['isoft_fmf_continuing'] = 1;
 		} else {
 			$args['isoft_fmf_ran'] = 1;
 		}
@@ -692,9 +742,9 @@ class ISOFT_FMF_File_Integrity {
 	/**
 	 * Cross-category inode hunt — scan the entire isoft-fmf-files tree for a candidate
 	 * whose inode matches $file->inode and whose SHA-256 matches $file->file_hash.
-	 * Returns the absolute path, or null.
+	 * Returns the absolute path, or null (also when the budget runs out).
 	 */
-	public static function find_by_inode_anywhere( object $file ): ?string {
+	public static function find_by_inode_anywhere( object $file, ?ISOFT_FMF_Task_Budget $budget = null ): ?string {
 		if ( ! (bool) get_option( 'isoft_fmf_integrity_use_inode', 1 ) ) {
 			return null;
 		}
@@ -711,7 +761,12 @@ class ISOFT_FMF_File_Integrity {
 			new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS )
 		);
 
+		$budget = $budget ?? new ISOFT_FMF_Task_Budget( 'file_search' );
 		foreach ( $it as $entry ) {
+			if ( $budget->exhausted() ) {
+				self::search_stopped( $file, $budget );
+				return null;
+			}
 			if ( ! $entry->isFile() ) {
 				continue;
 			}
@@ -735,7 +790,7 @@ class ISOFT_FMF_File_Integrity {
 	 * including Windows / NTFS. Size pre-filter keeps the hashing cost
 	 * proportional to files-of-matching-size, not total file count.
 	 */
-	public static function find_by_hash_anywhere( object $file ): ?string {
+	public static function find_by_hash_anywhere( object $file, ?ISOFT_FMF_Task_Budget $budget = null ): ?string {
 		if ( empty( $file->file_hash ) || empty( $file->file_size ) ) {
 			return null;
 		}
@@ -749,7 +804,12 @@ class ISOFT_FMF_File_Integrity {
 			new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS )
 		);
 
+		$budget = $budget ?? new ISOFT_FMF_Task_Budget( 'file_search' );
 		foreach ( $it as $entry ) {
+			if ( $budget->exhausted() ) {
+				self::search_stopped( $file, $budget );
+				return null;
+			}
 			if ( ! $entry->isFile() ) {
 				continue;
 			}
@@ -772,7 +832,26 @@ class ISOFT_FMF_File_Integrity {
 	 * through to content hash. The Broken Links recovery dialog uses this.
 	 */
 	public static function find_anywhere( object $file ): ?string {
-		return self::find_by_inode_anywhere( $file ) ?? self::find_by_hash_anywhere( $file );
+		// One budget for both passes: the dialog waits on this request.
+		$budget = new ISOFT_FMF_Task_Budget( 'file_search' );
+		return self::find_by_inode_anywhere( $file, $budget ) ?? self::find_by_hash_anywhere( $file, $budget );
+	}
+
+	private static function search_stopped( object $file, ISOFT_FMF_Task_Budget $budget ): void {
+		static $reported = false;
+		if ( $reported ) {
+			return;
+		}
+		$reported = true;
+		ISOFT_FMF_Task_Budget::report(
+			'file_search',
+			$budget->reason(),
+			sprintf(
+				/* translators: %s: file name */
+				__( 'The search for %s did not finish; storage holds too many files to search in one go. Locate the file by hand, or run the integrity check, which works through storage in slices.', 'isoft-fm-foundation' ),
+				(string) $file->file_name
+			)
+		);
 	}
 
 	/**

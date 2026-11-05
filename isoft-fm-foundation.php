@@ -3,7 +3,7 @@
  * Plugin Name: I-Soft File Manager: Foundation
  * Plugin URI:  https://github.com/I-SOFT-Mionica/isoft-fm-foundation
  * Description: Hierarchical file download manager — categories, multi-file entries, secure download handler, audit logging, and role-based access control.
- * Version:     0.14.2-dev
+ * Version:     0.15.0-dev
  * Author:      I-SOFT Mionica
  * Author URI:  https://github.com/I-SOFT-Mionica
  * License:     GPL v2 or later
@@ -16,7 +16,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-const ISOFT_FMF_VERSION = '0.14.2-dev';
+const ISOFT_FMF_VERSION = '0.15.0-dev';
 define( 'ISOFT_FMF_PLUGIN_FILE', __FILE__ );
 define( 'ISOFT_FMF_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'ISOFT_FMF_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -144,6 +144,13 @@ add_action(
 		// Site Health check that the storage folder is not web-reachable.
 		( new ISOFT_FMF_Storage_Guard() )->register_hooks();
 
+		// Time and memory budget for heavy tasks; stops listed in Site Health.
+		ISOFT_FMF_Task_Budget::register_hooks();
+
+		// PDF thumbnails: uploads come through admin AJAX and REST alike, and
+		// the render runs in a cron job, so the hooks are needed everywhere.
+		( new ISOFT_FMF_Pdf_Thumbnail() )->register_hooks();
+
 		// Shortcodes (registered on all requests for REST/preview compatibility)
 		( new ISOFT_FMF_Shortcodes() )->register_hooks();
 
@@ -182,7 +189,6 @@ add_action(
 			( new ISOFT_FMF_Export() )->register_hooks();
 			( new ISOFT_FMF_Profile_ACL_Page() )->register_hooks();
 			( new ISOFT_FMF_Taxonomy_Form_Page() )->register_hooks();
-			( new ISOFT_FMF_Pdf_Thumbnail() )->register_hooks();
 			( new ISOFT_FMF_Demo_Content() )->register_hooks();
 		}
 	}

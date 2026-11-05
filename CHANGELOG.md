@@ -2,7 +2,21 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
-## [Unreleased]
+## [Unreleased] (0.15.0)
+
+0.14.1 below was never published on WordPress.org; it ships as part of 0.15.0.
+
+### New
+
+- **Heavy work stays within limits.** New `ISOFT_FMF_Task_Budget`: a time budget (default 20 s, never past 60% of `max_execution_time` from the request start) and a memory ceiling (80% of `memory_limit`), filterable per task with `isoft_fmf_task_budget`. `guard()` contains any `Throwable`; `report()` records a stop. Stops fire `isoft_fmf_task_stopped( $task, $reason, $detail )`, are kept (latest 20, option `isoft_fmf_task_stops`) and listed under Tools > Site Health > Info, and queue one admin notice per task and reason. Feature `task_budget`, so extensions can use it.
+- **ZIP bundle caps.** `isoft_fmf_bundle_limits` (default 100 files, 512 MB; 0 = no limit) and `isoft_fmf_bundle_fits()`. Over the limit the Download all button and the public API's `bundle_url` are not offered, and a direct request is refused (422). Building also stops (503, reported) when the temp folder lacks room. Already-compressed formats (PDF, images, Office, archives, media) are stored, not deflated, which saves most of the CPU a bundle costs.
+
+### Changed
+
+- **PDF thumbnails render in the background, under resource limits.** The upload schedules a one-off `isoft_fmf_pdf_thumbnail` cron event instead of rendering in the upload request. The render sets Imagick limits for memory, map, disk, time, width and height (`isoft_fmf_pdf_thumbnail_limits`; restored afterwards, so other image work is unaffected) and skips PDFs over 200 MB. A failed or refused render is reported; the upload is never affected. `isoft_fmf_pdf_thumbnail_async` (false) renders inline for sites without WP-Cron. The thumbnail hooks are now registered on every request, so uploads through the REST API get thumbnails too (before, only admin-AJAX uploads did).
+- **The integrity check runs in slices.** It no longer removes PHP's time limit (`set_time_limit( 0 )`). It checks files in id order within the task budget, saves its position (`isoft_fmf_integrity_progress`) and continues in a cron run 30 s later (`isoft_fmf_integrity_continue`) until done; the summary notice and `isoft_fmf_integrity_check_complete` fire once at the end. "Run integrity check now" says when the check continues in the background. `ISOFT_FMF_File_Integrity::progress()` reports a scan in progress.
+- **The Broken Links search for a missing file is bounded.** `find_by_inode_anywhere()` and `find_by_hash_anywhere()` walk the whole storage tree; they now stop at the budget (shared by both passes in `find_anywhere()`), report it, and return null, instead of holding the dialog until PHP times out.
+- **Admin notice queue capped** at the latest 20; `isoft_fmf_notify_admin()` takes an optional key.
 
 ### Fixed
 

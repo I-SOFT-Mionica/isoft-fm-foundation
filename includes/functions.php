@@ -221,17 +221,23 @@ function isoft_fmf_access_role_label( string $role ): string {
 /**
  * Queue an admin dashboard notice for the current user.
  *
+ * Only the latest 20 are kept, so a task that fails over and over cannot
+ * grow the queue without bound.
+ *
  * @param string $message  Plain text message.
  * @param string $type     'info' | 'success' | 'warning' | 'error'
+ * @param string $key      Optional identity, for callers that queue one notice per kind.
  */
-function isoft_fmf_notify_admin( string $message, string $type = 'info' ): void {
+function isoft_fmf_notify_admin( string $message, string $type = 'info', string $key = '' ): void {
 	$notices   = get_option( 'isoft_fmf_admin_notices', array() );
+	$notices   = is_array( $notices ) ? $notices : array();
 	$notices[] = array(
 		'message' => $message,
 		'type'    => in_array( $type, array( 'info', 'success', 'warning', 'error' ), true ) ? $type : 'info',
 		'time'    => time(),
+		'key'     => $key,
 	);
-	update_option( 'isoft_fmf_admin_notices', $notices );
+	update_option( 'isoft_fmf_admin_notices', array_slice( $notices, -20 ) );
 }
 
 /**
@@ -758,6 +764,7 @@ function isoft_fmf_features(): array {
 		'pre_attach_veto',
 		'file_state',
 		'thumbnail_sizes',
+		'task_budget',
 	);
 
 	/**
@@ -1249,6 +1256,45 @@ function isoft_fmf_get_download_url( int $file_id, int $download_id = 0 ): strin
 		$args['nonce'] = wp_create_nonce( 'isoft_fmf_download_' . $file_id );
 	}
 	return add_query_arg( $args, home_url( '/' ) );
+}
+
+/**
+ * Size limits for one ZIP bundle. A bundle is built on the server for each
+ * request that misses the cache, so very large ones are not offered.
+ *
+ * @return array{max_files: int, max_bytes: int} 0 means no limit.
+ */
+function isoft_fmf_bundle_limits(): array {
+	/**
+	 * Filters the size limits for one ZIP bundle.
+	 *
+	 * @param array{max_files: int, max_bytes: int} $limits 0 means no limit.
+	 */
+	$limits = (array) apply_filters(
+		'isoft_fmf_bundle_limits',
+		array(
+			'max_files' => 100,
+			'max_bytes' => 512 * MB_IN_BYTES,
+		)
+	);
+	return array(
+		'max_files' => max( 0, (int) ( $limits['max_files'] ?? 0 ) ),
+		'max_bytes' => max( 0, (int) ( $limits['max_bytes'] ?? 0 ) ),
+	);
+}
+
+/**
+ * Whether a set of files fits in one ZIP bundle.
+ *
+ * @param int $count Number of files.
+ * @param int $bytes Their total size.
+ */
+function isoft_fmf_bundle_fits( int $count, int $bytes ): bool {
+	$limits = isoft_fmf_bundle_limits();
+	if ( $limits['max_files'] > 0 && $count > $limits['max_files'] ) {
+		return false;
+	}
+	return ! ( $limits['max_bytes'] > 0 && $bytes > $limits['max_bytes'] );
 }
 
 /**

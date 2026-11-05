@@ -23,6 +23,7 @@ $just_ran    = isset( $_GET['isoft_fmf_ran'] );      // phpcs:ignore WordPress.S
 $saw_running = isset( $_GET['isoft_fmf_running'] );  // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
 $lock           = ISOFT_FMF_File_Integrity::lock_state();
+$continuing     = ISOFT_FMF_File_Integrity::progress();
 $limits         = ISOFT_FMF_File_Integrity::server_limits();
 $max_exec_label = $limits['max_execution_time'] > 0
 	/* translators: %d: number of seconds */
@@ -110,6 +111,20 @@ $mem_label = $limits['memory_limit_bytes'] > 0
 		</div>
 	<?php endif; ?>
 
+	<?php if ( null !== $continuing ) : ?>
+		<div class="notice notice-info inline" style="margin:0 0 1em;">
+			<p>
+				<?php
+				printf(
+					/* translators: %d: number of files checked so far */
+					esc_html( _n( 'The check is continuing in the background: %d file checked so far. Refresh later for the result.', 'The check is continuing in the background: %d files checked so far. Refresh later for the result.', $continuing['checked'], 'isoft-fm-foundation' ) ),
+					(int) $continuing['checked']
+				);
+				?>
+			</p>
+		</div>
+	<?php endif; ?>
+
 	<?php if ( null !== $lock && 'active' === $lock['status'] ) : ?>
 		<p>
 			<span class="dashicons dashicons-update" style="color:#2271b1;"></span>
@@ -160,10 +175,10 @@ $mem_label = $limits['memory_limit_bytes'] > 0
 	<?php else : ?>
 		<p>
 			<a href="<?php echo esc_url( $run_now_url ); ?>" class="button button-secondary"
-				onclick="return confirm('<?php echo esc_js( __( 'The scan runs synchronously and may take a minute or more on large sites. Continue?', 'isoft-fm-foundation' ) ); ?>');">
+				onclick="return confirm('<?php echo esc_js( __( 'The check runs for up to about 20 seconds; on large sites it then continues in the background. Continue?', 'isoft-fm-foundation' ) ); ?>');">
 				<?php esc_html_e( 'Run integrity check now', 'isoft-fm-foundation' ); ?>
 			</a>
-			<?php if ( $just_ran ) : ?>
+			<?php if ( $just_ran && null === $continuing ) : ?>
 				<span style="color:#008a20;margin-left:1em;">
 					<?php esc_html_e( 'Check completed. See the summary below.', 'isoft-fm-foundation' ); ?>
 				</span>
@@ -174,11 +189,10 @@ $mem_label = $limits['memory_limit_bytes'] > 0
 	<p class="description" style="margin-top:.6em;font-size:11px;color:#646970;">
 		<?php
 		printf(
-			/* translators: 1: php max_execution_time label, 2: memory_limit label, 3: yes/no whether set_time_limit() works */
-			esc_html__( 'Server limits: max execution %1$s · memory %2$s · set_time_limit %3$s.', 'isoft-fm-foundation' ),
+			/* translators: 1: php max_execution_time label, 2: memory_limit label */
+			esc_html__( 'Server limits: max execution %1$s · memory %2$s. The check stays well within them and continues in the background when there is more to do.', 'isoft-fm-foundation' ),
 			esc_html( $max_exec_label ),
-			esc_html( $mem_label ),
-			$limits['can_extend_time'] ? esc_html__( 'available (run can extend its time budget)', 'isoft-fm-foundation' ) : esc_html__( 'blocked (run is capped at the server limit above)', 'isoft-fm-foundation' )
+			esc_html( $mem_label )
 		);
 		?>
 	</p>

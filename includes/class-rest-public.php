@@ -639,11 +639,26 @@ class ISOFT_FMF_Rest_Public {
 			) : null,
 			'thumbnail'      => $thumbnail,
 			'files'          => $files,
-			'bundle_url'     => count( array_filter( $files, static fn( array $f ): bool => 'local' === $f['type'] && ! $f['unavailable'] ) ) > 1
-				&& get_option( 'isoft_fmf_enable_zip_bundle', 0 )
-				? isoft_fmf_get_bundle_url( $id )
-				: null,
+			'bundle_url'     => $this->bundle_url( $id, $files ),
 		);
+	}
+
+	/**
+	 * The ZIP bundle URL when bundles are on and the files qualify: two or
+	 * more local, available files within the bundle size limits.
+	 *
+	 * @param array<int, array<string, mixed>> $files Files as returned by this API.
+	 */
+	private function bundle_url( int $id, array $files ): ?string {
+		if ( ! get_option( 'isoft_fmf_enable_zip_bundle', 0 ) ) {
+			return null;
+		}
+		$local = array_filter( $files, static fn( array $f ): bool => 'local' === $f['type'] && ! $f['unavailable'] );
+		if ( count( $local ) < 2 ) {
+			return null;
+		}
+		$bytes = (int) array_sum( array_column( $local, 'size' ) );
+		return isoft_fmf_bundle_fits( count( $local ), $bytes ) ? isoft_fmf_get_bundle_url( $id ) : null;
 	}
 
 	/**
