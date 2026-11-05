@@ -71,6 +71,10 @@ Actions: `isoft_fmf_file_uploaded( $file_id, $download_id )`, `isoft_fmf_file_de
 
 Filter `isoft_fmf_pre_attach_file( true|WP_Error $allowed, string $abs_path, array $context )`: return a `WP_Error` to refuse a file before it is stored. It runs on every way of adding or replacing file content: the upload form (on the PHP temp file, before it is copied into the public uploads directory), `isoft_fmf_attach_file()`, import from disk, the Broken Links reupload, and `isoft_fmf_accept_file_content()`. `$context` has `download_id`, `origin` (`upload`, `attach`, `import`, `replace`, `accept`), `original_name` and whatever the caller passed. A refusal without a status becomes HTTP 422. With no callback attached nothing changes.
 
+## Public styles and scripts
+
+The public CSS and JS load in the page head when the page itself holds Foundation content: a shortcode or block in the post, a single download, or a download archive or category page. Content rendered from anywhere else (page builder templates, theme parts, popups, loop items) loads them when it renders, and WordPress prints them in the footer. To load them in the head on pages you know need them, return true from `isoft_fmf_needs_assets( $needs )`. To load them from your own code, call `ISOFT_FMF_Shortcodes::enqueue_public_assets()`; repeated calls are harmless.
+
 ## Storage that is a mount or a symlink
 
 Foundation resolves every stored path with `realpath()` and refuses anything outside the resolved storage root, on a directory boundary (a sibling such as `isoft-fmf-files-backup` is outside).

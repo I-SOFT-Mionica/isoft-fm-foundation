@@ -2,6 +2,12 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [Unreleased]
+
+### Fixed
+
+- **Lists, buttons and the agreement dialog are styled and work wherever they are shown.** The public CSS and JS loaded only when the shortcode or block was in the current post's content, or on Foundation's own pages. Content placed through a page builder's saved templates, global widgets, theme builder parts (header, footer, single, archive), loop items or popups, or on a page whose builder data was written without the editor, rendered unstyled, and a download that needs licence agreement had no working dialog. Now every Foundation shortcode and the download-button block enqueue the assets when they render (`ISOFT_FMF_Shortcodes::enqueue_public_assets()`, idempotent; WordPress prints late styles in the footer), and Elementor's editor preview loads them too (`elementor/preview/enqueue_styles`). The head check stays, so pages that visibly hold Foundation content are styled from the first paint. New filter `isoft_fmf_needs_assets( $needs )` forces head loading. Pages with no Foundation content still load nothing.
+
 ## [0.14.1] — 2026-11-02
 
 ### Changed
