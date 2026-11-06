@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.1
 Requires PHP: 8.4
-Stable tag: 0.14.1
+Stable tag: 0.14.3-dev
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -16,7 +16,9 @@ Document and download manager with real on-disk folder organization, per-departm
 
 Unlike standard media plugins that dump every upload into a single dated folder, Foundation is designed for municipalities, universities, libraries, and any team that needs to manage thousands of public documents, maintain a strict category tree, and give different departments their own secure upload spaces.
 
-= What's new in 0.14.1 =
+= What's new in 0.14.3 =
+
+**Licence agreements work again.** On downloads that ask visitors to agree to a licence, ticking the box and clicking Download now starts the download; in recent versions it did nothing. The agreement also opens on top when the download sits inside a page builder popup.
 
 **Delete now really deletes.** Deleting a file removes it from the download folder too, not only from the list, so a file uploaded by mistake (one with personal data, say) is really gone. A category can be deleted once nothing is left in it, and its folder goes with it; while anything remains, the message tells you what. If you keep the download folder in sync with another place, see "I keep the download folder in sync with rclone or a similar tool" in the FAQ.
 
@@ -325,8 +327,10 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 
 == Changelog ==
 
-= 0.14.1 =
+= 0.14.3 =
 
+* **Fixed:** after agreeing to a licence, clicking Download did nothing. It now starts the download.
+* **Fixed:** inside a page builder popup, the licence agreement dialog opened behind the popup. It now opens on top.
 * **Changed:** deleting a file also removes it from the download folder, unless another entry still uses the same file. Broken Links "Detach" still removes only the entry.
 * **Changed:** a category can be deleted only when it has no downloads, no subcategories and nothing in its folder; its folder is then removed with it.
 * **Fixed:** the public data API no longer shows the address of an external link that is marked unavailable.
@@ -450,8 +454,8 @@ Existing data (downloads, categories, files, licenses, logs, per-user category p
 
 == Upgrade Notice ==
 
-= 0.14.1 =
-Deleting a file now also removes it from the download folder, and an empty category's folder is removed with the category. If your download folder is filled by a sync from another place, read the new FAQ entry on sync tools before updating.
+= 0.14.3 =
+Fixes downloads that ask visitors to agree to a licence: Download now works after agreeing. Also, deleting a file now removes it from the download folder; if your folder is filled by a sync from elsewhere, read the FAQ on sync tools first.
 
 = 0.14.0 =
 Security update, recommended for all sites: tighter file permission checks for category-restricted editors, executable file types always refused, and a Site Health check that download storage is closed on every web server. Adds a column and an index on update; no data is changed.

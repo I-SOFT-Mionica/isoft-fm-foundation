@@ -2,6 +2,15 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [Unreleased] (0.14.3)
+
+Hotfix on top of 0.14.1. 0.14.1 was not published on wordpress.org, so this is the release after 0.14.0 and carries 0.14.1's changes. 0.14.2 was a test build only and is not released; its page builder work ships in 0.15.0.
+
+### Fixed
+
+- **Agreeing to a licence now starts the download.** Since 0.10.18 the dialog's Download link did nothing: the capture-phase click guard that keeps theme ajax-navigation away from download links (`public-script.js`) also caught the dialog's own link, which carries `.isoft-fmf-download-btn` for styling, and stopped its click before the link's handler ran, so the browser only followed `href="#"`. The guard now skips links inside `#isoft-fmf-agree-overlay`. Covered by a jsdom test (`npm run test:js`, run in CI).
+- **The agreement dialog opens above page builder popups.** It shared `z-index: 9999` with Elementor popups, which are added later in the page, so a download clicked inside a popup opened its dialog behind it. The overlay now moves to the end of `<body>` when it opens and uses `z-index: 100000`.
+
 ## [0.14.1] — 2026-11-02
 
 ### Changed

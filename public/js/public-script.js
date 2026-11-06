@@ -20,12 +20,15 @@
 	//
 	// Skip links inside the agreement modal flow; those have their own
 	// handler that pops a modal first then navigates via window.location.
+	// That includes the modal's own Download link: it carries the
+	// download-btn class for styling, and stopping its click here kept its
+	// handler from ever running, so agreeing never started the download.
 	// -------------------------------------------------------------------------
 	document.addEventListener(
 		'click',
 		function ( e ) {
 			var btn = e.target.closest( '.isoft-fmf-download-btn' );
-			if ( ! btn || btn.classList.contains( 'isoft-fmf-requires-agree' ) ) {
+			if ( ! btn || btn.classList.contains( 'isoft-fmf-requires-agree' ) || btn.closest( '#isoft-fmf-agree-overlay' ) ) {
 				return;
 			}
 			e.stopImmediatePropagation();
@@ -72,7 +75,12 @@
 			proceed.style.opacity       = '0.5';
 			proceed.style.pointerEvents = 'none';
 
-			// Show
+			// Show. Move the overlay to the end of <body> first, so it sits
+			// above anything appended later with the same z-index, such as
+			// a page builder popup the button was clicked in.
+			if ( overlay.parentNode !== document.body || document.body.lastElementChild !== overlay ) {
+				document.body.appendChild( overlay );
+			}
 			overlay.classList.add( 'is-open' );
 			checkbox.focus();
 		}
