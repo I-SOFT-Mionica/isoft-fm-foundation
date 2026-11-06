@@ -174,6 +174,18 @@ final class ISOFT_FMF_Task_Budget {
 	}
 
 	private static function message( string $task, string $reason, string $detail ): string {
+		$message = sprintf(
+			/* translators: %s: what happened, e.g. "PDF thumbnail stopped: it ran out of time" */
+			__( 'I-Soft File Manager: Foundation: %s.', 'isoft-fm-foundation' ),
+			self::describe( $task, $reason )
+		);
+		return '' !== $detail ? $message . ' ' . $detail : $message;
+	}
+
+	/**
+	 * Readable "task + what happened", e.g. "PDF thumbnail was refused: too large".
+	 */
+	private static function describe( string $task, string $reason ): string {
 		$labels  = array(
 			'integrity'     => __( 'File integrity check', 'isoft-fm-foundation' ),
 			'pdf_thumbnail' => __( 'PDF thumbnail', 'isoft-fm-foundation' ),
@@ -187,13 +199,12 @@ final class ISOFT_FMF_Task_Budget {
 			'too_large' => __( 'was refused: too large', 'isoft-fm-foundation' ),
 			'disk'      => __( 'stopped: not enough free disk space', 'isoft-fm-foundation' ),
 		);
-		$message = sprintf(
+		return sprintf(
 			/* translators: 1: task name, e.g. "PDF thumbnail", 2: what happened, e.g. "stopped: it ran out of time" */
-			__( 'I-Soft File Manager: Foundation: %1$s %2$s.', 'isoft-fm-foundation' ),
+			__( '%1$s %2$s', 'isoft-fm-foundation' ),
 			$labels[ $task ] ?? $task,
 			$reasons[ $reason ] ?? $reason
 		);
-		return '' !== $detail ? $message . ' ' . $detail : $message;
 	}
 
 	// -------------------------------------------------------------------------
@@ -213,7 +224,9 @@ final class ISOFT_FMF_Task_Budget {
 		foreach ( self::recent_stops() as $i => $stop ) {
 			$fields[ 'stop_' . $i ] = array(
 				'label' => wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), (int) $stop['time'] ),
-				'value' => trim( $stop['task'] . ' / ' . $stop['reason'] . ' ' . $stop['detail'] ),
+				'value' => trim( self::describe( (string) $stop['task'], (string) $stop['reason'] ) . '. ' . $stop['detail'] ),
+				// "Copy site info" gets the raw keys, which support can search for.
+				'debug' => trim( $stop['task'] . ' / ' . $stop['reason'] . ' ' . $stop['detail'] ),
 			);
 		}
 		if ( ! $fields ) {

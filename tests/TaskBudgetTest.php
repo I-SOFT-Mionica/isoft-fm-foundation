@@ -127,7 +127,9 @@ class TaskBudgetTest extends WP_UnitTestCase {
 		$info = apply_filters( 'debug_information', array() );
 
 		$this->assertArrayHasKey( 'isoft-fm-foundation-tasks', $info );
-		$this->assertStringContainsString( 'needs 2 GB', (string) wp_json_encode( $info['isoft-fm-foundation-tasks'] ) );
+		$row = $info['isoft-fm-foundation-tasks']['fields']['stop_0'];
+		$this->assertSame( 'ZIP bundle stopped: not enough free disk space. needs 2 GB', $row['value'], 'readable labels' );
+		$this->assertStringContainsString( 'bundle / disk', $row['debug'], 'raw keys in the copied site info' );
 	}
 
 	// -------------------------------------------------------------------------

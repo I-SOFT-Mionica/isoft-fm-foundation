@@ -466,7 +466,7 @@ Existing data (downloads, categories, files, licenses, logs, per-user category p
 == Upgrade Notice ==
 
 = 0.15.0 =
-Deleting a file now also removes it from the download folder, and an empty category's folder is removed with the category. If your download folder is filled by a sync from another place, read the FAQ entry on sync tools before updating. Also: PDF thumbnails are made in the background, heavy tasks stay within safe limits, and download lists work inside page builder templates.
+Deleting a file now also removes it from the download folder. If your folder is filled by a sync from elsewhere, read the FAQ on sync tools first. Also: background PDF thumbnails, safe limits for heavy tasks, and download lists that work in page builder templates.
 
 = 0.14.0 =
 Security update, recommended for all sites: tighter file permission checks for category-restricted editors, executable file types always refused, and a Site Health check that download storage is closed on every web server. Adds a column and an index on update; no data is changed.
