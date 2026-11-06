@@ -27,6 +27,8 @@ Unlike standard media plugins that dump every upload into a single dated folder,
 
 **Download lists look right wherever you place them.** Lists, buttons and the licence agreement dialog are now styled and working when you show them through a page builder's saved templates, global widgets, theme templates (header, footer, single post, archive), loop items or popups, not only when the shortcode sits directly on the page. Pages without downloads still load nothing extra.
 
+**Licence agreements work again.** On downloads that ask visitors to agree to a licence, ticking the box and clicking Download now starts the download; in recent versions it did nothing. The agreement also opens on top when the download sits inside a popup.
+
 **Delete now really deletes.** Deleting a file removes it from the download folder too, not only from the list, so a file uploaded by mistake (one with personal data, say) is really gone. A category can be deleted once nothing is left in it, and its folder goes with it; while anything remains, the message tells you what. If you keep the download folder in sync with another place, see "I keep the download folder in sync with rclone or a similar tool" in the FAQ.
 
 = What's new in 0.14.0 =
@@ -341,6 +343,8 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 * **Changed:** the integrity check works in steps and continues in the background on large libraries.
 * **Changed:** "Download all" ZIPs are limited to 100 files and 512 MB by default, and are built faster.
 * **Changed:** the Broken Links search for a moved file stops after a short time on very large storage instead of hanging.
+* **Fixed:** after agreeing to a licence, clicking Download did nothing. It now starts the download.
+* **Fixed:** inside a page builder popup, the licence agreement dialog opened behind the popup. It now opens on top.
 * **Fixed:** download lists, buttons and the licence agreement dialog shown through page builder templates, theme templates, loop items or popups were unstyled, and the agreement dialog did not open. They now load their styles and scripts wherever they appear.
 * **Changed:** deleting a file also removes it from the download folder, unless another entry still uses the same file. Broken Links "Detach" still removes only the entry.
 * **Changed:** a category can be deleted only when it has no downloads, no subcategories and nothing in its folder; its folder is then removed with it.
