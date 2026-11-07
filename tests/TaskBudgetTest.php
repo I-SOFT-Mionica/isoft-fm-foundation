@@ -341,7 +341,7 @@ garbage
 			$probe->readImage( $pdf . '[0]' );
 			$probe->clear();
 		} catch ( Throwable $e ) {
-			$this->markTestSkipped( 'This ImageMagick cannot read PDFs: ' . $e->getMessage() );
+			$this->markTestSkipped( 'This ImageMagick cannot read PDFs: ' . $e->getMessage() . ' (time limit ' . Imagick::getResourceLimit( Imagick::RESOURCETYPE_TIME ) . ')' );
 		}
 
 		$render = new ReflectionMethod( ISOFT_FMF_Pdf_Thumbnail::class, 'render' );

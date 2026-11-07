@@ -39,7 +39,7 @@ jobs:
         run: |
           sudo apt-get install -y -qq ghostscript > /dev/null
           for f in /etc/ImageMagick-*/policy.xml; do sudo sed -i -e '/domain="coder".*PDF/d' -e 's/pattern="{GIF,JPEG,PNG,WEBP}"/pattern="{GIF,JPEG,PNG,WEBP,PDF}"/' "$f"; done
-          grep -h 'domain="coder"' /etc/ImageMagick-*/policy.xml || true
+          grep -hE 'domain="(coder|resource)"' /etc/ImageMagick-*/policy.xml || true
 
       - name: Wait for MySQL
         run: |
