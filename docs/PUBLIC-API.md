@@ -9,7 +9,7 @@ Conventions: functions are plain functions with the `isoft_fmf_` prefix. Nothing
 ## Registering an extension
 
 - `ISOFT_FMF_Extension_Api::register( array $args )` / `isoft_fmf_register_extension()` with `slug`, `name`, `version`, inside the `isoft_fmf_extensions_init` action (fired on `init`, priority 20).
-- `isoft_fmf_notify_admin()` queues an admin notice.
+- `isoft_fmf_notify_admin( $message, $type, $key, $data )` queues an admin notice. With a `$key`, it replaces an unseen notice with the same key; `$data` is kept with it. `isoft_fmf_queued_notice( $key )` returns that unseen notice (or null), so a caller can fold repeats into one notice with running totals instead of queuing one per run.
 
 ## Admin menu
 
@@ -48,7 +48,7 @@ The public REST API applies the same rule: downloads under a pending category ar
 
 ## Feature detection
 
-In PHP: `isoft_fmf_features(): string[]` and `isoft_fmf_has_feature( $feature ): bool`. Over HTTP: `GET /isoft-fm-foundation/v1/public/info` (only while the public API is on) returns `name`, `version`, `api` (1), the same `features` and a few public `settings`. Identifiers: `public_api`, `gates`, `record_downloads`, `record_idempotency`, `content_changed`, `pending_categories`, `unavailable_files`, `category_path`, `public_rule`, `attach_file`, `pre_attach_veto`, `file_state`, `thumbnail_sizes`. They are only ever added. Filter `isoft_fmf_features` (extensions add identifiers prefixed with their slug). Test features, not version numbers.
+In PHP: `isoft_fmf_features(): string[]` and `isoft_fmf_has_feature( $feature ): bool`. Over HTTP: `GET /isoft-fm-foundation/v1/public/info` (only while the public API is on) returns `name`, `version`, `api` (1), the same `features` and a few public `settings`. Identifiers: `public_api`, `gates`, `record_downloads`, `record_idempotency`, `content_changed`, `pending_categories`, `unavailable_files`, `category_path`, `public_rule`, `attach_file`, `pre_attach_veto`, `file_state`, `thumbnail_sizes`, `task_budget`. They are only ever added. Filter `isoft_fmf_features` (extensions add identifiers prefixed with their slug). Test features, not version numbers.
 
 A download's `thumbnail` carries `sizes`: every generated size plus `full`, each with `width`, `height`, `mime_type`, `source_url`, in the shape of WordPress' REST `media_details.sizes`.
 
@@ -70,6 +70,32 @@ A category can be held back from the public until approved: it exists and files 
 Actions: `isoft_fmf_file_uploaded( $file_id, $download_id )`, `isoft_fmf_file_deleted` (before the row goes), `isoft_fmf_file_removed_from_disk( $rel_path, $file_id, $download_id )` (an editor's delete also removed the stored file; skipped while another row uses the same path, and switched off by returning false from the filter `isoft_fmf_delete_file_from_disk( $remove, $file )`), `isoft_fmf_file_replaced( $file_id, $download_id )` (content replaced on purpose: a Broken Links reupload or `isoft_fmf_accept_file_content()`), `isoft_fmf_file_availability_changed( $file_id, $download_id, $unavailable )`, `isoft_fmf_integrity_check_complete( $summary )`, `isoft_fmf_download_logged`, `isoft_fmf_content_changed( $type, $id )` with `isoft_fmf_suspend_content_changed()` / `isoft_fmf_resume_content_changed()`. This is the one hook a static build or cache needs: it fires for downloads saved, trashed or deleted, file changes, licenses, category and tag edits (including Foundation term meta), term assignments and pending state. `$type` is `download`, `license`, `category`, `tag`, or `bulk` (id 0) after a suspended batch. It can fire more than once per request; listeners should be idempotent.
 
 Filter `isoft_fmf_pre_attach_file( true|WP_Error $allowed, string $abs_path, array $context )`: return a `WP_Error` to refuse a file before it is stored. It runs on every way of adding or replacing file content: the upload form (on the PHP temp file, before it is copied into the public uploads directory), `isoft_fmf_attach_file()`, import from disk, the Broken Links reupload, and `isoft_fmf_accept_file_content()`. `$context` has `download_id`, `origin` (`upload`, `attach`, `import`, `replace`, `accept`), `original_name` and whatever the caller passed. A refusal without a status becomes HTTP 422. With no callback attached nothing changes.
+
+## Heavy work: budgets and stops
+
+Foundation's heavy tasks run within a time and memory budget and stop cleanly instead of letting PHP kill the request: the integrity check works in slices that continue in a cron run (`isoft_fmf_integrity_continue`), PDF thumbnails render in a one-off cron job (`isoft_fmf_pdf_thumbnail`) under Imagick resource limits, ZIP bundles have size caps, and the Broken Links search for a missing file gives up rather than hang the dialog.
+
+Extensions can use the same tool for their own heavy work (feature `task_budget`):
+
+```php
+$budget = new ISOFT_FMF_Task_Budget( 'myext_import' ); // optional second argument: seconds
+foreach ( $items as $item ) {
+	process( $item );
+	if ( $budget->exhausted() ) { // 'time' or 'memory' in $budget->reason()
+		save_cursor( $item ); schedule_next_slice(); break;
+	}
+}
+ISOFT_FMF_Task_Budget::guard( 'myext_render', fn() => render(), null ); // contains any Throwable and reports it
+ISOFT_FMF_Task_Budget::report( 'myext_import', 'too_large', 'plain-text detail' );
+```
+
+The default budget is 20 seconds, never more than 60% of `max_execution_time` counted from the request start, and 80% of `memory_limit`. Filter `isoft_fmf_task_budget( $limits, $task )` (`seconds`, `memory_share`). Every stop fires `isoft_fmf_task_stopped( $task, $reason, $detail )`, is listed under Tools > Site Health > Info, and queues one admin notice per task and reason.
+
+Limits for Foundation's own tasks: `isoft_fmf_pdf_thumbnail_limits` (`memory`, `map`, `disk`, `time`, `width`, `height`, `max_file_bytes`), `isoft_fmf_pdf_thumbnail_async` (false renders inside the upload request, for sites without WP-Cron), `isoft_fmf_bundle_limits` (`max_files`, default 100; `max_bytes`, default 512 MB; 0 means no limit) with `isoft_fmf_bundle_fits( $count, $bytes )`.
+
+## Public styles and scripts
+
+The public CSS and JS load in the page head when the page itself holds Foundation content: a shortcode or block in the post, a single download, or a download archive or category page. Content rendered from anywhere else (page builder templates, theme parts, popups, loop items) loads them when it renders, and WordPress prints them in the footer. To load them in the head on pages you know need them, return true from `isoft_fmf_needs_assets( $needs )`. To load them from your own code, call `ISOFT_FMF_Shortcodes::enqueue_public_assets()`; repeated calls are harmless.
 
 ## Storage that is a mount or a symlink
 

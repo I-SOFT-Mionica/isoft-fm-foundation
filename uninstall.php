@@ -10,6 +10,12 @@ defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
 
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Uninstall script: locals are bounded to this one-shot teardown; never globals.
 
+// Scheduled events are not site data: clear them whatever the setting, so
+// none outlives the plugin. Deactivation clears most; this catches the rest.
+foreach ( array( 'isoft_fmf_daily_cron', 'isoft_fmf_integrity_check', 'isoft_fmf_integrity_continue', 'isoft_fmf_pdf_thumbnail', 'isoft_fmf_bundle_cache_sweep' ) as $hook ) {
+	wp_unschedule_hook( $hook );
+}
+
 if ( ! get_option( 'isoft_fmf_delete_data_on_uninstall' ) ) {
 	return;
 }
@@ -105,11 +111,16 @@ $options = array(
 	'isoft_fmf_integrity_last_run',
 	// Internal state
 	'isoft_fmf_admin_notices',
+	'isoft_fmf_task_stops',
+	'isoft_fmf_pdf_thumbnail_running',
+	'isoft_fmf_integrity_progress',
 	'isoft_fmf_db_version',
 	'isoft_fmf_flush_rewrite_rules',
 	'isoft_fmf_hot_calculated_at',
 	'isoft_fmf_hot_downloads',
 	'isoft_fmf_pdf_notice_dismissed',
+	// WordPress's hierarchy cache for the category taxonomy.
+	'isoft_fmf_category_children',
 	// Legacy (removed in earlier versions; cleaned for upgrade safety)
 	'isoft_fmf_custom_css',
 	'isoft_fmf_custom_folder',
