@@ -48,6 +48,42 @@
 	var cancel      = document.getElementById( 'isoft-fmf-agree-cancel' );
 	var pendingHref = '';
 
+	// Opened from an Elementor Pro popup: have the popup ignore clicks on the
+	// dialog, as Elementor Pro does for its own date picker. Otherwise its
+	// outside-click handler (window, capture phase) closes the popup on every
+	// click in the dialog, which sits outside the popup at the end of <body>.
+	// Every step is guarded, so without Elementor Pro this does nothing.
+	function ignoreInPopup( btn ) {
+		var popup = btn.closest( '.elementor-popup-modal' );
+		var doc   = popup && popup.querySelector( '[data-elementor-type="popup"]' );
+		var front = window.elementorFrontend;
+		var docs  = front && front.documentsManager && front.documentsManager.documents;
+		var entry = doc && docs && docs[ doc.getAttribute( 'data-elementor-id' ) ];
+		var modal = entry && entry.getModal && entry.getModal();
+		var hide  = modal && modal.getSettings && modal.getSettings( 'hide' );
+		if ( hide && ( hide.ignore || '' ).indexOf( '#isoft-fmf-agree-overlay' ) < 0 ) {
+			hide.ignore = ( hide.ignore ? hide.ignore + ', ' : '' ) + '#isoft-fmf-agree-overlay';
+		}
+	}
+
+	// Escape inside the dialog closes only the dialog, not a popup underneath
+	// (Elementor closes popups on keyup at window).
+	[ 'keydown', 'keyup' ].forEach(
+		function ( type ) {
+			overlay.addEventListener(
+				type,
+				function ( e ) {
+					if ( 'Escape' === e.key ) {
+						e.stopPropagation();
+						if ( 'keydown' === type ) {
+							closeModal();
+						}
+					}
+				}
+			);
+		}
+	);
+
 	// -------------------------------------------------------------------------
 	// Intercept clicks on buttons that require agreement
 	// -------------------------------------------------------------------------
@@ -78,6 +114,7 @@
 			// Show. Move the overlay to the end of <body> first, so it sits
 			// above anything appended later with the same z-index, such as
 			// a page builder popup the button was clicked in.
+			ignoreInPopup( btn );
 			if ( overlay.parentNode !== document.body || document.body.lastElementChild !== overlay ) {
 				document.body.appendChild( overlay );
 			}
@@ -114,8 +151,10 @@
 			if ( proceed.getAttribute( 'aria-disabled' ) === 'true' ) {
 				return;
 			}
+			// closeModal() clears pendingHref, so read it first.
+			var href = pendingHref;
 			closeModal();
-			window.location.href = pendingHref;
+			window.location.href = href;
 		}
 	);
 
