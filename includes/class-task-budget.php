@@ -128,7 +128,7 @@ final class ISOFT_FMF_Task_Budget {
 	 * Record that a task stopped before finishing.
 	 *
 	 * @param string $task   Task key.
-	 * @param string $reason 'time' | 'memory' | 'error' | 'too_large' | a task-specific key.
+	 * @param string $reason 'time' | 'memory' | 'error' | 'too_large' | 'disk' | 'killed' | a task-specific key.
 	 * @param string $detail Plain text: what was being worked on, or the error.
 	 */
 	public static function report( string $task, string $reason, string $detail = '' ): void {
@@ -203,6 +203,7 @@ final class ISOFT_FMF_Task_Budget {
 			'error'     => __( 'failed', 'isoft-fm-foundation' ),
 			'too_large' => __( 'was refused: too large', 'isoft-fm-foundation' ),
 			'disk'      => __( 'stopped: not enough free disk space', 'isoft-fm-foundation' ),
+			'killed'    => __( 'was stopped by the server before it finished', 'isoft-fm-foundation' ),
 		);
 		return sprintf(
 			/* translators: 1: task name, e.g. "PDF thumbnail", 2: what happened, e.g. "stopped: it ran out of time" */

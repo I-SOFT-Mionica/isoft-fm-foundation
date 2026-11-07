@@ -20,7 +20,7 @@ Unlike standard media plugins that dump every upload into a single dated folder,
 
 **Heavy work no longer slows your site down.** Tasks that can take a lot of time or memory now work within safe limits and stop cleanly instead of failing half-way:
 
-* **PDF thumbnails are made in the background,** so uploading a large or complicated PDF is as quick as any other upload. A PDF that is too heavy to draw simply gets no thumbnail; the file itself is never affected.
+* **PDF thumbnails are made in the background,** so uploading a large or complicated PDF is as quick as any other upload. A PDF that is too heavy to draw simply gets no thumbnail, and you get a notice saying which one; the file itself is never affected.
 * **The integrity check works through big libraries in steps,** continuing in the background until every file is checked, instead of running into the server's time limit.
 * **"Download all" ZIPs have a sensible size limit,** and are built faster because PDFs, images and Office files are packed without recompressing. When a download's files are over the limit, visitors get each file on its own, and the download's edit screen tells you why "Download all" is not offered.
 * If anything does stop early, you see a short notice, and **Tools > Site Health > Info** lists what stopped and why.
@@ -350,6 +350,8 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 * **Fixed:** download lists, buttons and the licence agreement dialog shown through page builder templates, theme templates, loop items or popups were unstyled, and the agreement dialog did not open. They now load their styles and scripts wherever they appear.
 * **Fixed:** the notice about a file missing from disk showed its link as code. It is now a link to the Broken Links screen.
 * **Fixed:** the nightly file check stayed scheduled after the plugin was deactivated or removed. Now nothing is left behind.
+* **Fixed:** PDF thumbnails of ordinary white pages, such as Word or browser exports, came out black. They are now white.
+* **Fixed:** when a PDF was too heavy for the server to draw, its thumbnail silently never appeared. You now get a notice naming the file.
 
 = 0.14.3 =
 

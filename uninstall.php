@@ -112,6 +112,7 @@ $options = array(
 	// Internal state
 	'isoft_fmf_admin_notices',
 	'isoft_fmf_task_stops',
+	'isoft_fmf_pdf_thumbnail_running',
 	'isoft_fmf_integrity_progress',
 	'isoft_fmf_db_version',
 	'isoft_fmf_flush_rewrite_rules',

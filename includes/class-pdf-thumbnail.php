@@ -14,10 +14,20 @@ class ISOFT_FMF_Pdf_Thumbnail {
 
 	public const CRON_HOOK = 'isoft_fmf_pdf_thumbnail';
 
+	/** Renders in progress: token => file_id, download_id, name, started. */
+	public const RUNNING_OPTION = 'isoft_fmf_pdf_thumbnail_running';
+
+	/** Seconds after which a render that never finished counts as ended by the server. */
+	public const STALE_AFTER = 600;
+
+	/** @var array<string, true> Renders this request started and has not finished. */
+	private array $running = array();
+
 	public function register_hooks(): void {
 		add_action( 'isoft_fmf_file_uploaded', array( $this, 'maybe_generate' ), 10, 2 );
 		add_action( self::CRON_HOOK, array( $this, 'generate' ), 10, 2 );
 		add_action( 'admin_notices', array( $this, 'maybe_show_notice' ) );
+		add_action( 'admin_init', array( $this, 'report_unfinished' ) );
 		add_action(
 			'isoft_fmf_deactivate',
 			static function (): void {
@@ -56,6 +66,7 @@ class ISOFT_FMF_Pdf_Thumbnail {
 	 * Render and attach the thumbnail. Any error is contained and reported.
 	 */
 	public function generate( int $file_id, int $download_id ): void {
+		$this->report_unfinished();
 		ISOFT_FMF_Task_Budget::guard(
 			'pdf_thumbnail',
 			function () use ( $file_id, $download_id ): void {
@@ -151,7 +162,21 @@ class ISOFT_FMF_Pdf_Thumbnail {
 			)
 		);
 
+		// Let ImageMagick give up before PHP would cut the request off, so a
+		// slow render ends in the reported error below, not a fatal error.
+		$budget = new ISOFT_FMF_Task_Budget( 'pdf_thumbnail' );
+		if ( $limits['time'] > 0 ) {
+			$limits['time'] = min( $limits['time'], max( 5, (int) floor( $budget->remaining() ) ) );
+		}
+
+		// A render the server kills (time or memory limit, a worker timeout)
+		// cannot be caught. Mark it running: the shutdown handler, or a later
+		// request finding the mark left behind, reports it.
+		$token = $this->mark_running( $file_id, $download_id, (string) $file->file_name );
+		register_shutdown_function( array( $this, 'on_shutdown' ), $token );
 		$thumb_path = $this->render( $pdf_path, $args, $limits );
+		$this->clear_running( $token );
+
 		if ( ! $thumb_path ) {
 			ISOFT_FMF_Task_Budget::report(
 				'pdf_thumbnail',
@@ -206,6 +231,16 @@ class ISOFT_FMF_Pdf_Thumbnail {
 			$im = new \Imagick();
 			$im->setResolution( 150, 150 );
 			$im->readImage( $pdf_path . '[0]' );
+			// Most PDFs do not paint a page background, and JPEG has no alpha:
+			// without flattening onto white, the empty page turns black.
+			$im->setImageBackgroundColor( 'white' );
+			if ( defined( 'Imagick::ALPHACHANNEL_REMOVE' ) ) {
+				$im->setImageAlphaChannel( \Imagick::ALPHACHANNEL_REMOVE );
+			} else {
+				$flat = $im->mergeImageLayers( \Imagick::LAYERMETHOD_FLATTEN );
+				$im->clear();
+				$im = $flat;
+			}
 			$im->setImageFormat( 'jpeg' );
 			$im->setImageCompressionQuality( $args['quality'] );
 			$im->thumbnailImage( $args['width'], $args['height'], true );
@@ -225,6 +260,103 @@ class ISOFT_FMF_Pdf_Thumbnail {
 		}
 
 		return file_exists( $out ) ? $out : null;
+	}
+
+	/**
+	 * Record a render as running and return its token.
+	 */
+	private function mark_running( int $file_id, int $download_id, string $name ): string {
+		$token                   = $file_id . ':' . $download_id . ':' . wp_generate_password( 6, false );
+		$this->running[ $token ] = true;
+		$markers                 = self::running_markers();
+		$markers[ $token ]       = array(
+			'file_id'     => $file_id,
+			'download_id' => $download_id,
+			'name'        => $name,
+			'started'     => time(),
+		);
+		// Autoloaded and kept (empty) when idle, so the check on every admin
+		// page costs no query.
+		update_option( self::RUNNING_OPTION, $markers, true );
+		return $token;
+	}
+
+	private function clear_running( string $token ): void {
+		unset( $this->running[ $token ] );
+		$markers = self::running_markers();
+		if ( isset( $markers[ $token ] ) ) {
+			unset( $markers[ $token ] );
+			update_option( self::RUNNING_OPTION, $markers, true );
+		}
+	}
+
+	/**
+	 * @return array<string, array{file_id: int, download_id: int, name: string, started: int}>
+	 */
+	private static function running_markers(): array {
+		$markers = get_option( self::RUNNING_OPTION, array() );
+		return is_array( $markers ) ? $markers : array();
+	}
+
+	/**
+	 * Shutdown handler: a render this request started and never finished
+	 * was ended by a fatal error (time or memory limit). Report it.
+	 */
+	public function on_shutdown( string $token ): void {
+		if ( isset( $this->running[ $token ] ) ) {
+			$this->report_unfinished_render( $token, error_get_last() );
+		}
+	}
+
+	/**
+	 * Report one render that did not finish, and forget its mark.
+	 *
+	 * @param string                    $token Render token.
+	 * @param array<string, mixed>|null $error error_get_last() at the time, if any.
+	 */
+	public function report_unfinished_render( string $token, ?array $error ): void {
+		unset( $this->running[ $token ] );
+		$markers = self::running_markers();
+		if ( ! isset( $markers[ $token ] ) ) {
+			return;
+		}
+		$marker = $markers[ $token ];
+		unset( $markers[ $token ] );
+		update_option( self::RUNNING_OPTION, $markers, true );
+
+		$message = (string) ( $error['message'] ?? '' );
+		$reason  = 'killed';
+		if ( false !== stripos( $message, 'Maximum execution time' ) ) {
+			$reason = 'time';
+		} elseif ( false !== stripos( $message, 'Allowed memory size' ) || false !== stripos( $message, 'Out of memory' ) ) {
+			$reason = 'memory';
+		}
+
+		ISOFT_FMF_Task_Budget::report(
+			'pdf_thumbnail',
+			$reason,
+			sprintf(
+				/* translators: %s: file name */
+				__( '%s may be too complex to render on this server. No thumbnail was made; the file is unchanged and can still be downloaded.', 'isoft-fm-foundation' ),
+				$marker['name']
+			)
+		);
+	}
+
+	/**
+	 * Report renders whose request ended without finishing them or saying
+	 * why (the process was killed). Runs on admin pages and before a render.
+	 */
+	public function report_unfinished(): void {
+		$markers = self::running_markers();
+		foreach ( $markers as $token => $marker ) {
+			if ( isset( $this->running[ $token ] ) ) {
+				continue;
+			}
+			if ( time() - (int) ( $marker['started'] ?? 0 ) >= self::STALE_AFTER ) {
+				$this->report_unfinished_render( (string) $token, null );
+			}
+		}
 	}
 
 	private function save_as_attachment( string $image_path, int $parent_id ): int|false {

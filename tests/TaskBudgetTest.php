@@ -16,6 +16,7 @@ class TaskBudgetTest extends WP_UnitTestCase {
 		delete_option( 'isoft_fmf_admin_notices' );
 		delete_option( 'isoft_fmf_integrity_progress' );
 		delete_option( 'isoft_fmf_integrity_running' );
+		delete_option( ISOFT_FMF_Pdf_Thumbnail::RUNNING_OPTION );
 		wp_unschedule_hook( ISOFT_FMF_File_Integrity::CONTINUE_HOOK );
 		wp_unschedule_hook( ISOFT_FMF_Pdf_Thumbnail::CRON_HOOK );
 	}
@@ -237,6 +238,130 @@ garbage
 		$this->assertFalse( has_post_thumbnail( $download ) );
 		$this->assertSame( 'pdf_thumbnail', ISOFT_FMF_Task_Budget::recent_stops()[0]['task'] );
 		$this->assertSame( 'error', ISOFT_FMF_Task_Budget::recent_stops()[0]['reason'] );
+	}
+
+	public function test_render_the_server_killed_is_reported_once_its_mark_is_stale(): void {
+		update_option(
+			ISOFT_FMF_Pdf_Thumbnail::RUNNING_OPTION,
+			array(
+				'1:2:old' => array(
+					'file_id'     => 1,
+					'download_id' => 2,
+					'name'        => 'heavy.pdf',
+					'started'     => time() - ISOFT_FMF_Pdf_Thumbnail::STALE_AFTER - 1,
+				),
+				'3:4:new' => array(
+					'file_id'     => 3,
+					'download_id' => 4,
+					'name'        => 'busy.pdf',
+					'started'     => time() - 10,
+				),
+			)
+		);
+		$thumbs = new ISOFT_FMF_Pdf_Thumbnail();
+
+		$thumbs->report_unfinished();
+		$thumbs->report_unfinished();
+
+		$stops = ISOFT_FMF_Task_Budget::recent_stops();
+		$this->assertCount( 1, $stops, 'reported once' );
+		$this->assertSame( 'killed', $stops[0]['reason'] );
+		$this->assertStringContainsString( 'heavy.pdf', $stops[0]['detail'] );
+		$this->assertSame( array( '3:4:new' ), array_keys( get_option( ISOFT_FMF_Pdf_Thumbnail::RUNNING_OPTION ) ), 'a render still in its time is left alone' );
+		$this->assertStringContainsString( 'was stopped by the server before it finished', get_option( 'isoft_fmf_admin_notices' )[0]['message'] );
+	}
+
+	public function test_fatal_error_during_a_render_is_reported_as_time_or_memory(): void {
+		$marker = array(
+			'file_id'     => 1,
+			'download_id' => 2,
+			'name'        => 'heavy.pdf',
+			'started'     => time(),
+		);
+		update_option( ISOFT_FMF_Pdf_Thumbnail::RUNNING_OPTION, array( 'a' => $marker, 'b' => $marker ) );
+		$thumbs = new ISOFT_FMF_Pdf_Thumbnail();
+
+		$thumbs->report_unfinished_render( 'a', array( 'message' => 'Allowed memory size of 134217728 bytes exhausted (tried to allocate 20480 bytes)' ) );
+		$thumbs->report_unfinished_render( 'b', array( 'message' => 'Maximum execution time of 30 seconds exceeded' ) );
+
+		$reasons = wp_list_pluck( ISOFT_FMF_Task_Budget::recent_stops(), 'reason' );
+		$this->assertSame( array( 'time', 'memory' ), $reasons );
+		$this->assertSame( array(), get_option( ISOFT_FMF_Pdf_Thumbnail::RUNNING_OPTION ) );
+	}
+
+	public function test_finished_render_leaves_no_mark(): void {
+		$this->enable_thumbnails();
+		add_filter( 'isoft_fmf_pdf_thumbnail_async', '__return_false' );
+
+		$this->file( $this->download(), 'broken.pdf', "%PDF-1.4\n%%EOF\n" );
+
+		$this->assertSame( array(), get_option( ISOFT_FMF_Pdf_Thumbnail::RUNNING_OPTION ) );
+	}
+
+	/**
+	 * A PDF that does not paint its page background (most office exports)
+	 * must give a white thumbnail, not a black one.
+	 */
+	public function test_page_without_a_painted_background_renders_white(): void {
+		if ( ! extension_loaded( 'imagick' ) ) {
+			$this->markTestSkipped( 'Imagick is not available.' );
+		}
+		$pdf             = sys_get_temp_dir() . '/' . wp_generate_password( 6, false ) . '-text-only.pdf';
+		$this->cleanup[] = $pdf;
+		file_put_contents( $pdf, $this->text_only_pdf() ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Test fixture.
+		try {
+			$probe = new Imagick();
+			$probe->readImage( $pdf . '[0]' );
+			$probe->clear();
+		} catch ( Throwable $e ) {
+			$this->markTestSkipped( 'This ImageMagick cannot read PDFs: ' . $e->getMessage() );
+		}
+
+		$render = new ReflectionMethod( ISOFT_FMF_Pdf_Thumbnail::class, 'render' );
+		$render->setAccessible( true );
+		$out = $render->invoke(
+			new ISOFT_FMF_Pdf_Thumbnail(),
+			$pdf,
+			array(
+				'width'   => 100,
+				'height'  => 100,
+				'quality' => 90,
+			),
+			ISOFT_FMF_Pdf_Thumbnail::limits()
+		);
+		$this->assertIsString( $out );
+		$this->cleanup[] = $out;
+
+		$image  = new Imagick( $out );
+		$corner = $image->getImagePixelColor( 2, 2 )->getColor();
+		$image->clear();
+		$this->assertGreaterThan( 240, $corner['r'], 'the empty page is white' );
+		$this->assertGreaterThan( 240, $corner['g'] );
+		$this->assertGreaterThan( 240, $corner['b'] );
+	}
+
+	/** One page of text and no background, with a valid cross-reference table. */
+	private function text_only_pdf(): string {
+		$stream  = "BT /F1 24 Tf 20 100 Td (Hello) Tj ET";
+		$objects = array(
+			'<< /Type /Catalog /Pages 2 0 R >>',
+			'<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+			'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
+			'<< /Length ' . strlen( $stream ) . " >>\nstream\n" . $stream . "\nendstream",
+			'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+		);
+		$pdf     = "%PDF-1.4\n";
+		$offsets = array();
+		foreach ( $objects as $i => $body ) {
+			$offsets[] = strlen( $pdf );
+			$pdf      .= ( $i + 1 ) . " 0 obj\n" . $body . "\nendobj\n";
+		}
+		$xref = strlen( $pdf );
+		$pdf .= "xref\n0 " . ( count( $objects ) + 1 ) . "\n0000000000 65535 f \n";
+		foreach ( $offsets as $offset ) {
+			$pdf .= sprintf( "%010d 00000 n \n", $offset );
+		}
+		return $pdf . 'trailer << /Size ' . ( count( $objects ) + 1 ) . " /Root 1 0 R >>\nstartxref\n" . $xref . "\n%%EOF\n";
 	}
 
 	// -------------------------------------------------------------------------
