@@ -207,7 +207,7 @@ class IntegrityTest extends WP_UnitTestCase {
 			array_filter(
 				(array) get_option( 'isoft_fmf_admin_notices', array() ),
 				static function ( $notice ) {
-					return false !== strpos( (string) ( $notice['message'] ?? '' ), 'File integrity check:' );
+					return false !== strpos( (string) ( $notice['message'] ?? '' ), 'File integrity check' );
 				}
 			)
 		);
