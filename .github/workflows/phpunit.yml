@@ -35,6 +35,11 @@ jobs:
           coverage: none
           tools: composer:v2
 
+      - name: Let ImageMagick read PDFs (thumbnail render test)
+        run: |
+          sudo apt-get install -y -qq ghostscript > /dev/null
+          for f in /etc/ImageMagick-*/policy.xml; do sudo sed -i '/pattern="PDF"/d' "$f"; done
+
       - name: Wait for MySQL
         run: |
           for i in {1..30}; do
