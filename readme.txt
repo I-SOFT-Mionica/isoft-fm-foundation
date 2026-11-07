@@ -22,7 +22,7 @@ Unlike standard media plugins that dump every upload into a single dated folder,
 
 * **PDF thumbnails are made in the background,** so uploading a large or complicated PDF is as quick as any other upload. A PDF that is too heavy to draw simply gets no thumbnail; the file itself is never affected.
 * **The integrity check works through big libraries in steps,** continuing in the background until every file is checked, instead of running into the server's time limit.
-* **"Download all" ZIPs have a sensible size limit,** and are built faster because PDFs, images and Office files are packed without recompressing.
+* **"Download all" ZIPs have a sensible size limit,** and are built faster because PDFs, images and Office files are packed without recompressing. When a download's files are over the limit, visitors get each file on its own, and the download's edit screen tells you why "Download all" is not offered.
 * If anything does stop early, you see a short notice, and **Tools > Site Health > Info** lists what stopped and why.
 
 **Download lists look right wherever you place them.** Lists, buttons and the licence agreement dialog are now styled and working when you show them through a page builder's saved templates, global widgets, theme templates (header, footer, single post, archive), loop items or popups, not only when the shortcode sits directly on the page. Pages without downloads still load nothing extra.
@@ -112,7 +112,7 @@ No — each download lives in exactly one category. Categories are physical fold
 
 = Can I migrate from jDownloads? =
 
-Yes — but via a separate companion plugin, **I-Soft File Manager: Nomad** (coming soon). Foundation's data model is intentionally close to jDownloads to make a one-shot import practical; Nomad reads the legacy tables directly and rebuilds the category tree, downloads, files, and counters into Foundation, preserving slug paths so existing URLs keep working.
+Yes — but via a separate companion plugin, **I-Soft File Manager: Nomad** (coming soon). Foundation's data model is intentionally close to jDownloads to make a one-shot import practical; Nomad imports jDownloads' own backup export and rebuilds the category tree, downloads, files and counters in Foundation, keeping slug paths so existing URLs keep working.
 
 = How do I restrict a user to only some categories? =
 
@@ -341,7 +341,7 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 * **New:** heavy tasks work within time and memory limits and stop cleanly; anything that stops is shown in a notice and under Tools > Site Health > Info.
 * **Changed:** PDF thumbnails are made in the background after the upload, with limits on memory, disk and time. PDFs over 200 MB get no thumbnail. Uploads through the block editor now get thumbnails too.
 * **Changed:** the integrity check works in steps and continues in the background on large libraries.
-* **Changed:** "Download all" ZIPs are limited to 100 files and 512 MB by default, and are built faster.
+* **Changed:** "Download all" ZIPs are limited to 100 files and 512 MB by default, and are built faster. Over the limit, the download's edit screen shows a note.
 * **Changed:** the Broken Links search for a moved file stops after a short time on very large storage instead of hanging.
 * **Fixed:** after agreeing to a licence, clicking Download did nothing. It now starts the download.
 * **Fixed:** the nightly file check no longer leaves a "0 healed, 0 relinked, 0 still missing" notice when it found nothing, and the results of nights you missed are combined into one notice, so rarely visited sites are not greeted by a pile of them.

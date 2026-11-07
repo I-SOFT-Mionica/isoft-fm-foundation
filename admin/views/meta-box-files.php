@@ -28,6 +28,14 @@ defined( 'ABSPATH' ) || exit;
 		<?php endif; ?>
 	</div>
 
+	<?php $bundle_note = isoft_fmf_bundle_limit_note( $files ); ?>
+	<?php if ( '' !== $bundle_note ) : ?>
+		<p class="isoft-fmf-notice-warning isoft-fmf-bundle-limit-note">
+			<span class="dashicons dashicons-media-archive" aria-hidden="true"></span>
+			<?php echo esc_html( $bundle_note ); ?>
+		</p>
+	<?php endif; ?>
+
 	<nav class="isoft-fmf-tab-nav" role="tablist">
 		<button type="button" class="isoft-fmf-tab-btn is-active" data-tab="upload" role="tab" aria-selected="true">
 			<span class="dashicons dashicons-upload"></span> <?php esc_html_e( 'Upload', 'isoft-fm-foundation' ); ?>

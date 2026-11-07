@@ -9,7 +9,7 @@ All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads
 ### New
 
 - **Heavy work stays within limits.** New `ISOFT_FMF_Task_Budget`: a time budget (default 20 s, never past 60% of `max_execution_time` from the request start) and a memory ceiling (80% of `memory_limit`), filterable per task with `isoft_fmf_task_budget`. `guard()` contains any `Throwable`; `report()` records a stop. Stops fire `isoft_fmf_task_stopped( $task, $reason, $detail )`, are kept (latest 20, option `isoft_fmf_task_stops`) and listed under Tools > Site Health > Info, and queue one admin notice per task and reason. Feature `task_budget`, so extensions can use it.
-- **ZIP bundle caps.** `isoft_fmf_bundle_limits` (default 100 files, 512 MB; 0 = no limit) and `isoft_fmf_bundle_fits()`. Over the limit the Download all button and the public API's `bundle_url` are not offered, and a direct request is refused (422). Building also stops (503, reported) when the temp folder lacks room. Already-compressed formats (PDF, images, Office, archives, media) are stored, not deflated, which saves most of the CPU a bundle costs.
+- **ZIP bundle caps.** `isoft_fmf_bundle_limits` (default 100 files, 512 MB; 0 = no limit) and `isoft_fmf_bundle_fits()`. Over the limit the Download all button and the public API's `bundle_url` are not offered, the download's edit screen tells the editor so in the Files box (`isoft_fmf_bundle_limit_note()`), and a direct request is refused (422). Building also stops (503, reported) when the temp folder lacks room. Already-compressed formats (PDF, images, Office, archives, media) are stored, not deflated, which saves most of the CPU a bundle costs.
 
 ### Changed
 

@@ -1331,6 +1331,54 @@ function isoft_fmf_bundle_fits( int $count, int $bytes ): bool {
 }
 
 /**
+ * Note for editors when a download's files are over the ZIP bundle limit,
+ * so visitors are not offered "Download all". Empty when bundles are off,
+ * there are fewer than two bundleable files, or they fit.
+ *
+ * @param array<int,object> $files File rows of one download.
+ */
+function isoft_fmf_bundle_limit_note( array $files ): string {
+	if ( ! get_option( 'isoft_fmf_enable_zip_bundle', 0 ) || ! class_exists( 'ZipArchive' ) ) {
+		return '';
+	}
+	$local = array_filter(
+		$files,
+		static function ( $f ): bool {
+			return 'external' !== ( $f->file_type ?? '' ) && empty( $f->is_missing ) && empty( $f->is_unavailable );
+		}
+	);
+	$count = count( $local );
+	$bytes = (int) array_sum( array_map( static fn( $f ): int => (int) ( $f->file_size ?? 0 ), $local ) );
+	if ( $count < 2 || isoft_fmf_bundle_fits( $count, $bytes ) ) {
+		return '';
+	}
+
+	$limits = isoft_fmf_bundle_limits();
+	$parts  = array();
+	if ( $limits['max_files'] > 0 ) {
+		/* translators: %s: number of files */
+		$parts[] = sprintf( _n( '%s file', '%s files', $limits['max_files'], 'isoft-fm-foundation' ), number_format_i18n( $limits['max_files'] ) );
+	}
+	if ( $limits['max_bytes'] > 0 ) {
+		$parts[] = size_format( $limits['max_bytes'] );
+	}
+
+	return sprintf(
+		/* translators: 1: number of files, 2: their total size, 3: the limit, e.g. "100 files and 512 MB" */
+		_n(
+			'Visitors are not offered "Download all" for this download: its %1$s file (%2$s) is over the ZIP limit of %3$s. Each file can still be downloaded on its own.',
+			'Visitors are not offered "Download all" for this download: its %1$s files (%2$s) are over the ZIP limit of %3$s. Each file can still be downloaded on its own.',
+			$count,
+			'isoft-fm-foundation'
+		),
+		number_format_i18n( $count ),
+		size_format( $bytes ),
+		/* translators: joins the two limits, e.g. "100 files and 512 MB" */
+		implode( __( ' and ', 'isoft-fm-foundation' ), $parts )
+	);
+}
+
+/**
  * Build the URL that streams every local file attached to the given
  * download as a single ZIP archive. Nonce-protected unless cache-friendly
  * links are on and the download is public (see isoft_fmf_download_requires_nonce()).
