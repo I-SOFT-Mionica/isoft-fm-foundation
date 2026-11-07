@@ -18,7 +18,7 @@ Unlike standard media plugins that dump every upload into a single dated folder,
 
 = What's new in 0.14.3 =
 
-**Licence agreements work again.** On downloads that ask visitors to agree to a licence, ticking the box and clicking Download now starts the download; in recent versions it did nothing. The agreement also opens on top when the download sits inside a page builder popup.
+**Licence agreements work again.** On downloads that ask visitors to agree to a licence, ticking the box and clicking Download now starts the download; in recent versions it did nothing. The agreement also opens on top, and leaves the popup open, when the download sits inside a page builder popup.
 
 **Delete now really deletes.** Deleting a file removes it from the download folder too, not only from the list, so a file uploaded by mistake (one with personal data, say) is really gone. A category can be deleted once nothing is left in it, and its folder goes with it; while anything remains, the message tells you what. If you keep the download folder in sync with another place, see "I keep the download folder in sync with rclone or a similar tool" in the FAQ.
 
@@ -330,7 +330,7 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 = 0.14.3 =
 
 * **Fixed:** after agreeing to a licence, clicking Download did nothing. It now starts the download.
-* **Fixed:** inside a page builder popup, the licence agreement dialog opened behind the popup. It now opens on top.
+* **Fixed:** inside a page builder popup, the licence agreement dialog opened behind the popup, and using it closed the popup. It now opens on top and leaves the popup open.
 * **Changed:** deleting a file also removes it from the download folder, unless another entry still uses the same file. Broken Links "Detach" still removes only the entry.
 * **Changed:** a category can be deleted only when it has no downloads, no subcategories and nothing in its folder; its folder is then removed with it.
 * **Fixed:** the public data API no longer shows the address of an external link that is marked unavailable.
