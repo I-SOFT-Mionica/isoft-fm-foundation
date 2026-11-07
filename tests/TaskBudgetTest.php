@@ -319,10 +319,19 @@ garbage
 		);
 
 		foreach ( $types as $i => $type ) {
+			// Unlimited comes back as one year for time, PHP_INT_MAX otherwise.
+			$max   = Imagick::RESOURCETYPE_TIME === $type ? YEAR_IN_SECONDS : PHP_INT_MAX;
 			$after = Imagick::getResourceLimit( $type );
 			$this->assertGreaterThan( 0, $after, "limit $type is not left at 0" );
-			$this->assertGreaterThanOrEqual( min( (float) $before[ $i ], (float) PHP_INT_MAX ), (float) $after, "limit $type is restored" );
+			$this->assertEqualsWithDelta( min( (float) $before[ $i ], (float) $max ), (float) $after, 1.0, "limit $type is restored" );
 		}
+
+		// And ImageMagick still works afterwards.
+		$image = new Imagick();
+		$image->newImage( 4, 4, 'white' );
+		$image->setImageFormat( 'png' );
+		$this->assertNotEmpty( $image->getImageBlob() );
+		$image->clear();
 	}
 
 	/**
