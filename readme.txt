@@ -330,7 +330,7 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 = 0.14.3 =
 
 * **Fixed:** after agreeing to a licence, clicking Download did nothing. It now starts the download.
-* **Fixed:** the nightly file check no longer leaves a "0 healed, 0 relinked, 0 still missing" notice when it found nothing, so rarely visited sites are not greeted by a pile of them.
+* **Fixed:** the nightly file check no longer leaves a "0 healed, 0 relinked, 0 still missing" notice when it found nothing, and the results of nights you missed are combined into one notice, so rarely visited sites are not greeted by a pile of them.
 * **Fixed:** inside a page builder popup, the licence agreement dialog opened behind the popup, and using it closed the popup. It now opens on top and leaves the popup open.
 * **Changed:** deleting a file also removes it from the download folder, unless another entry still uses the same file. Broken Links "Detach" still removes only the entry.
 * **Changed:** a category can be deleted only when it has no downloads, no subcategories and nothing in its folder; its folder is then removed with it.

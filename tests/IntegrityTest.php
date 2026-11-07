@@ -234,6 +234,37 @@ class IntegrityTest extends WP_UnitTestCase {
 		$this->assertCount( 1, $this->summary_notices() );
 	}
 
+	public function test_unseen_summaries_fold_into_one(): void {
+		global $wpdb;
+		$id = $this->make_local_file( 'gone.txt', 'stays missing' );
+		delete_option( 'isoft_fmf_admin_notices' );
+
+		// Two nights with the file missing, nobody visiting the admin.
+		$away = trailingslashit( get_temp_dir() ) . 'isoft-fmf-gone-' . wp_generate_password( 8, false );
+		rename( $this->category_dir . '/gone.txt', $away ); // Outside storage, so the moved-file search cannot relink it.
+		$this->integrity->run_scheduled_check();
+		$this->integrity->run_scheduled_check();
+		$notices = $this->summary_notices();
+		$this->assertCount( 1, $notices, 'one notice, not one per night' );
+		$this->assertStringContainsString( '2 runs since your last visit: 0 healed, 0 relinked, 1 still missing', $notices[0]['message'] );
+		$this->assertSame( 'warning', $notices[0]['type'] );
+
+		// Third night: the file is back. Healed adds up, missing is the latest count.
+		rename( $away, $this->category_dir . '/gone.txt' );
+		$this->integrity->run_scheduled_check();
+		$notices = $this->summary_notices();
+		$this->assertCount( 1, $notices );
+		$this->assertStringContainsString( '3 runs since your last visit: 1 healed, 0 relinked, 0 still missing', $notices[0]['message'] );
+		$this->assertSame( 'info', $notices[0]['type'] );
+		$this->assertSame( 0, (int) $this->get_row( $id )->is_missing );
+
+		// Once seen, the next run starts a fresh notice.
+		delete_option( 'isoft_fmf_admin_notices' );
+		$wpdb->update( $wpdb->prefix . 'isoft_fmf_files', array( 'is_missing' => 1 ), array( 'id' => $id ), array( '%d' ), array( '%d' ) );
+		$this->integrity->run_scheduled_check();
+		$this->assertSame( 'File integrity check: 1 healed, 0 relinked, 0 still missing.', $this->summary_notices()[0]['message'] );
+	}
+
 	public function test_scheduled_check_reschedules_on_option_change(): void {
 		update_option( 'isoft_fmf_integrity_check_enabled', 1 );
 		update_option( 'isoft_fmf_integrity_check_time', '03:15' );
