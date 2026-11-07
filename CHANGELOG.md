@@ -2,15 +2,7 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
-## [Unreleased] (0.15.1)
-
-### Fixed
-
-- **Deleting a download deletes its files (DL-1).** `before_delete_post` only cleared stats and log rows, so a permanently deleted download left its stored files on disk and its rows in `isoft_fmf_files` (counted in Statistics, still in the category folder). Each file now goes through `ISOFT_FMF_Files_Service::delete()`, the same path as Remove: the row, and the stored file unless another row uses it or `isoft_fmf_delete_file_from_disk` returns false. Moving to the Trash keeps everything. Affected every release up to 0.15.0.
-- **A file left behind by an earlier delete can be linked again (DL-2).** From Folder offered it, but linking answered "This file is already registered." and nothing in the admin could remove it. `import_from_disk()` now drops a row whose download no longer exists and registers the file, which can then be removed like any other.
-- **The category list's quick Delete says why it was refused (DL-3).** The AJAX guard answered `0` and queued the reason for the next page, so the row just stayed. It now answers with a JSON error, and a small script on the category list shows the reason above the table, the same message as the edit screen's Delete.
-
-## [Unreleased] (0.15.0)
+## [0.15.0] — 2026-11-07
 
 ### New
 
@@ -32,6 +24,9 @@ All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads
 - **A thumbnail render the server kills is reported.** A render ended by PHP's time or memory limit, or a killed worker, left no trace, because a fatal error cannot be caught. Each render now records a mark in `isoft_fmf_pdf_thumbnail_running`; a shutdown handler reports a fatal error as a `pdf_thumbnail` stop with reason `time` or `memory`, and a mark left for 10 minutes (`STALE_AFTER`) is reported on the next admin page or render with the new reason `killed`. Imagick's own time limit is also capped to the task budget's remaining time, so ImageMagick gives up first where it can.
 - **A thumbnail render no longer leaves Imagick with zero limits.** `render()` restored the previous resource limits with `(int)`, but `Imagick::getResourceLimit()` returns "unlimited" as a float above `PHP_INT_MAX`, which casts to 0. Every later Imagick call in the same process (WordPress's own image sizes included) then failed with "time limit exceeded". Unlimited is now restored as `PHP_INT_MAX`, and as one year for time, because ImageMagick treats a time limit near `PHP_INT_MAX` as already exceeded. Found by CI before release; the limits are new in 0.15.0. CI now lets ImageMagick read PDFs, so a real render (a page without a painted background comes out white) is tested.
 - **No scheduled event outlives the plugin.** Deactivation did not unschedule the nightly integrity check (`isoft_fmf_integrity_check`), and uninstall cleared no events, so it stayed in cron forever. Deactivation now unschedules it, and uninstall clears every Foundation event whatever the delete-data setting.
+- **Deleting a download deletes its files (DL-1).** `before_delete_post` only cleared stats and log rows, so a permanently deleted download left its stored files on disk and its rows in `isoft_fmf_files` (counted in Statistics, still in the category folder). Each file now goes through `ISOFT_FMF_Files_Service::delete()`, the same path as Remove: the row, and the stored file unless another row uses it or `isoft_fmf_delete_file_from_disk` returns false. Moving to the Trash keeps everything. Affected every earlier release.
+- **A file left behind by an earlier delete can be linked again (DL-2).** From Folder offered it, but linking answered "This file is already registered." and nothing in the admin could remove it. `import_from_disk()` now drops a row whose download no longer exists and registers the file, which can then be removed like any other.
+- **The category list's quick Delete says why it was refused (DL-3).** The AJAX guard answered `0` and queued the reason for the next page, so the row just stayed. It now answers with a JSON error, and a small script on the category list shows the reason above the table, the same message as the edit screen's Delete.
 - **Uninstall with "delete data" removes `isoft_fmf_category_children`** (WordPress's hierarchy cache for the category taxonomy), which was left behind.
 
 ## [0.14.3] — 2026-11-07

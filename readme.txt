@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.1
 Requires PHP: 8.4
-Stable tag: 0.15.0-dev
+Stable tag: 0.15.0
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -28,6 +28,8 @@ Unlike standard media plugins that dump every upload into a single dated folder,
 **Download lists look right wherever you place them.** Lists, buttons and the licence agreement dialog are now styled and working when you show them through a page builder's saved templates, global widgets, theme templates (header, footer, single post, archive), loop items or popups, not only when the shortcode sits directly on the page. Pages without downloads still load nothing extra.
 
 **Notices you can act on, and fewer of them.** The notice about a file missing from disk now links straight to the Broken Links screen, and when a task stops more than once while you are away, you get one notice that says how many times.
+
+**Deleting a download really deletes its files.** When you delete a download permanently, its files are now removed from the server too, the same as removing them one by one. Moving it to the Trash still keeps everything. A file left behind by an earlier version can now be linked to a download and removed. And when a category cannot be deleted from the list, you now see why.
 
 = What's new in 0.14.3 =
 
@@ -352,6 +354,9 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 * **Fixed:** the nightly file check stayed scheduled after the plugin was deactivated or removed. Now nothing is left behind.
 * **Fixed:** PDF thumbnails of ordinary white pages, such as Word or browser exports, came out black. They are now white.
 * **Fixed:** when a PDF was too heavy for the server to draw, its thumbnail silently never appeared. You now get a notice naming the file.
+* **Fixed:** deleting a download permanently left its files on the server. They are now deleted with it; the Trash still keeps them.
+* **Fixed:** a file left behind that way could not be removed from the admin. It can now be linked to a download and removed.
+* **Fixed:** deleting a category from the list did nothing when it was not empty. It now says why.
 
 = 0.14.3 =
 
@@ -482,7 +487,7 @@ Existing data (downloads, categories, files, licenses, logs, per-user category p
 == Upgrade Notice ==
 
 = 0.15.0 =
-Background PDF thumbnails, safe limits for heavy tasks, download lists that work in page builder templates and popups, and a note on the edit screen when files are too large to download as one ZIP.
+Background PDF thumbnails, safe limits for heavy tasks, download lists that work in page builder templates and popups, and deleting a download now deletes its files from the server.
 
 = 0.14.3 =
 Fixes downloads that ask visitors to agree to a licence: Download now works after agreeing. Also, deleting a file now removes it from the download folder; if your folder is filled by a sync from elsewhere, read the FAQ on sync tools first.

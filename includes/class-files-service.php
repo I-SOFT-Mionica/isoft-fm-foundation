@@ -517,7 +517,7 @@ class ISOFT_FMF_Files_Service {
 		global $wpdb;
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Existence check on the write path.
 		$rows = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT id, download_id FROM %i WHERE file_path = %s', "{$wpdb->prefix}isoft_fmf_files", $rel_path ) );
-		// A record whose download was deleted (before 0.15.1 deleting a
+		// A record whose download was deleted (before 0.15.0 deleting a
 		// download left its files) is not a registration: it is dropped,
 		// so the file can be linked here and then removed like any other.
 		$orphans = array();
