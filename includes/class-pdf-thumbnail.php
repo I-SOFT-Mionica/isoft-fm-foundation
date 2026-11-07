@@ -255,7 +255,11 @@ class ISOFT_FMF_Pdf_Thumbnail {
 				$im->clear();
 			}
 			foreach ( $previous as $type => $value ) {
-				\Imagick::setResourceLimit( $type, (int) $value );
+				// "Unlimited" comes back as a float above PHP_INT_MAX, and
+				// (int) of that is 0, which would leave every later Imagick
+				// call in this process (WordPress's own image sizes too) with
+				// no time, memory or disk at all.
+				\Imagick::setResourceLimit( $type, $value >= PHP_INT_MAX ? PHP_INT_MAX : (int) $value );
 			}
 		}
 

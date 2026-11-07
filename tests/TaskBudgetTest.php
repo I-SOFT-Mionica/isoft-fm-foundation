@@ -298,6 +298,33 @@ garbage
 		$this->assertSame( array(), get_option( ISOFT_FMF_Pdf_Thumbnail::RUNNING_OPTION ) );
 	}
 
+	public function test_render_restores_unlimited_imagick_limits(): void {
+		if ( ! extension_loaded( 'imagick' ) ) {
+			$this->markTestSkipped( 'Imagick is not available.' );
+		}
+		$types  = array( Imagick::RESOURCETYPE_TIME, Imagick::RESOURCETYPE_MEMORY, Imagick::RESOURCETYPE_DISK );
+		$before = array_map( array( Imagick::class, 'getResourceLimit' ), $types );
+
+		$render = new ReflectionMethod( ISOFT_FMF_Pdf_Thumbnail::class, 'render' );
+		$render->setAccessible( true );
+		$render->invoke(
+			new ISOFT_FMF_Pdf_Thumbnail(),
+			sys_get_temp_dir() . '/no-such-file.pdf',
+			array(
+				'width'   => 10,
+				'height'  => 10,
+				'quality' => 50,
+			),
+			ISOFT_FMF_Pdf_Thumbnail::limits()
+		);
+
+		foreach ( $types as $i => $type ) {
+			$after = Imagick::getResourceLimit( $type );
+			$this->assertGreaterThan( 0, $after, "limit $type is not left at 0" );
+			$this->assertGreaterThanOrEqual( min( (float) $before[ $i ], (float) PHP_INT_MAX ), (float) $after, "limit $type is restored" );
+		}
+	}
+
 	/**
 	 * A PDF that does not paint its page background (most office exports)
 	 * must give a white thumbnail, not a black one.
