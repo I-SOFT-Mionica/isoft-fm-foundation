@@ -202,6 +202,51 @@ class IntegrityTest extends WP_UnitTestCase {
 		$this->assertNull( $row->missing_since );
 	}
 
+	private function summary_notices(): array {
+		return array_values(
+			array_filter(
+				(array) get_option( 'isoft_fmf_admin_notices', array() ),
+				static function ( $notice ) {
+					return false !== strpos( (string) ( $notice['message'] ?? '' ), 'File integrity check:' );
+				}
+			)
+		);
+	}
+
+	public function test_clean_run_queues_no_summary_notice(): void {
+		$this->make_local_file( 'quiet.txt', 'nothing to report' );
+		delete_option( 'isoft_fmf_admin_notices' );
+
+		$summary = $this->integrity->run_scheduled_check();
+
+		$this->assertGreaterThanOrEqual( 1, $summary['checked'] );
+		$this->assertSame( array(), $this->summary_notices(), 'a clean run is not news' );
+	}
+
+	public function test_run_with_news_queues_a_summary_notice(): void {
+		$id = $this->make_local_file( 'back.txt', 'restored' );
+		global $wpdb;
+		$wpdb->update( $wpdb->prefix . 'isoft_fmf_files', array( 'is_missing' => 1 ), array( 'id' => $id ), array( '%d' ), array( '%d' ) );
+		delete_option( 'isoft_fmf_admin_notices' );
+
+		$this->integrity->run_scheduled_check();
+
+		$this->assertCount( 1, $this->summary_notices() );
+	}
+
+	public function test_unseen_summaries_do_not_pile_up(): void {
+		global $wpdb;
+		$id = $this->make_local_file( 'again.txt', 'restored twice' );
+		delete_option( 'isoft_fmf_admin_notices' );
+
+		foreach ( array( 1, 2 ) as $run ) {
+			$wpdb->update( $wpdb->prefix . 'isoft_fmf_files', array( 'is_missing' => 1 ), array( 'id' => $id ), array( '%d' ), array( '%d' ) );
+			$this->integrity->run_scheduled_check();
+		}
+
+		$this->assertCount( 1, $this->summary_notices(), 'the newer summary replaces the unseen older one' );
+	}
+
 	public function test_scheduled_check_reschedules_on_option_change(): void {
 		update_option( 'isoft_fmf_integrity_check_enabled', 1 );
 		update_option( 'isoft_fmf_integrity_check_time', '03:15' );

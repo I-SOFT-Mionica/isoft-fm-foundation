@@ -229,8 +229,19 @@ function isoft_fmf_access_role_label( string $role ): string {
  * @param string $key      Optional identity, for callers that queue one notice per kind.
  */
 function isoft_fmf_notify_admin( string $message, string $type = 'info', string $key = '' ): void {
-	$notices   = get_option( 'isoft_fmf_admin_notices', array() );
-	$notices   = is_array( $notices ) ? $notices : array();
+	$notices = get_option( 'isoft_fmf_admin_notices', array() );
+	$notices = is_array( $notices ) ? $notices : array();
+	if ( '' !== $key ) {
+		// A keyed notice replaces an unseen older one with the same key.
+		$notices = array_values(
+			array_filter(
+				$notices,
+				static function ( $notice ) use ( $key ) {
+					return ! is_array( $notice ) || ( $notice['key'] ?? '' ) !== $key;
+				}
+			)
+		);
+	}
 	$notices[] = array(
 		'message' => $message,
 		'type'    => in_array( $type, array( 'info', 'success', 'warning', 'error' ), true ) ? $type : 'info',
