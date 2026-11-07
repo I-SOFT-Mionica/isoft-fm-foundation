@@ -38,7 +38,8 @@ jobs:
       - name: Let ImageMagick read PDFs (thumbnail render test)
         run: |
           sudo apt-get install -y -qq ghostscript > /dev/null
-          for f in /etc/ImageMagick-*/policy.xml; do sudo sed -i '/pattern="PDF"/d' "$f"; done
+          for f in /etc/ImageMagick-*/policy.xml; do sudo sed -i '/domain="coder".*PDF/d' "$f"; done
+          grep -h 'domain="coder"' /etc/ImageMagick-*/policy.xml || true
 
       - name: Wait for MySQL
         run: |
@@ -62,4 +63,4 @@ jobs:
           sed -i "s|define( 'DB_HOST'.*|define( 'DB_HOST', '127.0.0.1:3306' );|" tests/wp-tests-config.php
 
       - name: Run phpunit
-        run: vendor/bin/phpunit
+        run: vendor/bin/phpunit --verbose
