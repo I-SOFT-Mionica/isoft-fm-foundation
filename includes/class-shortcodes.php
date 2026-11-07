@@ -3,6 +3,8 @@ defined( 'ABSPATH' ) || exit;
 
 class ISOFT_FMF_Shortcodes {
 
+	const TAGS = array( 'isoft_fmf_list', 'isoft_fmf_categories', 'isoft_fmf_download', 'isoft_fmf_button', 'isoft_fmf_count', 'isoft_fmf_search', 'isoft_fmf_recent', 'isoft_fmf_popular' );
+
 	public function register_hooks(): void {
 		add_shortcode( 'isoft_fmf_list', array( $this, 'list_shortcode' ) );
 		add_shortcode( 'isoft_fmf_categories', array( $this, 'categories_shortcode' ) );
@@ -14,6 +16,10 @@ class ISOFT_FMF_Shortcodes {
 		add_shortcode( 'isoft_fmf_popular', array( $this, 'popular_shortcode' ) );
 
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+		add_filter( 'pre_do_shortcode_tag', array( $this, 'enqueue_on_render' ), 10, 2 );
+		// Elementor's editor renders widgets over AJAX into a preview page
+		// whose post_content may not hold the shortcode yet.
+		add_action( 'elementor/preview/enqueue_styles', array( self::class, 'enqueue_public_assets' ) );
 		add_action( 'wp_footer', array( $this, 'render_agree_modal' ) );
 	}
 
@@ -22,7 +28,44 @@ class ISOFT_FMF_Shortcodes {
 	// -------------------------------------------------------------------------
 
 	public function enqueue_assets(): void {
-		if ( ! $this->page_needs_assets() ) {
+		/**
+		 * Filters whether the public CSS and JS load in the page head.
+		 *
+		 * Content rendered from elsewhere (page builder templates, theme
+		 * parts, popups) still gets the assets when it renders, printed in
+		 * the footer; returning true here loads them in the head instead.
+		 *
+		 * @param bool $needs Whether the current page shows Foundation content.
+		 */
+		if ( ! apply_filters( 'isoft_fmf_needs_assets', $this->page_needs_assets() ) ) {
+			return;
+		}
+
+		self::enqueue_public_assets();
+	}
+
+	/**
+	 * Load the public CSS and JS when one of our shortcodes renders, so
+	 * content that page_needs_assets() cannot see still gets them.
+	 *
+	 * @param false|string $output Short-circuit value; returned unchanged.
+	 * @param string       $tag    Shortcode tag being rendered.
+	 * @return false|string
+	 */
+	public function enqueue_on_render( $output, $tag ) {
+		if ( ! is_admin() && in_array( $tag, self::TAGS, true ) ) {
+			self::enqueue_public_assets();
+		}
+		return $output;
+	}
+
+	/**
+	 * Enqueue the public CSS and JS. Safe to call any number of times and
+	 * at any point of the request: after wp_head WordPress prints them in
+	 * the footer.
+	 */
+	public static function enqueue_public_assets(): void {
+		if ( wp_script_is( 'isoft-fmf-public', 'enqueued' ) ) {
 			return;
 		}
 
@@ -63,9 +106,10 @@ class ISOFT_FMF_Shortcodes {
 	}
 
 	/**
-	 * True when the current page renders any plugin content (shortcode,
-	 * block, single download, or download archive/taxonomy). Lets us
-	 * skip the public CSS/JS on every other page.
+	 * True when the current page visibly renders plugin content (shortcode
+	 * or block in the post, single download, or download archive/taxonomy),
+	 * so the assets can load in the head. Content this cannot see enqueues
+	 * them when it renders (enqueue_on_render, the download-button block).
 	 */
 	private function page_needs_assets(): bool {
 		if ( is_singular( 'isoft_fmf_file' )
@@ -83,8 +127,7 @@ class ISOFT_FMF_Shortcodes {
 			return false;
 		}
 
-		$shortcodes = array( 'isoft_fmf_list', 'isoft_fmf_categories', 'isoft_fmf_download', 'isoft_fmf_button', 'isoft_fmf_count', 'isoft_fmf_search', 'isoft_fmf_recent', 'isoft_fmf_popular' );
-		foreach ( $shortcodes as $tag ) {
+		foreach ( self::TAGS as $tag ) {
 			if ( has_shortcode( $post->post_content, $tag ) ) {
 				return true;
 			}

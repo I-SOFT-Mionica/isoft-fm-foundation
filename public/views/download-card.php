@@ -51,8 +51,10 @@ $bundle_enabled   = $can_access
 $bundleable_files = $bundle_enabled
 	? array_filter( $files, fn( $f ): bool => 'external' !== $f->file_type && empty( $f->is_missing ) && empty( $f->is_unavailable ) )
 	: array();
-$show_bundle_btn  = $bundle_enabled && count( $bundleable_files ) >= 2;
-$bundle_size      = $show_bundle_btn ? (int) array_sum( array_column( $bundleable_files, 'file_size' ) ) : 0;
+$bundle_size      = (int) array_sum( array_column( $bundleable_files, 'file_size' ) );
+$show_bundle_btn  = $bundle_enabled
+	&& count( $bundleable_files ) >= 2
+	&& isoft_fmf_bundle_fits( count( $bundleable_files ), $bundle_size );
 
 // $isoft_fmf_expand_files: set by download-single.php to force per-file
 // rendering on the post permalink page. Listings (category grids, download

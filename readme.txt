@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.1
 Requires PHP: 8.4
-Stable tag: 0.14.3
+Stable tag: 0.15.0
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -15,6 +15,21 @@ Document and download manager with real on-disk folder organization, per-departm
 **I-Soft File Manager: Foundation** is a modular download manager built for modern WordPress.
 
 Unlike standard media plugins that dump every upload into a single dated folder, Foundation is designed for municipalities, universities, libraries, and any team that needs to manage thousands of public documents, maintain a strict category tree, and give different departments their own secure upload spaces.
+
+= What's new in 0.15.0 =
+
+**Heavy work no longer slows your site down.** Tasks that can take a lot of time or memory now work within safe limits and stop cleanly instead of failing half-way:
+
+* **PDF thumbnails are made in the background,** so uploading a large or complicated PDF is as quick as any other upload. A PDF that is too heavy to draw simply gets no thumbnail, and you get a notice saying which one; the file itself is never affected.
+* **The integrity check works through big libraries in steps,** continuing in the background until every file is checked, instead of running into the server's time limit.
+* **"Download all" ZIPs have a sensible size limit,** and are built faster because PDFs, images and Office files are packed without recompressing. When a download's files are over the limit, visitors get each file on its own, and the download's edit screen tells you why "Download all" is not offered.
+* If anything does stop early, you see a short notice, and **Tools > Site Health > Info** lists what stopped and why.
+
+**Download lists look right wherever you place them.** Lists, buttons and the licence agreement dialog are now styled and working when you show them through a page builder's saved templates, global widgets, theme templates (header, footer, single post, archive), loop items or popups, not only when the shortcode sits directly on the page. Pages without downloads still load nothing extra.
+
+**Notices you can act on, and fewer of them.** The notice about a file missing from disk now links straight to the Broken Links screen, and when a task stops more than once while you are away, you get one notice that says how many times.
+
+**Deleting a download really deletes its files.** When you delete a download permanently, its files are now removed from the server too, the same as removing them one by one. Moving it to the Trash still keeps everything. A file left behind by an earlier version can now be linked to a download and removed. And when a category cannot be deleted from the list, you now see why.
 
 = What's new in 0.14.3 =
 
@@ -103,7 +118,7 @@ No — each download lives in exactly one category. Categories are physical fold
 
 = Can I migrate from jDownloads? =
 
-Yes — but via a separate companion plugin, **I-Soft File Manager: Nomad** (coming soon). Foundation's data model is intentionally close to jDownloads to make a one-shot import practical; Nomad reads the legacy tables directly and rebuilds the category tree, downloads, files, and counters into Foundation, preserving slug paths so existing URLs keep working.
+Yes — but via a separate companion plugin, **I-Soft File Manager: Nomad** (coming soon). Foundation's data model is intentionally close to jDownloads to make a one-shot import practical; Nomad imports jDownloads' own backup export and rebuilds the category tree, downloads, files and counters in Foundation, keeping slug paths so existing URLs keep working.
 
 = How do I restrict a user to only some categories? =
 
@@ -135,7 +150,7 @@ Yes. The plugin detects FSE themes and injects the download card via the `the_co
 
 = Does it work with Elementor, WPBakery, Divi, Beaver Builder, or Bricks? =
 
-Yes. Foundation ships eight shortcodes that drop into every major builder's HTML or Shortcode widget. See the [full shortcode reference](#shortcodes) below for attributes; the [builder widget table](#shortcodes) at the end of that section shows which widget to paste into in each builder. Native, point-and-click widgets for each builder are planned as separate companion plugins.
+Yes. Foundation ships eight shortcodes that drop into every major builder's HTML or Shortcode widget. See the [full shortcode reference](#shortcodes) below for attributes; the [builder widget table](#shortcodes) at the end of that section shows which widget to paste into in each builder. Lists and buttons are styled and working anywhere the builder shows them: on the page itself, in saved templates and global widgets, in theme templates such as a header, footer or single-post template, in loop items and in popups. Native, point-and-click widgets for each builder are planned as separate companion plugins.
 
 = The plugin installed but every upload fails with "Could not save file record." What's wrong? =
 
@@ -327,6 +342,22 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 
 == Changelog ==
 
+= 0.15.0 =
+
+* **New:** heavy tasks work within time and memory limits and stop cleanly; anything that stops is shown in a notice and under Tools > Site Health > Info.
+* **Changed:** PDF thumbnails are made in the background after the upload, with limits on memory, disk and time. PDFs over 200 MB get no thumbnail. Uploads through the block editor now get thumbnails too.
+* **Changed:** the integrity check works in steps and continues in the background on large libraries.
+* **Changed:** "Download all" ZIPs are limited to 100 files and 512 MB by default, and are built faster. Over the limit, the download's edit screen shows a note.
+* **Changed:** the Broken Links search for a moved file stops after a short time on very large storage instead of hanging.
+* **Fixed:** download lists, buttons and the licence agreement dialog shown through page builder templates, theme templates, loop items or popups were unstyled, and the agreement dialog did not open. They now load their styles and scripts wherever they appear.
+* **Fixed:** the notice about a file missing from disk showed its link as code. It is now a link to the Broken Links screen.
+* **Fixed:** the nightly file check stayed scheduled after the plugin was deactivated or removed. Now nothing is left behind.
+* **Fixed:** PDF thumbnails of ordinary white pages, such as Word or browser exports, came out black. They are now white.
+* **Fixed:** when a PDF was too heavy for the server to draw, its thumbnail silently never appeared. You now get a notice naming the file.
+* **Fixed:** deleting a download permanently left its files on the server. They are now deleted with it; the Trash still keeps them.
+* **Fixed:** a file left behind that way could not be removed from the admin. It can now be linked to a download and removed.
+* **Fixed:** deleting a category from the list did nothing when it was not empty. It now says why.
+
 = 0.14.3 =
 
 * **Fixed:** after agreeing to a licence, clicking Download did nothing. It now starts the download.
@@ -454,6 +485,9 @@ Existing data (downloads, categories, files, licenses, logs, per-user category p
 * **Inline metadata editing** directly from the file list.
 
 == Upgrade Notice ==
+
+= 0.15.0 =
+Background PDF thumbnails, safe limits for heavy tasks, download lists that work in page builder templates and popups, and deleting a download now deletes its files from the server.
 
 = 0.14.3 =
 Fixes downloads that ask visitors to agree to a licence: Download now works after agreeing. Also, deleting a file now removes it from the download folder; if your folder is filled by a sync from elsewhere, read the FAQ on sync tools first.

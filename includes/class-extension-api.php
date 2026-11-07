@@ -26,10 +26,12 @@ class ISOFT_FMF_Extension_Api {
 			return;
 		}
 		foreach ( $notices as $n ) {
+			// Links only: a notice may point at the screen that deals with
+			// it (the integrity check's "Review on Broken Links screen").
 			printf(
 				'<div class="notice notice-%s is-dismissible"><p>%s</p></div>',
 				esc_attr( $n['type'] ),
-				esc_html( $n['message'] )
+				wp_kses( (string) $n['message'], array( 'a' => array( 'href' => true ) ) )
 			);
 		}
 		delete_option( 'isoft_fmf_admin_notices' );

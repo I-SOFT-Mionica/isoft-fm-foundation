@@ -9,6 +9,24 @@ class ISOFT_FMF_Post_Type {
 		add_filter( 'the_content', array( $this, 'append_download_content' ) );
 		add_filter( 'wp_insert_post_data', array( $this, 'latinize_slug' ), 10, 2 );
 		add_action( 'before_delete_post', array( $this, 'cleanup_stats_on_delete' ), 10, 2 );
+		add_action( 'before_delete_post', array( $this, 'delete_files_on_delete' ), 10, 2 );
+	}
+
+	/**
+	 * Deleting a download permanently deletes its files the way Remove in
+	 * the Files box does: the record, and the stored file unless another
+	 * entry still uses it (or `isoft_fmf_delete_file_from_disk` says keep).
+	 * Before this, the files stayed on disk with records pointing at a
+	 * download that no longer existed.
+	 */
+	public function delete_files_on_delete( int $post_id, WP_Post $post ): void {
+		if ( 'isoft_fmf_file' !== $post->post_type ) {
+			return;
+		}
+		$service = new ISOFT_FMF_Files_Service();
+		foreach ( $service->list_for_download( $post_id ) as $file ) {
+			$service->delete( (int) $file->id );
+		}
 	}
 
 	/**
@@ -19,13 +37,7 @@ class ISOFT_FMF_Post_Type {
 	 * other code paths). Skipped for non-download post types so deletes
 	 * on unrelated posts don't touch our tables.
 	 *
-	 * The download_count column on isoft_fmf_files is collateral here too:
-	 * the file rows themselves are owned by the post's lifecycle but live
-	 * in our table, so a future post delete that bypasses our file
-	 * cleanup would leak file rows too. They're not addressed here — the
-	 * existing file delete path through class-file-manager handles that
-	 * on the meta-box flow; before_delete_post for the file rows is a
-	 * separate concern that belongs to that class if needed.
+	 * The download's files are deleted by delete_files_on_delete().
 	 */
 	public function cleanup_stats_on_delete( int $post_id, WP_Post $post ): void {
 		if ( 'isoft_fmf_file' !== $post->post_type ) {

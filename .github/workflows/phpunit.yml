@@ -35,6 +35,12 @@ jobs:
           coverage: none
           tools: composer:v2
 
+      - name: Let ImageMagick read PDFs (thumbnail render test)
+        run: |
+          sudo apt-get install -y -qq ghostscript > /dev/null
+          for f in /etc/ImageMagick-*/policy.xml; do sudo sed -i -e '/domain="coder".*PDF/d' -e 's/pattern="{GIF,JPEG,PNG,WEBP}"/pattern="{GIF,JPEG,PNG,WEBP,PDF}"/' "$f"; done
+          grep -hE 'domain="(coder|resource)"' /etc/ImageMagick-*/policy.xml || true
+
       - name: Wait for MySQL
         run: |
           for i in {1..30}; do
@@ -57,4 +63,4 @@ jobs:
           sed -i "s|define( 'DB_HOST'.*|define( 'DB_HOST', '127.0.0.1:3306' );|" tests/wp-tests-config.php
 
       - name: Run phpunit
-        run: vendor/bin/phpunit
+        run: vendor/bin/phpunit --verbose

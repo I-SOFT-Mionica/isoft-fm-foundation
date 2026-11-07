@@ -29,6 +29,7 @@ $isoft_fmf_mem_label = $isoft_fmf_limits['memory_limit_bytes'] > 0
 $isoft_fmf_just_ran = isset( $_GET['isoft_fmf_ran'] );
 // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only display flag after redirect from the nonce-protected action.
 $isoft_fmf_saw_running = isset( $_GET['isoft_fmf_running'] );
+$isoft_fmf_continuing  = ISOFT_FMF_File_Integrity::progress();
 ?>
 <h1 class="wp-heading-inline"><?php esc_html_e( 'Broken Links', 'isoft-fm-foundation' ); ?></h1>
 
@@ -36,7 +37,19 @@ $isoft_fmf_saw_running = isset( $_GET['isoft_fmf_running'] );
 	<?php esc_html_e( 'Files listed here are missing from their expected folder on disk. Use the Recover action on each row to relink, move the file back, reassign the download, split it into a new download, reupload, or detach the file from this download.', 'isoft-fm-foundation' ); ?>
 </p>
 
-<?php if ( $isoft_fmf_just_ran ) : ?>
+<?php if ( null !== $isoft_fmf_continuing ) : ?>
+	<div class="notice notice-info is-dismissible" style="margin-top:1em;">
+		<p>
+			<?php
+			printf(
+				/* translators: %d: number of files checked so far */
+				esc_html( _n( 'The integrity check is continuing in the background: %d file checked so far. Refresh later for the result.', 'The integrity check is continuing in the background: %d files checked so far. Refresh later for the result.', $isoft_fmf_continuing['checked'], 'isoft-fm-foundation' ) ),
+				(int) $isoft_fmf_continuing['checked']
+			);
+			?>
+		</p>
+	</div>
+<?php elseif ( $isoft_fmf_just_ran ) : ?>
 	<div class="notice notice-success is-dismissible" style="margin-top:1em;">
 		<p><?php esc_html_e( 'Integrity check complete. The table below lists all files currently missing on disk.', 'isoft-fm-foundation' ); ?></p>
 	</div>
@@ -104,7 +117,7 @@ $isoft_fmf_saw_running = isset( $_GET['isoft_fmf_running'] );
 	<?php else : ?>
 		<p>
 			<a href="<?php echo esc_url( $isoft_fmf_run_now_url ); ?>" class="button button-primary"
-				onclick="return confirm('<?php echo esc_js( __( 'The scan runs synchronously and may take a minute or more on large sites. Continue?', 'isoft-fm-foundation' ) ); ?>');">
+				onclick="return confirm('<?php echo esc_js( __( 'The check runs for up to about 20 seconds; on large sites it then continues in the background. Continue?', 'isoft-fm-foundation' ) ); ?>');">
 				<?php esc_html_e( 'Run check now', 'isoft-fm-foundation' ); ?>
 			</a>
 			<?php if ( ! empty( $isoft_fmf_last_run['finished_at'] ) ) : ?>
@@ -126,11 +139,10 @@ $isoft_fmf_saw_running = isset( $_GET['isoft_fmf_running'] );
 	<p class="description" style="margin:.6em 0 0;font-size:11px;color:#646970;">
 		<?php
 		printf(
-			/* translators: 1: php max_execution_time label, 2: memory_limit label, 3: yes/no whether set_time_limit() works */
-			esc_html__( 'Server limits: max execution %1$s · memory %2$s · set_time_limit %3$s.', 'isoft-fm-foundation' ),
+			/* translators: 1: php max_execution_time label, 2: memory_limit label */
+			esc_html__( 'Server limits: max execution %1$s · memory %2$s. The check stays well within them and continues in the background when there is more to do.', 'isoft-fm-foundation' ),
 			esc_html( $isoft_fmf_max_exec_label ),
-			esc_html( $isoft_fmf_mem_label ),
-			$isoft_fmf_limits['can_extend_time'] ? esc_html__( 'available', 'isoft-fm-foundation' ) : esc_html__( 'blocked', 'isoft-fm-foundation' )
+			esc_html( $isoft_fmf_mem_label )
 		);
 		?>
 	</p>

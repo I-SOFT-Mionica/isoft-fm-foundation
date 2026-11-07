@@ -516,13 +516,23 @@ class ISOFT_FMF_Files_Service {
 		$rel_path = ltrim( str_replace( '\\', '/', substr( $abs, strlen( $base ) ) ), '/' );
 		global $wpdb;
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Existence check on the write path.
-		$already = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE file_path = %s', "{$wpdb->prefix}isoft_fmf_files", $rel_path ) );
-		if ( $already > 0 ) {
-			return new WP_Error(
-				'isoft_fmf_already_registered',
-				__( 'This file is already registered.', 'isoft-fm-foundation' ),
-				array( 'status' => 409 )
-			);
+		$rows = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT id, download_id FROM %i WHERE file_path = %s', "{$wpdb->prefix}isoft_fmf_files", $rel_path ) );
+		// A record whose download was deleted (before 0.15.0 deleting a
+		// download left its files) is not a registration: it is dropped,
+		// so the file can be linked here and then removed like any other.
+		$orphans = array();
+		foreach ( $rows as $row ) {
+			if ( 'isoft_fmf_file' === get_post_type( (int) $row->download_id ) ) {
+				return new WP_Error(
+					'isoft_fmf_already_registered',
+					__( 'This file is already registered.', 'isoft-fm-foundation' ),
+					array( 'status' => 409 )
+				);
+			}
+			$orphans[] = (int) $row->id;
+		}
+		foreach ( $orphans as $orphan_id ) {
+			$this->files->delete_file( $orphan_id );
 		}
 
 		if ( in_array( strtolower( pathinfo( $abs, PATHINFO_EXTENSION ) ), isoft_fmf_blocked_extensions(), true ) ) {

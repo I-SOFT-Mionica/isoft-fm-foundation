@@ -24,6 +24,8 @@ if ( ! $post || $post->post_type !== 'isoft_fmf_file' || $post->post_status !== 
 
 $settings = isoft_fmf_get_settings();
 
+ISOFT_FMF_Shortcodes::enqueue_public_assets();
+
 ob_start();
 require ISOFT_FMF_PLUGIN_DIR . 'public/views/download-card.php';
 echo wp_kses( ob_get_clean(), isoft_fmf_allowed_html() );
