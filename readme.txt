@@ -27,7 +27,11 @@ Unlike standard media plugins that dump every upload into a single dated folder,
 
 **Download lists look right wherever you place them.** Lists, buttons and the licence agreement dialog are now styled and working when you show them through a page builder's saved templates, global widgets, theme templates (header, footer, single post, archive), loop items or popups, not only when the shortcode sits directly on the page. Pages without downloads still load nothing extra.
 
-**Licence agreements work again.** On downloads that ask visitors to agree to a licence, ticking the box and clicking Download now starts the download; in recent versions it did nothing. The agreement also opens on top, and leaves the popup open, when the download sits inside a popup.
+**Notices you can act on, and fewer of them.** The notice about a file missing from disk now links straight to the Broken Links screen, and when a task stops more than once while you are away, you get one notice that says how many times.
+
+= What's new in 0.14.3 =
+
+**Licence agreements work again.** On downloads that ask visitors to agree to a licence, ticking the box and clicking Download now starts the download; in recent versions it did nothing. The agreement also opens on top, and leaves the popup open, when the download sits inside a page builder popup.
 
 **Delete now really deletes.** Deleting a file removes it from the download folder too, not only from the list, so a file uploaded by mistake (one with personal data, say) is really gone. A category can be deleted once nothing is left in it, and its folder goes with it; while anything remains, the message tells you what. If you keep the download folder in sync with another place, see "I keep the download folder in sync with rclone or a similar tool" in the FAQ.
 
@@ -343,10 +347,15 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 * **Changed:** the integrity check works in steps and continues in the background on large libraries.
 * **Changed:** "Download all" ZIPs are limited to 100 files and 512 MB by default, and are built faster. Over the limit, the download's edit screen shows a note.
 * **Changed:** the Broken Links search for a moved file stops after a short time on very large storage instead of hanging.
+* **Fixed:** download lists, buttons and the licence agreement dialog shown through page builder templates, theme templates, loop items or popups were unstyled, and the agreement dialog did not open. They now load their styles and scripts wherever they appear.
+* **Fixed:** the notice about a file missing from disk showed its link as code. It is now a link to the Broken Links screen.
+* **Fixed:** the nightly file check stayed scheduled after the plugin was deactivated or removed. Now nothing is left behind.
+
+= 0.14.3 =
+
 * **Fixed:** after agreeing to a licence, clicking Download did nothing. It now starts the download.
 * **Fixed:** the nightly file check no longer leaves a "0 healed, 0 relinked, 0 still missing" notice when it found nothing, and the results of nights you missed are combined into one notice, so rarely visited sites are not greeted by a pile of them.
 * **Fixed:** inside a page builder popup, the licence agreement dialog opened behind the popup, and using it closed the popup. It now opens on top and leaves the popup open.
-* **Fixed:** download lists, buttons and the licence agreement dialog shown through page builder templates, theme templates, loop items or popups were unstyled, and the agreement dialog did not open. They now load their styles and scripts wherever they appear.
 * **Changed:** deleting a file also removes it from the download folder, unless another entry still uses the same file. Broken Links "Detach" still removes only the entry.
 * **Changed:** a category can be deleted only when it has no downloads, no subcategories and nothing in its folder; its folder is then removed with it.
 * **Fixed:** the public data API no longer shows the address of an external link that is marked unavailable.
@@ -471,7 +480,10 @@ Existing data (downloads, categories, files, licenses, logs, per-user category p
 == Upgrade Notice ==
 
 = 0.15.0 =
-Deleting a file now also removes it from the download folder. If your folder is filled by a sync from elsewhere, read the FAQ on sync tools first. Also: background PDF thumbnails, safe limits for heavy tasks, and download lists that work in page builder templates.
+Background PDF thumbnails, safe limits for heavy tasks, download lists that work in page builder templates and popups, and a note on the edit screen when files are too large to download as one ZIP.
+
+= 0.14.3 =
+Fixes downloads that ask visitors to agree to a licence: Download now works after agreeing. Also, deleting a file now removes it from the download folder; if your folder is filled by a sync from elsewhere, read the FAQ on sync tools first.
 
 = 0.14.0 =
 Security update, recommended for all sites: tighter file permission checks for category-restricted editors, executable file types always refused, and a Site Health check that download storage is closed on every web server. Adds a column and an index on update; no data is changed.
