@@ -110,6 +110,9 @@ class TaskBudgetTest extends WP_UnitTestCase {
 		$this->assertCount( 2, ISOFT_FMF_Task_Budget::recent_stops() );
 		$this->assertSame( 'boom 2', ISOFT_FMF_Task_Budget::recent_stops()[0]['detail'] );
 		$this->assertCount( 1, get_option( 'isoft_fmf_admin_notices' ), 'one notice per task and reason' );
+		$notice = get_option( 'isoft_fmf_admin_notices' )[0]['message'];
+		$this->assertStringContainsString( 'boom 2', $notice, 'the latest detail' );
+		$this->assertStringContainsString( '(2 times since your last visit.)', $notice );
 	}
 
 	public function test_stops_list_and_notice_queue_are_capped(): void {

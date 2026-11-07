@@ -152,15 +152,20 @@ final class ISOFT_FMF_Task_Budget {
 		);
 		update_option( self::STOPS_OPTION, array_slice( $stops, 0, self::STOPS_KEPT ), false );
 
-		// One notice per task and reason until an admin has seen it.
-		$queued = get_option( 'isoft_fmf_admin_notices', array() );
-		$key    = $task . ':' . $reason;
-		foreach ( is_array( $queued ) ? $queued : array() as $notice ) {
-			if ( ( $notice['key'] ?? '' ) === $key ) {
-				return;
-			}
+		// One notice per task and reason until an admin has seen it. Repeats
+		// fold into it: the latest detail, and how many times it happened.
+		$key     = $task . ':' . $reason;
+		$queued  = isoft_fmf_queued_notice( $key );
+		$times   = (int) ( $queued['data']['times'] ?? 0 ) + 1;
+		$message = self::message( $task, $reason, $detail );
+		if ( $times > 1 ) {
+			$message .= ' ' . sprintf(
+				/* translators: %d: how many times it happened */
+				_n( '(%d time since your last visit.)', '(%d times since your last visit.)', $times, 'isoft-fm-foundation' ),
+				$times
+			);
 		}
-		isoft_fmf_notify_admin( self::message( $task, $reason, $detail ), 'error' === $reason ? 'error' : 'warning', $key );
+		isoft_fmf_notify_admin( $message, 'error' === $reason ? 'error' : 'warning', $key, array( 'times' => $times ) );
 	}
 
 	/**

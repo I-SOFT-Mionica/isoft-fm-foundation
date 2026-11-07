@@ -9,7 +9,7 @@ Conventions: functions are plain functions with the `isoft_fmf_` prefix. Nothing
 ## Registering an extension
 
 - `ISOFT_FMF_Extension_Api::register( array $args )` / `isoft_fmf_register_extension()` with `slug`, `name`, `version`, inside the `isoft_fmf_extensions_init` action (fired on `init`, priority 20).
-- `isoft_fmf_notify_admin()` queues an admin notice.
+- `isoft_fmf_notify_admin( $message, $type, $key, $data )` queues an admin notice. With a `$key`, it replaces an unseen notice with the same key; `$data` is kept with it. `isoft_fmf_queued_notice( $key )` returns that unseen notice (or null), so a caller can fold repeats into one notice with running totals instead of queuing one per run.
 
 ## Admin menu
 

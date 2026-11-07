@@ -384,17 +384,7 @@ class ISOFT_FMF_File_Integrity {
 			// and "Run now" has its own message; a daily "0 healed" notice piled
 			// up on sites nobody logs in to for weeks.
 			if ( $summary['healed'] + $summary['relinked'] + $summary['still_gone'] > 0 ) {
-				isoft_fmf_notify_admin(
-					sprintf(
-						/* translators: 1: healed, 2: relinked, 3: still missing */
-						__( 'File integrity check: %1$d healed, %2$d relinked, %3$d still missing.', 'isoft-fm-foundation' ),
-						$summary['healed'],
-						$summary['relinked'],
-						$summary['still_gone']
-					),
-					$summary['still_gone'] > 0 ? 'warning' : 'info',
-					'integrity_summary'
-				);
+				self::notify_summary( $summary );
 			}
 
 			delete_transient( 'isoft_fmf_missing_count' );
@@ -633,6 +623,58 @@ class ISOFT_FMF_File_Integrity {
 	// -------------------------------------------------------------------------
 	// Admin: Run Now
 	// -------------------------------------------------------------------------
+
+	/**
+	 * Queue the run summary, folded into an unseen earlier one. Healed and
+	 * relinked add up; "still missing" is the latest count, since it
+	 * describes now. Past one run, the notice says how many runs it covers,
+	 * so a site nobody visits for weeks gets one notice, not one per night.
+	 *
+	 * @param array<string,mixed> $summary Run summary.
+	 */
+	private static function notify_summary( array $summary ): void {
+		$queued   = isoft_fmf_queued_notice( 'integrity_summary' );
+		$before   = isset( $queued['data'] ) && is_array( $queued['data'] ) ? $queued['data'] : array();
+		$runs     = (int) ( $before['runs'] ?? 0 ) + 1;
+		$healed   = (int) ( $before['healed'] ?? 0 ) + (int) $summary['healed'];
+		$relinked = (int) ( $before['relinked'] ?? 0 ) + (int) $summary['relinked'];
+		$missing  = (int) $summary['still_gone'];
+
+		if ( 1 === $runs ) {
+			$message = sprintf(
+				/* translators: 1: healed, 2: relinked, 3: still missing */
+				__( 'File integrity check: %1$d healed, %2$d relinked, %3$d still missing.', 'isoft-fm-foundation' ),
+				$healed,
+				$relinked,
+				$missing
+			);
+		} else {
+			$message = sprintf(
+				/* translators: 1: number of runs, 2: healed, 3: relinked, 4: still missing after the latest run */
+				_n(
+					'File integrity check, %1$d run since your last visit: %2$d healed, %3$d relinked, %4$d still missing.',
+					'File integrity check, %1$d runs since your last visit: %2$d healed, %3$d relinked, %4$d still missing.',
+					$runs,
+					'isoft-fm-foundation'
+				),
+				$runs,
+				$healed,
+				$relinked,
+				$missing
+			);
+		}
+
+		isoft_fmf_notify_admin(
+			$message,
+			$missing > 0 ? 'warning' : 'info',
+			'integrity_summary',
+			array(
+				'runs'     => $runs,
+				'healed'   => $healed,
+				'relinked' => $relinked,
+			)
+		);
+	}
 
 	public function handle_run_now(): void {
 		if ( ! current_user_can( 'isoft_fmf_manage_settings' ) ) {
