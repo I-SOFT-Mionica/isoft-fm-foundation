@@ -35,6 +35,7 @@ class ISOFT_FMF_File_Integrity {
 		add_action(
 			'isoft_fmf_deactivate',
 			static function (): void {
+				wp_unschedule_hook( self::CRON_HOOK );
 				wp_unschedule_hook( self::CONTINUE_HOOK );
 			}
 		);
