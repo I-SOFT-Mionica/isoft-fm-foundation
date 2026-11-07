@@ -42,6 +42,7 @@ class ISOFT_FMF_Category_Folders {
 		// admin (not our prefix). We hook in at priority 0 to short-circuit the
 		// request when the category still has downloads attached.
 		add_action( 'wp_ajax_delete-tag', array( $this, 'ajax_guard_delete' ), 0 );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_delete_message' ) );
 
 		// Move files on disk when a download's category assignment changes.
 		add_action( 'set_object_terms', array( $this, 'on_object_terms_set' ), 10, 6 );
@@ -249,7 +250,9 @@ class ISOFT_FMF_Category_Folders {
 
 	/**
 	 * AJAX guard: intercept delete-tag requests for isoft_fmf_category before WP core
-	 * processes them. Sends a JSON error that the list table JS will display.
+	 * processes them. A refusal answers with a JSON error; the script added by
+	 * enqueue_delete_message() shows its message above the list (core's own
+	 * handler only knows "1" and shows nothing useful otherwise).
 	 */
 	public function ajax_guard_delete(): void {
 		// Taxonomy gate first so non-isfm deletes pass through untouched (we
@@ -276,8 +279,39 @@ class ISOFT_FMF_Category_Folders {
 			return;
 		}
 
-		isoft_fmf_notify_admin( $message, 'error' );
-		wp_die( '0' );
+		wp_send_json_error( array( 'message' => $message ) );
+	}
+
+	/**
+	 * On the category list, show why a quick Delete was refused.
+	 */
+	public function enqueue_delete_message( string $hook_suffix ): void {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen routing.
+		$taxonomy = isset( $_GET['taxonomy'] ) ? sanitize_key( wp_unslash( $_GET['taxonomy'] ) ) : '';
+		if ( 'edit-tags.php' !== $hook_suffix || 'isoft_fmf_category' !== $taxonomy ) {
+			return;
+		}
+		wp_add_inline_script(
+			'admin-tags',
+			<<<'JS'
+jQuery( document ).ajaxComplete( function ( event, xhr, settings ) {
+	var data = settings && typeof settings.data === 'string' ? settings.data : '';
+	if ( data.indexOf( 'action=delete-tag' ) === -1 || data.indexOf( 'taxonomy=isoft_fmf_category' ) === -1 ) {
+		return;
+	}
+	var response = xhr.responseJSON;
+	if ( ! response || response.success !== false || ! response.data || ! response.data.message ) {
+		return;
+	}
+	var notice = jQuery( '<div class="notice notice-error is-dismissible isoft-fmf-delete-refused"><p></p></div>' );
+	notice.find( 'p' ).text( response.data.message );
+	jQuery( '.isoft-fmf-delete-refused' ).remove();
+	jQuery( '#ajax-response' ).empty();
+	jQuery( '.wp-header-end' ).first().after( notice );
+	jQuery( 'html, body' ).scrollTop( 0 );
+} );
+JS
+		);
 	}
 
 	/**

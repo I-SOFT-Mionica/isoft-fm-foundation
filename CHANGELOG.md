@@ -2,6 +2,14 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [Unreleased] (0.15.1)
+
+### Fixed
+
+- **Deleting a download deletes its files (DL-1).** `before_delete_post` only cleared stats and log rows, so a permanently deleted download left its stored files on disk and its rows in `isoft_fmf_files` (counted in Statistics, still in the category folder). Each file now goes through `ISOFT_FMF_Files_Service::delete()`, the same path as Remove: the row, and the stored file unless another row uses it or `isoft_fmf_delete_file_from_disk` returns false. Moving to the Trash keeps everything. Affected every release up to 0.15.0.
+- **A file left behind by an earlier delete can be linked again (DL-2).** From Folder offered it, but linking answered "This file is already registered." and nothing in the admin could remove it. `import_from_disk()` now drops a row whose download no longer exists and registers the file, which can then be removed like any other.
+- **The category list's quick Delete says why it was refused (DL-3).** The AJAX guard answered `0` and queued the reason for the next page, so the row just stayed. It now answers with a JSON error, and a small script on the category list shows the reason above the table, the same message as the edit screen's Delete.
+
 ## [Unreleased] (0.15.0)
 
 ### New
