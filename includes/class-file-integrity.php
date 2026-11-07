@@ -372,7 +372,10 @@ class ISOFT_FMF_File_Integrity {
 			$summary['finished_at'] = current_time( 'mysql' );
 			update_option( 'isoft_fmf_integrity_last_run', $summary, false );
 
-			if ( $summary['checked'] > 0 ) {
+			// Only when there is news. A clean run is shown on the Maintenance tab,
+			// and "Run now" has its own message; a daily "0 healed" notice piled
+			// up on sites nobody logs in to for weeks.
+			if ( $summary['healed'] + $summary['relinked'] + $summary['still_gone'] > 0 ) {
 				isoft_fmf_notify_admin(
 					sprintf(
 						/* translators: 1: healed, 2: relinked, 3: still missing */
