@@ -255,11 +255,7 @@ class ISOFT_FMF_Pdf_Thumbnail {
 				$im->clear();
 			}
 			foreach ( $previous as $type => $value ) {
-				// "Unlimited" comes back as a float above PHP_INT_MAX, and
-				// (int) of that is 0, which would leave every later Imagick
-				// call in this process (WordPress's own image sizes too) with
-				// no time, memory or disk at all.
-				\Imagick::setResourceLimit( $type, $value >= PHP_INT_MAX ? PHP_INT_MAX : (int) $value );
+				\Imagick::setResourceLimit( $type, self::restorable_limit( $type, $value ) );
 			}
 		}
 
@@ -361,6 +357,24 @@ class ISOFT_FMF_Pdf_Thumbnail {
 				$this->report_unfinished_render( (string) $token, null );
 			}
 		}
+	}
+
+	/**
+	 * A previous Imagick limit in a form setResourceLimit() takes back.
+	 *
+	 * "Unlimited" comes back as a float above PHP_INT_MAX; (int) of that is
+	 * 0, which would leave every later Imagick call in this process
+	 * (WordPress's own image sizes too) with no time, memory or disk. PHP
+	 * cannot pass ImageMagick's own "unlimited", so a very large value
+	 * stands in: PHP_INT_MAX, and one year for time, since ImageMagick
+	 * treats a time limit near PHP_INT_MAX as already exceeded.
+	 *
+	 * @param int       $type  Imagick::RESOURCETYPE_* constant.
+	 * @param int|float $value What getResourceLimit() returned.
+	 */
+	private static function restorable_limit( int $type, $value ): int {
+		$max = ( defined( 'Imagick::RESOURCETYPE_TIME' ) && \Imagick::RESOURCETYPE_TIME === $type ) ? YEAR_IN_SECONDS : PHP_INT_MAX;
+		return $value >= $max ? $max : (int) $value;
 	}
 
 	private function save_as_attachment( string $image_path, int $parent_id ): int|false {
