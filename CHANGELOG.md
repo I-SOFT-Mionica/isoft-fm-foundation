@@ -2,6 +2,16 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.14.3] — 2026-11-07
+
+Hotfix on top of 0.14.1. 0.14.1 was not published on wordpress.org, so this is the release after 0.14.0 and carries 0.14.1's changes. 0.14.2 was a test build only and is not released; its page builder work ships in 0.15.0.
+
+### Fixed
+
+- **The nightly integrity check no longer posts a notice when it found nothing.** Every run with files to check queued "File integrity check: 0 healed, 0 relinked, 0 still missing.", so a site nobody logged in to for weeks greeted the next admin with a wall of identical notices. The summary is now queued only when something was healed, relinked or is missing; the last run is still shown on the Maintenance tab, and "Run now" keeps its own message. A summary nobody has seen yet absorbs the next run instead of queuing another: healed and relinked add up, "still missing" is the latest count, and the notice says how many runs it covers ("File integrity check, 5 runs since your last visit: ..."). A file that stays missing therefore gives one notice, not one per night. `isoft_fmf_notify_admin()` gains optional `$key` (one queued notice per key) and `$data` arguments, new `isoft_fmf_queued_notice( $key )` returns the unseen one, and the queue keeps the latest 20 notices.
+- **Agreeing to a licence now starts the download.** Since 0.10.18 the dialog's Download link did nothing: the capture-phase click guard that keeps theme ajax-navigation away from download links (`public-script.js`) also caught the dialog's own link, which carries `.isoft-fmf-download-btn` for styling, and stopped its click before the link's handler ran, so the browser only followed `href="#"`. The guard now skips links inside `#isoft-fmf-agree-overlay`. With the click let through, the link's handler turned out to read the address only after `closeModal()` had cleared it, so it navigated to `''` and reloaded the page; it now reads the address first. Covered by a jsdom test (`npm run test:js`, run in CI) that checks the address the dialog navigates to.
+- **The agreement dialog opens above page builder popups.** It shared `z-index: 9999` with Elementor popups, which are added later in the page, so a download clicked inside a popup opened its dialog behind it. The overlay now moves to the end of `<body>` when it opens and uses `z-index: 100000`. Outside the popup, every click in the dialog counted as an outside click for Elementor Pro's popup (its listener runs on `window` in the capture phase), so ticking the box, Cancel or Escape closed the popup underneath. When the dialog opens from an Elementor Pro popup, it now adds `#isoft-fmf-agree-overlay` to that popup's `hide.ignore` selector, as Elementor Pro does for its own date picker, and Escape inside the dialog no longer reaches `window`. Without Elementor Pro this does nothing.
+
 ## [0.14.1] — 2026-11-02
 
 ### Changed

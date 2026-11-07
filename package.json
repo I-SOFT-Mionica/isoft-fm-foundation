@@ -6,7 +6,8 @@
     "scripts": {
         "build": "wp-scripts build --config webpack.config.js",
         "start": "wp-scripts start --config webpack.config.js",
-        "lint:js": "wp-scripts lint-js blocks/"
+        "lint:js": "wp-scripts lint-js blocks/",
+        "test:js": "wp-scripts test-unit-js tests/js"
     },
     "devDependencies": {
         "@wordpress/block-editor": "^14.0",

@@ -221,17 +221,56 @@ function isoft_fmf_access_role_label( string $role ): string {
 /**
  * Queue an admin dashboard notice for the current user.
  *
- * @param string $message  Plain text message.
- * @param string $type     'info' | 'success' | 'warning' | 'error'
+ * A notice with a key replaces an unseen older one with the same key. To
+ * fold repeats into one notice, read the older one with
+ * isoft_fmf_queued_notice() and pass running totals in $data.
+ * Only the latest 20 notices are kept.
+ *
+ * @param string              $message Plain text message.
+ * @param string              $type    'info' | 'success' | 'warning' | 'error'
+ * @param string              $key     Optional identity: at most one queued notice per key.
+ * @param array<string,mixed> $data    Optional data kept with the notice, for the next caller with the same key.
  */
-function isoft_fmf_notify_admin( string $message, string $type = 'info' ): void {
-	$notices   = get_option( 'isoft_fmf_admin_notices', array() );
+function isoft_fmf_notify_admin( string $message, string $type = 'info', string $key = '', array $data = array() ): void {
+	$notices = get_option( 'isoft_fmf_admin_notices', array() );
+	$notices = is_array( $notices ) ? $notices : array();
+	if ( '' !== $key ) {
+		$notices = array_values(
+			array_filter(
+				$notices,
+				static function ( $notice ) use ( $key ) {
+					return ! is_array( $notice ) || ( $notice['key'] ?? '' ) !== $key;
+				}
+			)
+		);
+	}
 	$notices[] = array(
 		'message' => $message,
 		'type'    => in_array( $type, array( 'info', 'success', 'warning', 'error' ), true ) ? $type : 'info',
 		'time'    => time(),
+		'key'     => $key,
+		'data'    => $data,
 	);
-	update_option( 'isoft_fmf_admin_notices', $notices );
+	update_option( 'isoft_fmf_admin_notices', array_slice( $notices, -20 ) );
+}
+
+/**
+ * The queued notice with this key that no admin has seen yet, or null.
+ *
+ * @param string $key Notice key.
+ * @return array<string,mixed>|null
+ */
+function isoft_fmf_queued_notice( string $key ): ?array {
+	if ( '' === $key ) {
+		return null;
+	}
+	$notices = get_option( 'isoft_fmf_admin_notices', array() );
+	foreach ( is_array( $notices ) ? $notices : array() as $notice ) {
+		if ( is_array( $notice ) && ( $notice['key'] ?? '' ) === $key ) {
+			return $notice;
+		}
+	}
+	return null;
 }
 
 /**

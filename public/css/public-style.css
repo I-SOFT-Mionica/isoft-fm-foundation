@@ -227,7 +227,8 @@
 	background: rgba(0, 0, 0, .6);
 	align-items: center;
 	justify-content: center;
-	z-index: 9999;
+	/* Above page builder popups (Elementor uses 9999). */
+	z-index: 100000;
 }
 .isoft-fmf-modal-overlay.is-open {
 	display: flex;
