@@ -2,7 +2,7 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
-## [Unreleased] (0.15.1)
+## [0.15.1] — 2026-11-09
 
 ### Fixed
 

@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.1
 Requires PHP: 8.4
-Stable tag: 0.15.1-dev
+Stable tag: 0.15.1
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -15,6 +15,10 @@ Document and download manager with real on-disk folder organization, per-departm
 **I-Soft File Manager: Foundation** is a modular download manager built for modern WordPress.
 
 Unlike standard media plugins that dump every upload into a single dated folder, Foundation is designed for municipalities, universities, libraries, and any team that needs to manage thousands of public documents, maintain a strict category tree, and give different departments their own secure upload spaces.
+
+= What's new in 0.15.1 =
+
+**A setup reminder that knows when you are done.** The reminder about your site sitting behind a proxy now goes away by itself as soon as you choose where visitor addresses come from in Settings. If you have not chosen yet, Settings now says so plainly, and listing your proxy addresses selects the right option for you.
 
 = What's new in 0.15.0 =
 
@@ -342,6 +346,11 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 
 == Changelog ==
 
+= 0.15.1 =
+
+* **Fixed:** the proxy reminder stayed on screen after you had filled in Settings, until you dismissed it. It now ends once a visitor address source is chosen.
+* **Changed:** Settings shows "Not chosen yet" when no visitor address source has been picked, and listing your proxy addresses selects "Other reverse proxy".
+
 = 0.15.0 =
 
 * **New:** heavy tasks work within time and memory limits and stop cleanly; anything that stops is shown in a notice and under Tools > Site Health > Info.
@@ -485,6 +494,9 @@ Existing data (downloads, categories, files, licenses, logs, per-user category p
 * **Inline metadata editing** directly from the file list.
 
 == Upgrade Notice ==
+
+= 0.15.1 =
+The proxy reminder now goes away by itself once you choose where visitor addresses come from in Settings.
 
 = 0.15.0 =
 Background PDF thumbnails, safe limits for heavy tasks, download lists that work in page builder templates and popups, and deleting a download now deletes its files from the server.
