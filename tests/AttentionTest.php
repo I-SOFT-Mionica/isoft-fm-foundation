@@ -40,8 +40,12 @@ class AttentionTest extends WP_UnitTestCase {
 
 	private function page(): string {
 		ob_start();
-		ISOFT_FMF_Attention::render_page();
-		return (string) ob_get_clean();
+		try {
+			ISOFT_FMF_Attention::render_page();
+		} finally {
+			$html = (string) ob_get_clean();
+		}
+		return $html;
 	}
 
 	private function source( array $items, array $extra = array() ): array {

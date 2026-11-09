@@ -441,14 +441,14 @@ class ISOFT_FMF_File_Manager {
 	/**
 	 * One page of the files marked unavailable, newest first.
 	 *
-	 * @return object[] Columns: id, download_id, file_name.
+	 * @return object[] Columns: id, download_id, file_name, title (an external link has no file name).
 	 */
 	public function get_unavailable( int $page, int $per_page ): array {
 		global $wpdb;
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin list; freshness over cache.
 		return (array) $wpdb->get_results(
 			$wpdb->prepare(
-				'SELECT id, download_id, file_name FROM %i WHERE is_unavailable = 1 ORDER BY id DESC LIMIT %d OFFSET %d',
+				'SELECT id, download_id, file_name, title FROM %i WHERE is_unavailable = 1 ORDER BY id DESC LIMIT %d OFFSET %d',
 				$this->table,
 				$per_page,
 				( max( 1, $page ) - 1 ) * $per_page

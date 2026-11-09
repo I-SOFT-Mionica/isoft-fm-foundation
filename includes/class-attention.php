@@ -337,7 +337,7 @@ final class ISOFT_FMF_Attention {
 		foreach ( ( new ISOFT_FMF_File_Manager() )->get_unavailable( $page, $per_page ) as $file ) {
 			$items[] = array(
 				'id'          => (string) $file->id,
-				'name'        => $file->file_name,
+				'name'        => $file->file_name ?: $file->title,
 				'reason'      => __( 'Listed, but visitors cannot download it.', 'isoft-fm-foundation' ),
 				'download_id' => (int) $file->download_id,
 			);
