@@ -73,7 +73,7 @@ class RemoteFileTest extends WP_UnitTestCase {
 		return ( new ISOFT_FMF_File_Manager() )->get_file( $id ?? $this->file );
 	}
 
-	private function count(): int {
+	private function times_counted(): int {
 		return (int) $this->row()->download_count;
 	}
 
@@ -227,7 +227,7 @@ class RemoteFileTest extends WP_UnitTestCase {
 		);
 
 		$this->assertSame( 'https://cloud.example/signed?x=1', $this->redirected_to() );
-		$this->assertSame( 1, $this->count() );
+		$this->assertSame( 1, $this->times_counted() );
 	}
 
 	public function test_a_redirect_to_a_script_address_is_unavailable(): void {
@@ -240,14 +240,14 @@ class RemoteFileTest extends WP_UnitTestCase {
 
 		$this->assertNull( $this->redirected_to() );
 		$this->assertSame( $this->download, $this->handler->unavailable );
-		$this->assertSame( 0, $this->count() );
+		$this->assertSame( 0, $this->times_counted() );
 	}
 
 	public function test_a_proxy_streams_the_body_and_counts(): void {
 		$this->answer( $this->proxy() );
 
 		$this->assertSame( 'BODY', $this->run_handler() );
-		$this->assertSame( 1, $this->count() );
+		$this->assertSame( 1, $this->times_counted() );
 		$this->assertSame( 'nosniff', $this->handler->sent['X-Content-Type-Options'] );
 		$this->assertStringStartsWith( 'attachment;', $this->handler->sent['Content-Disposition'] );
 	}
@@ -304,7 +304,7 @@ class RemoteFileTest extends WP_UnitTestCase {
 		$this->run_handler();
 
 		$this->assertSame( $this->download, $this->handler->unavailable );
-		$this->assertSame( 0, $this->count() );
+		$this->assertSame( 0, $this->times_counted() );
 	}
 
 	public static function no_answers(): array {
@@ -366,7 +366,7 @@ class RemoteFileTest extends WP_UnitTestCase {
 
 		$this->run_handler();
 
-		$this->assertSame( $expected, $this->count() );
+		$this->assertSame( $expected, $this->times_counted() );
 	}
 
 	public static function ranges(): array {
@@ -394,7 +394,7 @@ class RemoteFileTest extends WP_UnitTestCase {
 		}
 
 		$this->assertSame( 0, $this->filter_calls );
-		$this->assertSame( 0, $this->count() );
+		$this->assertSame( 0, $this->times_counted() );
 	}
 
 	public function test_an_unavailable_file_never_reaches_the_filter(): void {
