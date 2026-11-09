@@ -50,7 +50,7 @@ The public REST API applies the same rule: downloads under a pending category ar
 
 ## Feature detection
 
-In PHP: `isoft_fmf_features(): string[]` and `isoft_fmf_has_feature( $feature ): bool`. Over HTTP: `GET /isoft-fm-foundation/v1/public/info` (only while the public API is on) returns `name`, `version`, `api` (1), the same `features` and a few public `settings`. Identifiers: `public_api`, `gates`, `record_downloads`, `record_idempotency`, `content_changed`, `pending_categories`, `unavailable_files`, `category_path`, `public_rule`, `attach_file`, `pre_attach_veto`, `file_state`, `thumbnail_sizes`, `task_budget`, `create_category`, `draft_slug`, `set_download_count`. They are only ever added. Filter `isoft_fmf_features` (extensions add identifiers prefixed with their slug). Test features, not version numbers.
+In PHP: `isoft_fmf_features(): string[]` and `isoft_fmf_has_feature( $feature ): bool`. Over HTTP: `GET /isoft-fm-foundation/v1/public/info` (only while the public API is on) returns `name`, `version`, `api` (1), the same `features` and a few public `settings`. Identifiers: `public_api`, `gates`, `record_downloads`, `record_idempotency`, `content_changed`, `pending_categories`, `unavailable_files`, `category_path`, `public_rule`, `attach_file`, `pre_attach_veto`, `file_state`, `thumbnail_sizes`, `task_budget`, `create_category`, `draft_slug`, `set_download_count`, `attention_screen`. They are only ever added. Filter `isoft_fmf_features` (extensions add identifiers prefixed with their slug). Test features, not version numbers.
 
 A download's `thumbnail` carries `sizes`: every generated size plus `full`, each with `width`, `height`, `mime_type`, `source_url`, in the shape of WordPress' REST `media_details.sizes`.
 
@@ -66,6 +66,27 @@ A category can be held back from the public until approved: it exists and files 
 - Users who can manage categories, cron and WP-CLI see pending categories. Pass `'isoft_fmf_include_pending' => true` to a `get_terms()` call to include them explicitly.
 - Approving a category does not publish its downloads.
 - Admin category lists show a Status column and an Approve action.
+
+## Needs attention
+
+One screen (Downloads > Needs attention, capability `isoft_fmf_manage_settings`) lists everything waiting on a person. Foundation fills it with missing files, categories waiting for approval, tasks that stopped early and files marked unavailable. Feature `attention_screen`.
+
+Add a list inside `isoft_fmf_extensions_init`:
+
+`isoft_fmf_register_attention_source( string $id, array $args ): bool`
+
+| Key | Meaning |
+|---|---|
+| `label` | Heading of the list |
+| `count` | `callable(): int`. Runs on admin page loads for the menu number, so it must be cheap |
+| `items` | `callable( int $page, int $per_page ): array` of items, for that page only |
+| `handle_action` | Optional. `callable( string $item_id, string $action ): true\|WP_Error`. Check the item's current state and any capability of your own here. Foundation has already checked the screen capability and the nonce |
+| `capability` | Optional. The list is shown only to users with it |
+| `in_menu_count` | Optional, default true. False lists the items without adding to the menu number. Use it for a state someone chose, which would otherwise keep the number from reaching zero |
+
+An item is an array with `id` and `name`, and optionally `reason`, `date` (Unix timestamp), `download_id`, and `actions`. Each action has a `label` and either a `url` (a plain link) or an `action` (a key handed back to `handle_action` by a POST). An item without an `id` or `name` is dropped.
+
+Each source keeps its own storage, so a deactivated plugin's items go with it. All text is treated as plain text and escaped by Foundation. A callback that throws shows "This list could not be read" and does not affect other lists. A list with nothing in it is not shown. `isoft_fmf_attention_url( $source )` links to the screen or to one list.
 
 ## Hooks
 

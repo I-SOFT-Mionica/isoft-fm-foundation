@@ -7,6 +7,8 @@ All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads
 ### New
 
 - **Public API for importers.** `isoft_fmf_create_category()` (feature `create_category`) creates a category and its folder with its access role, license and pending state, and refuses an unknown role instead of leaving the category open. `isoft_fmf_create_draft_download()` takes an optional `slug` (feature `draft_slug`), made unique at creation because WordPress does not do that for drafts. `isoft_fmf_set_download_count()` (feature `set_download_count`) sets a file's counter absolutely and refreshes the download's total without writing log rows. All three do nothing until called.
+- **Needs attention screen.** New `ISOFT_FMF_Attention` and submenu under Downloads: missing files, categories waiting for approval, tasks that stopped early and files marked unavailable, in one place. Other plugins add lists with `isoft_fmf_register_attention_source()` (feature `attention_screen`), with paging, counts and actions. Item text is escaped as plain text, and a callback that throws cannot break the screen. The menu number shows open items and disappears at zero, and replaces the Tools number for people who can open the screen. Unavailable files are listed but not counted.
+- **Stopped tasks can be dismissed** on that screen. Site Health keeps the full history (`ISOFT_FMF_Task_Budget::open_stops()`, `dismiss_stop()`).
 
 ## [0.15.1] — 2026-11-09
 

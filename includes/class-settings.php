@@ -36,7 +36,8 @@ class ISOFT_FMF_Settings {
 		// which sits right after Tags (WordPress-native position 15).
 		$missing_count = ISOFT_FMF_File_Integrity::missing_count();
 		$tools_label   = __( 'Tools', 'isoft-fm-foundation' );
-		if ( $missing_count > 0 ) {
+		// People who can open Needs attention get this number there instead.
+		if ( $missing_count > 0 && ! current_user_can( 'isoft_fmf_manage_settings' ) ) {
 			$tools_label .= ' <span class="awaiting-mod isoft-fmf-broken-badge">' . number_format_i18n( $missing_count ) . '</span>';
 		}
 		add_submenu_page(

@@ -811,6 +811,7 @@ function isoft_fmf_features(): array {
 		'create_category',
 		'draft_slug',
 		'set_download_count',
+		'attention_screen',
 	);
 
 	/**
@@ -932,6 +933,24 @@ function isoft_fmf_create_category( array $args ): array|WP_Error {
  */
 function isoft_fmf_set_download_count( int $file_id, int $count ): bool {
 	return ( new ISOFT_FMF_File_Manager() )->set_count( $file_id, $count );
+}
+
+/**
+ * Add a list to the Needs attention screen. Call inside the
+ * `isoft_fmf_extensions_init` action. See docs/PUBLIC-API.md.
+ *
+ * @param string               $id   Unique lowercase key.
+ * @param array<string, mixed> $args label, count, items; optional handle_action, capability, in_menu_count.
+ */
+function isoft_fmf_register_attention_source( string $id, array $args ): bool {
+	return ISOFT_FMF_Attention::register_source( $id, $args );
+}
+
+/**
+ * URL of the Needs attention screen, optionally on one list.
+ */
+function isoft_fmf_attention_url( string $source = '' ): string {
+	return ISOFT_FMF_Attention::url( $source );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

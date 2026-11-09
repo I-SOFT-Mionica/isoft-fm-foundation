@@ -146,6 +146,7 @@ add_action(
 
 		// Time and memory budget for heavy tasks; stops listed in Site Health.
 		ISOFT_FMF_Task_Budget::register_hooks();
+		ISOFT_FMF_Attention::register_hooks();
 
 		// PDF thumbnails: uploads come through admin AJAX and REST alike, and
 		// the render runs in a cron job, so the hooks are needed everywhere.

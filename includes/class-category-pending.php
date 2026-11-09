@@ -319,19 +319,25 @@ class ISOFT_FMF_Category_Pending {
 	 */
 	public function row_actions( array $actions, $term ): array {
 		if ( $term instanceof WP_Term && self::is_pending( (int) $term->term_id ) && current_user_can( 'isoft_fmf_manage_categories' ) ) {
-			$url                = wp_nonce_url(
-				add_query_arg(
-					array(
-						'action'  => self::ACTION,
-						'term_id' => (int) $term->term_id,
-					),
-					admin_url( 'admin-post.php' )
-				),
-				self::ACTION . '_' . (int) $term->term_id
-			);
-			$actions['approve'] = '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Approve', 'isoft-fm-foundation' ) . '</a>';
+			$actions['approve'] = '<a href="' . esc_url( self::approve_url( (int) $term->term_id ) ) . '">' . esc_html__( 'Approve', 'isoft-fm-foundation' ) . '</a>';
 		}
 		return $actions;
+	}
+
+	/**
+	 * Nonced link that approves a category.
+	 */
+	public static function approve_url( int $term_id ): string {
+		return wp_nonce_url(
+			add_query_arg(
+				array(
+					'action'  => self::ACTION,
+					'term_id' => $term_id,
+				),
+				admin_url( 'admin-post.php' )
+			),
+			self::ACTION . '_' . $term_id
+		);
 	}
 
 	public function handle_approve(): void {
