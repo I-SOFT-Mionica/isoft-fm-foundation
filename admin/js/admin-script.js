@@ -31,14 +31,17 @@
 	function fileRowHtml( file ) {
 		var ext     = ( file.file_name || '' ).split( '.' ).pop().toUpperCase();
 		var isLocal = file.file_type === 'local';
-		var source  = isLocal
+		var isRemote = file.file_type === 'remote';
+		var source  = ( isLocal || isRemote )
 			? esc( file.file_name )
 			: '<a href="' + esc( file.external_url ) + '" target="_blank" rel="noopener noreferrer">' + esc( file.external_url ) + '</a>';
 		var badge   = isLocal
 			? '<span class="isoft-fmf-badge isoft-fmf-badge--local">' + esc( ext ) + '</span>'
-			: ( parseInt( file.is_mirror, 10 )
-				? '<span class="isoft-fmf-badge isoft-fmf-badge--mirror">' + esc( ISOFT_FMF.i18n.mirror ) + '</span>'
-				: '<span class="isoft-fmf-badge isoft-fmf-badge--external">' + esc( ISOFT_FMF.i18n.external ) + '</span>' );
+			: ( isRemote
+				? '<span class="isoft-fmf-badge isoft-fmf-badge--external">' + esc( ISOFT_FMF.i18n.cloud ) + '</span>'
+				: ( parseInt( file.is_mirror, 10 )
+					? '<span class="isoft-fmf-badge isoft-fmf-badge--mirror">' + esc( ISOFT_FMF.i18n.mirror ) + '</span>'
+					: '<span class="isoft-fmf-badge isoft-fmf-badge--external">' + esc( ISOFT_FMF.i18n.external ) + '</span>' ) );
 
 		return '<tr class="isoft-fmf-file-row" data-file-id="' + esc( file.id ) + '">'
 			+ '<td class="isoft-fmf-col-sort"><span class="dashicons dashicons-move isoft-fmf-sort-handle"></span></td>'

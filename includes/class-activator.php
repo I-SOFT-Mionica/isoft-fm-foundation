@@ -283,7 +283,7 @@ class ISOFT_FMF_Activator {
 			"CREATE TABLE {$wpdb->prefix}isoft_fmf_files (
 			id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 			download_id     BIGINT UNSIGNED NOT NULL,
-			file_type       ENUM('local','external') NOT NULL DEFAULT 'local',
+			file_type       ENUM('local','external','remote') NOT NULL DEFAULT 'local',
 			title           VARCHAR(255) NOT NULL DEFAULT '',
 			description     TEXT,
 			file_path       VARCHAR(500) DEFAULT NULL,

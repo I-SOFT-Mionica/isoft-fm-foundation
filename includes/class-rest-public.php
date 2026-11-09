@@ -520,11 +520,13 @@ class ISOFT_FMF_Rest_Public {
 		$files = array();
 		foreach ( $rows as $file ) {
 			$external = 'external' === $file->file_type;
-			$files[]  = array(
+			// A remote file is described like a local one and only ever offered
+			// through download_url: its real location never leaves the server.
+			$files[] = array(
 				'id'           => (int) $file->id,
 				'title'        => (string) $file->title,
 				'description'  => wp_kses_post( (string) $file->description ),
-				'type'         => $external ? 'external' : 'local',
+				'type'         => in_array( $file->file_type, array( 'external', 'remote' ), true ) ? $file->file_type : 'local',
 				'name'         => $external ? null : (string) $file->file_name,
 				'size'         => $external ? null : (int) $file->file_size,
 				'mime'         => $external ? null : (string) $file->file_mime,

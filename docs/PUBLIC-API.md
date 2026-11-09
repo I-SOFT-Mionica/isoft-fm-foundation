@@ -30,6 +30,7 @@ Conventions: functions are plain functions with the `isoft_fmf_` prefix. Nothing
 | `isoft_fmf_relink_file( $file_id, $new_rel_path ): true\|WP_Error` | Point a file row at where its file now lives inside storage. Same category folder: the row is updated. Another category's folder: the download and its other files move to that category, as the Broken Links reassign recovery does. Refuses paths outside storage, symlinks, folders, and paths another row owns |
 | `isoft_fmf_set_file_unavailable( $file_id, $unavailable ): bool`, `isoft_fmf_file_is_unavailable( $file_id ): bool` | Hold a file back without deleting it: it stays listed, its button becomes a passive label, the download handler refuses it, ZIP bundles skip it, the public API reports `unavailable: true` with no `download_url` |
 | `isoft_fmf_unavailable_label(): string` | The text shown instead of the button for missing or unavailable files (Settings > Display, default "Temporarily unavailable") |
+| `isoft_fmf_user_can_write_category( $user_id, $term_id ): bool` | Whether a user may add content to a category, by the per-user category rules |
 | `isoft_fmf_category_for_folder( $rel_folder ): int` | Category that owns a storage folder, or 0. Pending categories count |
 | `isoft_fmf_file_for_path( $rel_path ): int` | File row registered at a storage-relative path, or 0 |
 | `isoft_fmf_category_folder_path( $term_id ): string` | The folder of a category, relative to storage |
@@ -50,7 +51,7 @@ The public REST API applies the same rule: downloads under a pending category ar
 
 ## Feature detection
 
-In PHP: `isoft_fmf_features(): string[]` and `isoft_fmf_has_feature( $feature ): bool`. Over HTTP: `GET /isoft-fm-foundation/v1/public/info` (only while the public API is on) returns `name`, `version`, `api` (1), the same `features` and a few public `settings`. Identifiers: `public_api`, `gates`, `record_downloads`, `record_idempotency`, `content_changed`, `pending_categories`, `unavailable_files`, `category_path`, `public_rule`, `attach_file`, `pre_attach_veto`, `file_state`, `thumbnail_sizes`, `task_budget`, `create_category`, `draft_slug`, `set_download_count`, `attention_screen`. They are only ever added. Filter `isoft_fmf_features` (extensions add identifiers prefixed with their slug). Test features, not version numbers.
+In PHP: `isoft_fmf_features(): string[]` and `isoft_fmf_has_feature( $feature ): bool`. Over HTTP: `GET /isoft-fm-foundation/v1/public/info` (only while the public API is on) returns `name`, `version`, `api` (1), the same `features` and a few public `settings`. Identifiers: `public_api`, `gates`, `record_downloads`, `record_idempotency`, `content_changed`, `pending_categories`, `unavailable_files`, `category_path`, `public_rule`, `attach_file`, `pre_attach_veto`, `file_state`, `thumbnail_sizes`, `task_budget`, `create_category`, `draft_slug`, `set_download_count`, `attention_screen`, `remote_files`. They are only ever added. Filter `isoft_fmf_features` (extensions add identifiers prefixed with their slug). Test features, not version numbers.
 
 A download's `thumbnail` carries `sizes`: every generated size plus `full`, each with `width`, `height`, `mime_type`, `source_url`, in the shape of WordPress' REST `media_details.sizes`.
 
@@ -66,6 +67,24 @@ A category can be held back from the public until approved: it exists and files 
 - Users who can manage categories, cron and WP-CLI see pending categories. Pass `'isoft_fmf_include_pending' => true` to a `get_terms()` call to include them explicitly.
 - Approving a category does not publish its downloads.
 - Admin category lists show a Status column and an Approve action.
+
+## Remote files
+
+A third kind of file (`file_type` `remote`, feature `remote_files`): its content lives elsewhere, and the row holds no path and no URL. The plugin that owns it keeps its own reference, keyed by file ID. Foundation makes no network request for these.
+
+- `isoft_fmf_attach_remote_file( $download_id, $args ): int|WP_Error`: `file_name` (required), optional `title`, `file_size`, `file_mime`. Fires `isoft_fmf_file_uploaded` and `isoft_fmf_content_changed`. PHP only.
+- `isoft_fmf_update_remote_file( $file_id, $args ): true|WP_Error`: the same keys, and only those passed change.
+- Both clean the name and refuse a type in `isoft_fmf_blocked_extensions()` with `isoft_fmf_blocked_file_type`. The name is treated as untrusted. Nothing builds a filesystem path from it.
+
+Filter `isoft_fmf_resolve_remote_file( $resolution, $file, $context )` delivers the file. It runs after the status, password, access, hotlink, user-agent, rate-limit and unavailable checks and `isoft_fmf_before_download`, so a visitor who is refused never reaches it. `$context` has `download_id` and `range` (the raw Range header or ''). Answers:
+
+- `null` or a `WP_Error`, or anything unusable: the "temporarily unavailable" page (503), not counted. With nothing answering, that is what visitors see. An exception counts as no answer.
+- `array( 'mode' => 'redirect', 'url' => $url )`: an http or https redirect, sent with no-cache headers.
+- `array( 'mode' => 'proxy', 'stream' => $callable, 'headers' => array(), 'status' => 200 )`: Foundation sends its download headers (the type, attachment, nosniff, no-store), then calls `stream`, which echoes the body. Output buffers are off and the time limit is lifted where the host allows it. From `headers`, only `Content-Length`, `Content-Range`, `Accept-Ranges`, `ETag` and `Last-Modified` are used. `status` may be 206.
+
+The download is counted only after a usable answer, and only when there is no Range header or it starts at byte 0.
+
+Remote files are never put in a ZIP bundle. On the card, in shortcodes and in the public API they appear like local files, with a button or `download_url` through Foundation's handler (`type: remote`, `url: null`). They are not external links, so a download set to "external links only" does not show them. `isoft_fmf_public_file()` returns null for them, so a gateway that serves files itself cannot deliver them. Integrity checks and Broken Links ignore them: report a dead file with `isoft_fmf_set_file_unavailable()`. Deleting one fires `isoft_fmf_file_deleted`, and there is nothing on disk to remove.
 
 ## Needs attention
 

@@ -518,6 +518,34 @@ function isoft_fmf_attach_file( int $download_id, string $source_abs, array $arg
 }
 
 /**
+ * Register a file whose content lives elsewhere. PHP only. No path or URL is
+ * stored; the plugin that owns the file answers the
+ * isoft_fmf_resolve_remote_file filter when someone downloads it.
+ *
+ * @param array{file_name:string, title?:string, file_size?:int, file_mime?:string} $args
+ */
+function isoft_fmf_attach_remote_file( int $download_id, array $args ): int|WP_Error {
+	return ( new ISOFT_FMF_Files_Service() )->attach_remote( $download_id, $args );
+}
+
+/**
+ * Change a remote file's name, title, size or type. Only the keys passed change.
+ *
+ * @param array{file_name?:string, title?:string, file_size?:int, file_mime?:string} $args
+ * @return true|WP_Error
+ */
+function isoft_fmf_update_remote_file( int $file_id, array $args ) {
+	return ( new ISOFT_FMF_Files_Service() )->update_remote( $file_id, $args );
+}
+
+/**
+ * Whether a user may add content to a category, by the per-user category rules.
+ */
+function isoft_fmf_user_can_write_category( int $user_id, int $term_id ): bool {
+	return ISOFT_FMF_Category_ACL::can_write_category( $user_id, $term_id );
+}
+
+/**
  * Local file rows in ID order, for extensions that sweep storage in batches.
  * Keep your own cursor (the last ID you saw).
  *
@@ -812,6 +840,7 @@ function isoft_fmf_features(): array {
 		'draft_slug',
 		'set_download_count',
 		'attention_screen',
+		'remote_files',
 	);
 
 	/**
@@ -1254,7 +1283,7 @@ function isoft_fmf_get_stats_overview(): array {
 			"SELECT COUNT(*) FROM {$wpdb->prefix}isoft_fmf_files"
 		),
 		'total_size_bytes'  => (int) $wpdb->get_var(
-			"SELECT COALESCE(SUM(file_size),0) FROM {$wpdb->prefix}isoft_fmf_files"
+			"SELECT COALESCE(SUM(file_size),0) FROM {$wpdb->prefix}isoft_fmf_files WHERE file_type = 'local'"
 		),
 		'total_log_entries' => (int) $wpdb->get_var(
 			"SELECT COUNT(*) FROM {$wpdb->prefix}isoft_fmf_download_log"
@@ -1457,7 +1486,7 @@ function isoft_fmf_bundle_limit_note( array $files ): string {
 	$local = array_filter(
 		$files,
 		static function ( $f ): bool {
-			return 'external' !== ( $f->file_type ?? '' ) && empty( $f->is_missing ) && empty( $f->is_unavailable );
+			return 'local' === ( $f->file_type ?? 'local' ) && empty( $f->is_missing ) && empty( $f->is_unavailable );
 		}
 	);
 	$count = count( $local );

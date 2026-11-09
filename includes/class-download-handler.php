@@ -106,7 +106,141 @@ class ISOFT_FMF_Download_Handler {
 			exit;
 		}
 
+		if ( 'remote' === $file->file_type ) {
+			$this->serve_remote_file( $file, $download_id );
+			return;
+		}
+
 		$this->serve_local_file( $file, $download_id, $file_manager );
+	}
+
+	/**
+	 * A file whose content lives elsewhere. Every check above has passed; the
+	 * plugin that owns it says how to deliver it. Anything but a usable answer
+	 * ends on the unavailable page and is not counted.
+	 */
+	private function serve_remote_file( object $file, int $download_id ): void {
+		$range = isset( $_SERVER['HTTP_RANGE'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_RANGE'] ) ) : '';
+
+		try {
+			/**
+			 * How to deliver a remote file.
+			 *
+			 * @param null|WP_Error|array $resolution Null or WP_Error: unavailable.
+			 *                                        array( 'mode' => 'redirect', 'url' => ... ), or
+			 *                                        array( 'mode' => 'proxy', 'stream' => callable, 'headers' => array(), 'status' => 200|206 ).
+			 * @param object              $file       The file row.
+			 * @param array               $context    'download_id', and 'range': the Range header or ''.
+			 */
+			$resolution = apply_filters(
+				'isoft_fmf_resolve_remote_file',
+				null,
+				$file,
+				array(
+					'download_id' => $download_id,
+					'range'       => $range,
+				)
+			);
+		} catch ( Throwable $e ) {
+			unset( $e );
+			$resolution = null;
+		}
+
+		$mode = is_array( $resolution ) ? ( $resolution['mode'] ?? '' ) : '';
+
+		if ( 'redirect' === $mode ) {
+			$target = esc_url_raw( (string) ( $resolution['url'] ?? '' ), array( 'https', 'http' ) );
+			if ( '' !== $target ) {
+				$this->record_remote( $file, $range );
+				// A signed cloud address must not be kept by a cache.
+				nocache_headers();
+				// phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- The cloud host is not in WordPress's allowlist; $target is validated above.
+				wp_redirect( $target );
+				$this->finish();
+				return;
+			}
+		} elseif ( 'proxy' === $mode && is_callable( $resolution['stream'] ?? null ) ) {
+			$this->record_remote( $file, $range );
+			$this->proxy_remote( $file, $resolution );
+			return;
+		}
+
+		$this->remote_unavailable( $download_id );
+	}
+
+	/**
+	 * Whether a request with this Range header is a new download. Resumed and
+	 * segmented requests start past the first byte.
+	 */
+	public static function range_counts( string $range ): bool {
+		return '' === $range || 1 === preg_match( '/^\s*bytes\s*=\s*0+\s*-/i', $range );
+	}
+
+	private function record_remote( object $file, string $range ): void {
+		if ( self::range_counts( $range ) ) {
+			$log_id = isoft_fmf_record_download( (int) $file->id );
+			do_action( 'isoft_fmf_after_download', $log_id );
+		}
+	}
+
+	/**
+	 * Stream through this server. The extension's headers can describe the
+	 * body but cannot change how the browser treats it.
+	 *
+	 * @param object               $file       The file row.
+	 * @param array<string, mixed> $resolution The filter's answer.
+	 */
+	private function proxy_remote( object $file, array $resolution ): void {
+		$headers = apply_filters(
+			'isoft_fmf_download_headers',
+			array(
+				'Content-Type'           => $file->file_mime ?: 'application/octet-stream',
+				'Content-Disposition'    => isoft_fmf_content_disposition( (string) $file->file_name ),
+				'X-Content-Type-Options' => 'nosniff',
+				'Cache-Control'          => 'no-store, no-cache, must-revalidate',
+				'Pragma'                 => 'no-cache',
+			),
+			$file
+		);
+
+		$describing = array( 'content-length', 'content-range', 'accept-ranges', 'etag', 'last-modified' );
+		foreach ( (array) ( $resolution['headers'] ?? array() ) as $name => $value ) {
+			if ( in_array( strtolower( (string) $name ), $describing, true ) && is_scalar( $value ) ) {
+				$headers[ (string) $name ] = str_replace( array( "\r", "\n" ), '', (string) $value );
+			}
+		}
+
+		$this->prepare_stream();
+		$headers['Content-Encoding'] = 'identity';
+
+		// Cloud files can be several gigabytes.
+		if ( function_exists( 'set_time_limit' ) ) {
+			@set_time_limit( 0 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,Squiz.PHP.DiscouragedFunctions.Discouraged -- A long proxied download; the @ guards against hosts that forbid it.
+		}
+
+		if ( 206 === (int) ( $resolution['status'] ?? 200 ) ) {
+			$this->send_status( 206 );
+		}
+		$this->send_headers( $headers );
+
+		try {
+			call_user_func( $resolution['stream'] );
+		} catch ( Throwable $e ) {
+			unset( $e ); // The response has started; all that is left is to end it.
+		}
+		$this->finish();
+	}
+
+	protected function remote_unavailable( int $download_id ): void {
+		ISOFT_FMF_File_Integrity::render_unavailable_page( $download_id, 'partial' );
+	}
+
+	protected function send_status( int $status ): void {
+		status_header( $status );
+	}
+
+	protected function finish(): void {
+		exit;
 	}
 
 	private function serve_local_file( object $file, int $download_id, ISOFT_FMF_File_Manager $manager ): void {
@@ -180,19 +314,7 @@ class ISOFT_FMF_Download_Handler {
 	}
 
 	private function php_stream( string $path, array $headers ): void {
-		// Drain every level of output buffering. Caching plugins, theme
-		// buffers, and mu-plugins routinely stack multiple buffers; a single
-		// ob_end_clean() leaves the rest in place and the response sits in
-		// PHP memory until the script exits — which on a slow connection
-		// looks like a dead download.
-		while ( ob_get_level() ) {
-			ob_end_clean();
-		}
-
-		// Disable PHP-level gzip. If zlib.output_compression is on, the wire
-		// bytes won't match the Content-Length we promised, and the browser
-		// hangs waiting for the missing tail.
-		@ini_set( 'zlib.output_compression', 'Off' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,WordPress.PHP.IniSet.Risky,Squiz.PHP.DiscouragedFunctions.Discouraged -- Streaming raw binary download; gzip would break Content-Length, and the @ guards against hosts where ini_set is on a runtime deny-list.
+		$this->prepare_stream();
 
 		// Force identity transfer-encoding so server-level gzip (Apache
 		// mod_deflate, nginx gzip) doesn't recompress and skew Content-Length.
@@ -227,7 +349,23 @@ class ISOFT_FMF_Download_Handler {
 		exit;
 	}
 
-	private function send_headers( array $headers ): void {
+	protected function prepare_stream(): void {
+		// Drain every level of output buffering. Caching plugins, theme
+		// buffers, and mu-plugins routinely stack multiple buffers; a single
+		// ob_end_clean() leaves the rest in place and the response sits in
+		// PHP memory until the script exits — which on a slow connection
+		// looks like a dead download.
+		while ( ob_get_level() ) {
+			ob_end_clean();
+		}
+
+		// Disable PHP-level gzip. If zlib.output_compression is on, the wire
+		// bytes won't match the Content-Length we promised, and the browser
+		// hangs waiting for the missing tail.
+		@ini_set( 'zlib.output_compression', 'Off' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,WordPress.PHP.IniSet.Risky,Squiz.PHP.DiscouragedFunctions.Discouraged -- Streaming raw binary download; gzip would break Content-Length, and the @ guards against hosts where ini_set is on a runtime deny-list.
+	}
+
+	protected function send_headers( array $headers ): void {
 		foreach ( $headers as $name => $value ) {
 			header( "{$name}: {$value}" );
 		}

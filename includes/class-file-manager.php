@@ -302,6 +302,57 @@ class ISOFT_FMF_File_Manager {
 	}
 
 	/**
+	 * Add a file whose content lives elsewhere. No path or URL is stored: the
+	 * plugin that owns it answers isoft_fmf_resolve_remote_file.
+	 *
+	 * @param array{title:string, file_name:string, file_size:int, file_mime:string} $data Already cleaned.
+	 */
+	public function add_remote_file( int $download_id, array $data ): int|false {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table write; cache invalidated below.
+		$result = $wpdb->insert(
+			$this->table,
+			array(
+				'download_id' => $download_id,
+				'file_type'   => 'remote',
+				'title'       => $data['title'],
+				'file_name'   => $data['file_name'],
+				'file_size'   => $data['file_size'],
+				'file_mime'   => $data['file_mime'],
+			),
+			array( '%d', '%s', '%s', '%s', '%d', '%s' )
+		);
+		if ( false === $result ) {
+			return false;
+		}
+
+		$file_id = (int) $wpdb->insert_id;
+		self::bust_cache_for( $download_id, $file_id );
+		do_action( 'isoft_fmf_file_uploaded', $file_id, $download_id );
+		isoft_fmf_content_changed( 'download', $download_id );
+		return $file_id;
+	}
+
+	/**
+	 * Update a remote file's name, title, size or type.
+	 *
+	 * @param array<string, string|int> $data Already cleaned; only these columns change.
+	 */
+	public function update_remote_file( object $file, array $data ): bool {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table write; cache invalidated below.
+		$result = $wpdb->update( $this->table, $data, array( 'id' => (int) $file->id ) );
+		if ( false === $result ) {
+			return false;
+		}
+		self::bust_cache_for( (int) $file->download_id, (int) $file->id );
+		isoft_fmf_content_changed( 'download', (int) $file->download_id );
+		return true;
+	}
+
+	/**
 	 * Update editable metadata on a file record (title + description).
 	 * Does not touch file_path, file_name, file_size, file_hash, or file_mime —
 	 * those are derived from the physical file and must not drift.
