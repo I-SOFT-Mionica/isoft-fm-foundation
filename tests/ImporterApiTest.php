@@ -187,6 +187,19 @@ class ImporterApiTest extends WP_UnitTestCase {
 		$this->assertSame( 'sabac-' . $suffix, get_post_field( 'post_name', $id ) );
 	}
 
+	public function test_a_drafts_access_role_takes_effect_at_once(): void {
+		$cat = isoft_fmf_create_category( array( 'name' => $this->name() ) );
+		$id  = isoft_fmf_create_draft_download(
+			array(
+				'title'       => 'Restricted',
+				'category_id' => $cat['term_id'],
+				'access_role' => 'editor',
+			)
+		);
+
+		$this->assertSame( 'editor', ( new ISOFT_FMF_Access_Control() )->effective_role_for( $id ) );
+	}
+
 	public function test_a_draft_without_a_slug_is_unchanged(): void {
 		$id = isoft_fmf_create_draft_download( array( 'title' => 'Plain title' ) );
 		$this->assertSame( '', get_post_field( 'post_name', $id ) );

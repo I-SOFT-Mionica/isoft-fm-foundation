@@ -69,7 +69,7 @@ class RemoteFileTest extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	private function row( ?int $id = null ): object {
+	private function row( ?int $id = null ): ?object {
 		return ( new ISOFT_FMF_File_Manager() )->get_file( $id ?? $this->file );
 	}
 
@@ -382,6 +382,7 @@ class RemoteFileTest extends WP_UnitTestCase {
 
 	public function test_a_refused_visitor_never_reaches_the_filter(): void {
 		update_post_meta( $this->download, '_isoft_fmf_access_role', 'administrator' );
+		( new ISOFT_FMF_Access_Control() )->recompute_effective_role( $this->download );
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'subscriber' ) ) );
 		$_GET['nonce'] = wp_create_nonce( 'isoft_fmf_download_' . $this->file );
 		$this->answer( $this->proxy() );
@@ -477,7 +478,8 @@ class RemoteFileTest extends WP_UnitTestCase {
 	public function test_a_card_offers_it_through_the_handler(): void {
 		$html = do_shortcode( '[isoft_fmf_download id="' . $this->download . '"]' );
 
-		$this->assertStringContainsString( 'plan', $html );
+		$this->assertStringContainsString( 'isoft_fmf_download=' . $this->file, $html );
+		$this->assertStringContainsString( 'download rel="nofollow"', $html );
 		$this->assertStringNotContainsString( 'href=""', $html );
 	}
 

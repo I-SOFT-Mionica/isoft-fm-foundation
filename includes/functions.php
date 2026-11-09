@@ -67,6 +67,8 @@ function isoft_fmf_create_draft_download( array $args ): int|false {
 	}
 	if ( ! empty( $args['access_role'] ) ) {
 		update_post_meta( $post_id, '_isoft_fmf_access_role', sanitize_text_field( $args['access_role'] ) );
+		// The cached role was worked out before this was written.
+		( new ISOFT_FMF_Access_Control() )->recompute_effective_role( $post_id );
 	}
 	if ( ! empty( $args['license_id'] ) ) {
 		update_post_meta( $post_id, '_isoft_fmf_license_id', absint( $args['license_id'] ) );

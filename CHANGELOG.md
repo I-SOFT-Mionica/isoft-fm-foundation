@@ -15,6 +15,7 @@ All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads
 ### Changed
 
 - Tools > Statistics total size counts local files only.
+- `isoft_fmf_create_draft_download()` recomputes the effective role after writing `access_role`. It was computed before the role was saved.
 - `tests/PublicApiContractTest.php` now exists, as `docs/PUBLIC-API.md` always said it did: every `isoft_fmf_` name in that document must exist in the code.
 
 ## [0.15.1] — 2026-11-09
