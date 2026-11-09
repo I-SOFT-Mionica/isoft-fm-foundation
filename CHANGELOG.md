@@ -2,6 +2,12 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.15.1] — 2026-11-09
+
+### Fixed
+
+- **The proxy notice ends once a Client IP source is chosen in Settings.** The notice hides when `isoft_fmf_client_ip_mode` exists, but on a site that had not chosen yet the Settings form showed the unset option as "Trust every header" (its default) and saves only changed fields. Leaving or picking that entry, or filling in Trusted proxies alone, never wrote the option, so the notice stayed until dismissed. The form now shows "Not chosen yet (trusts every header)" for an unset source, so every real choice is saved, and filling in Trusted proxies while nothing is chosen selects "Other reverse proxy".
+
 ## [0.15.0] — 2026-11-07
 
 ### New

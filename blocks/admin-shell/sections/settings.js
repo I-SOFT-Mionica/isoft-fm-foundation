@@ -197,8 +197,12 @@ const TAB_SCHEMAS = {
 			key:     'isoft_fmf_client_ip_mode',
 			label:   __( 'Client IP source', 'isoft-fm-foundation' ),
 			type:    'select',
-			default: 'legacy',
+			// Unset on sites that have not chosen yet (they behave as "Trust
+			// every header"). Showing that as its own entry makes every real
+			// choice, "Trust every header" included, a change that is saved.
+			default: '',
 			options: [
+				{ label: __( 'Not chosen yet (trusts every header)', 'isoft-fm-foundation' ), value: '', disabled: true },
 				{ label: __( 'Direct connection (no proxy or CDN)', 'isoft-fm-foundation' ), value: 'direct' },
 				{ label: __( 'Cloudflare', 'isoft-fm-foundation' ),                            value: 'cloudflare' },
 				{ label: __( 'Other reverse proxy / load balancer', 'isoft-fm-foundation' ),   value: 'proxy' },
@@ -430,7 +434,23 @@ const SettingsForm = ( { tab, initialPayload } ) => {
 	}, [ tab ] );
 
 	const setField = useCallback( ( key, val ) => {
-		setValues( ( prev ) => ( prev ? { ...prev, [ key ]: val } : prev ) );
+		setValues( ( prev ) => {
+			if ( ! prev ) {
+				return prev;
+			}
+			const next = { ...prev, [ key ]: val };
+			// Listing proxies only means something with "Other reverse
+			// proxy": choose it when no source was chosen yet.
+			if (
+				key === 'isoft_fmf_trusted_proxies' &&
+				String( val || '' ).trim() !== '' &&
+				Object.prototype.hasOwnProperty.call( prev, 'isoft_fmf_client_ip_mode' ) &&
+				prev.isoft_fmf_client_ip_mode === ''
+			) {
+				next.isoft_fmf_client_ip_mode = 'proxy';
+			}
+			return next;
+		} );
 	}, [] );
 
 	const isDirty = values && initial && schema.some(
