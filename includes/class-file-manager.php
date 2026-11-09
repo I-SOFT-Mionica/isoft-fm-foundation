@@ -386,6 +386,37 @@ class ISOFT_FMF_File_Manager {
 			)
 		);
 
+		$this->refresh_total( $download_id, $file_id );
+	}
+
+	/**
+	 * Set a file's download counter to an absolute value. False for a negative
+	 * count or a file that does not exist.
+	 */
+	public function set_count( int $file_id, int $count ): bool {
+		global $wpdb;
+
+		$file = $count >= 0 ? $this->get_file( $file_id ) : null;
+		if ( ! $file ) {
+			return false;
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Counter write on custom table; cache invalidated below.
+		$updated = $wpdb->update( $this->table, array( 'download_count' => $count ), array( 'id' => $file_id ), array( '%d' ), array( '%d' ) );
+		if ( false === $updated ) {
+			return false;
+		}
+
+		$this->refresh_total( (int) $file->download_id, $file_id );
+		return true;
+	}
+
+	/**
+	 * Rewrite a download's cached total from its file rows.
+	 */
+	private function refresh_total( int $download_id, int $file_id ): void {
+		global $wpdb;
+
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Aggregate over custom table immediately after write; freshness required.
 		$total = (int) $wpdb->get_var(
 			$wpdb->prepare(

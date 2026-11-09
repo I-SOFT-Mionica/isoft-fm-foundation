@@ -2,6 +2,12 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [Unreleased] (0.16.0)
+
+### New
+
+- **Public API for importers.** `isoft_fmf_create_category()` (feature `create_category`) creates a category and its folder with its access role, license and pending state, and refuses an unknown role instead of leaving the category open. `isoft_fmf_create_draft_download()` takes an optional `slug` (feature `draft_slug`), made unique at creation because WordPress does not do that for drafts. `isoft_fmf_set_download_count()` (feature `set_download_count`) sets a file's counter absolutely and refreshes the download's total without writing log rows. All three do nothing until called.
+
 ## [0.15.1] — 2026-11-09
 
 ### Fixed

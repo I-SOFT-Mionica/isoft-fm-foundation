@@ -20,7 +20,7 @@ function isoft_fmf_register_extension( array $args ): bool {
 /**
  * Create a draft download entry. Used by Sentinel and Orbit importers.
  *
- * @param array{title:string, description?:string, category_id?:int, access_role?:string, license_id?:int} $args
+ * @param array{title:string, description?:string, category_id?:int, access_role?:string, license_id?:int, post_date?:string, slug?:string} $args
  * @return int|false  New post ID, or false on failure.
  */
 function isoft_fmf_create_draft_download( array $args ): int|false {
@@ -43,6 +43,16 @@ function isoft_fmf_create_draft_download( array $args ): int|false {
 		if ( $date && $date->format( 'Y-m-d H:i:s' ) === $args['post_date'] ) {
 			$postarr['post_date']     = $args['post_date'];
 			$postarr['post_date_gmt'] = get_gmt_from_date( $args['post_date'] );
+		}
+	}
+
+	// Optional slug. WordPress does not make a draft's slug unique until it is
+	// published through wp_update_post(), and wp_publish_post() never does, so
+	// it is made unique here: the slug read back after this call is final.
+	if ( ! empty( $args['slug'] ) && is_string( $args['slug'] ) ) {
+		$slug = sanitize_title( isoft_fmf_cyrillic_to_latin( urldecode( $args['slug'] ) ) );
+		if ( '' !== $slug ) {
+			$postarr['post_name'] = wp_unique_post_slug( $slug, 0, 'publish', 'isoft_fmf_file', 0 );
 		}
 	}
 
@@ -798,6 +808,9 @@ function isoft_fmf_features(): array {
 		'file_state',
 		'thumbnail_sizes',
 		'task_budget',
+		'create_category',
+		'draft_slug',
+		'set_download_count',
 	);
 
 	/**
@@ -838,6 +851,87 @@ function isoft_fmf_set_category_pending( int $term_id, bool $pending ): bool {
  */
 function isoft_fmf_category_is_pending( int $term_id ): bool {
 	return ISOFT_FMF_Category_Pending::is_pending( $term_id );
+}
+
+/**
+ * Create a category with its storage folder. PHP only, for importers and
+ * other code that already decided the caller may do this.
+ *
+ * A wrong access role is refused rather than dropped, because dropping it
+ * would leave a category meant to be restricted open to everyone.
+ *
+ * A slug that is already taken gets a suffix, as in the admin. Only a category
+ * with the same name in the same place is refused: `term_exists`, with the
+ * existing term ID as the error data.
+ *
+ * @param array{name:string, parent?:int, slug?:string, description?:string, access_role?:string, license_id?:int, pending?:bool} $args
+ * @return array{term_id:int, slug:string, path:string}|WP_Error
+ */
+function isoft_fmf_create_category( array $args ): array|WP_Error {
+	$name = sanitize_text_field( (string) ( $args['name'] ?? '' ) );
+	if ( '' === $name ) {
+		return new WP_Error( 'isoft_fmf_invalid_category', __( 'A category needs a name.', 'isoft-fm-foundation' ) );
+	}
+
+	$parent = (int) ( $args['parent'] ?? 0 );
+	if ( 0 !== $parent && ! get_term( $parent, 'isoft_fmf_category' ) instanceof WP_Term ) {
+		return new WP_Error( 'isoft_fmf_invalid_category', __( 'The parent category does not exist.', 'isoft-fm-foundation' ) );
+	}
+
+	$role = (string) ( $args['access_role'] ?? '' );
+	if ( ISOFT_FMF_Taxonomy::sanitize_cat_access_role( $role ) !== $role ) {
+		return new WP_Error( 'isoft_fmf_invalid_category', __( 'That access role does not exist.', 'isoft-fm-foundation' ) );
+	}
+
+	$license_id = (int) ( $args['license_id'] ?? 0 );
+	if ( 0 !== $license_id && ! ( new ISOFT_FMF_License_Service() )->get( $license_id ) ) {
+		return new WP_Error( 'isoft_fmf_invalid_category', __( 'That license does not exist.', 'isoft-fm-foundation' ) );
+	}
+
+	// wp_insert_term() expects slashed data.
+	$term_args = array(
+		'parent'      => $parent,
+		'description' => wp_slash( wp_kses_post( (string) ( $args['description'] ?? '' ) ) ),
+	);
+	if ( ! empty( $args['slug'] ) && is_string( $args['slug'] ) ) {
+		$term_args['slug'] = sanitize_title( isoft_fmf_cyrillic_to_latin( urldecode( $args['slug'] ) ) );
+	}
+
+	$created = wp_insert_term( wp_slash( $name ), 'isoft_fmf_category', $term_args );
+	if ( is_wp_error( $created ) ) {
+		return $created;
+	}
+
+	$term_id = (int) $created['term_id'];
+	if ( ! ISOFT_FMF_Category_Folders::ensure( $term_id ) ) {
+		wp_delete_term( $term_id, 'isoft_fmf_category' );
+		return new WP_Error( 'isoft_fmf_category_folder_failed', __( 'The folder for this category could not be created.', 'isoft-fm-foundation' ) );
+	}
+
+	if ( ! empty( $args['pending'] ) ) {
+		ISOFT_FMF_Category_Pending::set( $term_id, true );
+	}
+	if ( '' !== $role ) {
+		update_term_meta( $term_id, '_isoft_fmf_cat_access_role', $role );
+	}
+	if ( 0 !== $license_id ) {
+		update_term_meta( $term_id, '_isoft_fmf_cat_license_id', $license_id );
+	}
+
+	return array(
+		'term_id' => $term_id,
+		'slug'    => (string) get_term_field( 'slug', $term_id, 'isoft_fmf_category' ),
+		'path'    => isoft_fmf_category_folder_path( $term_id ),
+	);
+}
+
+/**
+ * Set a file's download counter to an absolute value and refresh its
+ * download's total. Writes no log rows, so carried-over counts do not show as
+ * downloads in the statistics, and a re-run changes nothing.
+ */
+function isoft_fmf_set_download_count( int $file_id, int $count ): bool {
+	return ( new ISOFT_FMF_File_Manager() )->set_count( $file_id, $count );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
