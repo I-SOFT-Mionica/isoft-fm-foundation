@@ -417,6 +417,9 @@ class ISOFT_FMF_File_Manager {
 		$result = $wpdb->delete( $this->table, array( 'id' => $file_id ), array( '%d' ) );
 		if ( false !== $result ) {
 			self::bust_cache_for( (int) $file->download_id, $file_id );
+			if ( ! empty( $file->is_missing ) ) {
+				delete_transient( 'isoft_fmf_missing_count' );
+			}
 			isoft_fmf_content_changed( 'download', (int) $file->download_id );
 		}
 		return false !== $result;

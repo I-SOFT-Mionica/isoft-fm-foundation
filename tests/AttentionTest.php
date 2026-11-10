@@ -120,6 +120,24 @@ class AttentionTest extends WP_UnitTestCase {
 		$this->assertSame( 1, ISOFT_FMF_Attention::menu_count() );
 	}
 
+	public function test_the_menu_count_drops_as_soon_as_a_missing_file_is_resolved(): void {
+		global $wpdb;
+		$download = $this->download();
+		$removed  = $this->file( $download );
+		$detached = $this->file( $download );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Test fixture.
+		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}isoft_fmf_files SET is_missing = 1 WHERE id IN (%d, %d)", $removed, $detached ) );
+		ISOFT_FMF_File_Manager::bust_cache_for( $download, $removed );
+		ISOFT_FMF_File_Manager::bust_cache_for( $download, $detached );
+		$this->assertSame( 2, ISOFT_FMF_Attention::menu_count() );
+
+		( new ISOFT_FMF_Files_Service() )->delete( $removed );
+		$this->assertSame( 1, ISOFT_FMF_Attention::menu_count(), 'removed in the Files box' );
+
+		( new ISOFT_FMF_Broken_Links_Service() )->detach( $detached );
+		$this->assertSame( 0, ISOFT_FMF_Attention::menu_count(), 'detached in Broken Links' );
+	}
+
 	public function test_an_unavailable_file_is_listed_but_not_counted_in_the_menu(): void {
 		$file = $this->file( $this->download() );
 		isoft_fmf_set_file_unavailable( $file, true );

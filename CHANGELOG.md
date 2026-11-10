@@ -15,6 +15,7 @@ All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads
 ### Changed
 
 - Tools > Statistics total size counts local files only.
+- The missing-file count (Needs attention, Tools, Broken Links) drops as soon as a missing file is removed in the Files box or resolved in Broken Links. `isoft_fmf_missing_count` was only cleared by the integrity check, so the number could stay for up to 5 minutes.
 - `isoft_fmf_create_draft_download()` recomputes the effective role after writing `access_role`. It was computed before the role was saved.
 - `tests/PublicApiContractTest.php` now exists, as `docs/PUBLIC-API.md` always said it did: every `isoft_fmf_` name in that document must exist in the code.
 

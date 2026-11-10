@@ -662,6 +662,7 @@ class ISOFT_FMF_Broken_Links_Service {
 			array( '%d' )
 		);
 		ISOFT_FMF_File_Manager::bust_cache_for( $download_id, $file_id );
+		delete_transient( 'isoft_fmf_missing_count' );
 		isoft_fmf_content_changed( 'download', $download_id );
 
 		$auto = get_post_meta( $download_id, '_isoft_fmf_auto_unpublished_at', true );
