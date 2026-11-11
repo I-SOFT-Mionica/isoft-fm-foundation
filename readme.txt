@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.1
 Requires PHP: 8.4
-Stable tag: 0.15.1
+Stable tag: 0.16.0
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -15,6 +15,14 @@ Document and download manager with real on-disk folder organization, per-departm
 **I-Soft File Manager: Foundation** is a modular download manager built for modern WordPress.
 
 Unlike standard media plugins that dump every upload into a single dated folder, Foundation is designed for municipalities, universities, libraries, and any team that needs to manage thousands of public documents, maintain a strict category tree, and give different departments their own secure upload spaces.
+
+= What's new in 0.16.0 =
+
+**One place for everything that is waiting on you.** The new **Needs attention** screen under Downloads gathers files missing from the server, categories waiting for approval, tasks that stopped early and files you marked unavailable, each with a link or a button to deal with it. The menu shows how many things are waiting, and the number goes away when there is nothing left. A task that stopped early can be dismissed once you have seen it; Site Health still keeps the full history.
+
+**Ready for importers and cloud storage.** Foundation can now hold files whose content lives in cloud storage and is delivered through a plugin you choose, behind the same access rules, password protection, download limits and counters as any other file. Importers can create categories with their access rules, keep each download's old web address and carry over its download counts. Nothing changes on your site until a plugin uses these.
+
+**Small fixes.** The missing-file number updates as soon as you remove or fix the file, instead of a few minutes later, and Tools > Statistics counts only the space used on your own server.
 
 = What's new in 0.15.1 =
 
@@ -346,6 +354,15 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 
 == Changelog ==
 
+= 0.16.0 =
+
+* **New:** the Needs attention screen under Downloads lists everything waiting on you in one place: missing files, categories waiting for approval, tasks that stopped early and unavailable files. Stopped tasks can be dismissed there.
+* **New:** files can be stored in the cloud and delivered through a plugin, with every access check, password and counter in place. Nothing changes until a plugin uses this.
+* **New:** importers can create categories, keep a download's old web address and set download counts.
+* **Changed:** for administrators, the waiting-items number moves from Tools to Needs attention.
+* **Changed:** Tools > Statistics total size counts only files stored on your server.
+* **Fixed:** the missing-file number stayed for a few minutes after the file was removed or fixed.
+
 = 0.15.1 =
 
 * **Fixed:** the proxy reminder stayed on screen after you had filled in Settings, until you dismissed it. It now ends once a visitor address source is chosen.
@@ -494,6 +511,9 @@ Existing data (downloads, categories, files, licenses, logs, per-user category p
 * **Inline metadata editing** directly from the file list.
 
 == Upgrade Notice ==
+
+= 0.16.0 =
+A new Needs attention screen gathers everything waiting on you, and Foundation is ready for cloud-stored files and importers. Updates one column of the files table; no data is changed.
 
 = 0.15.1 =
 The proxy reminder now goes away by itself once you choose where visitor addresses come from in Settings.

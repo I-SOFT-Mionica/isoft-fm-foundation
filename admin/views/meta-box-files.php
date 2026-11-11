@@ -144,7 +144,7 @@ defined( 'ABSPATH' ) || exit;
 					<?php echo esc_html( $file->title ?: $file->file_name ?: $file->external_url ); ?>
 				</td>
 				<td class="isoft-fmf-file-source">
-					<?php if ( 'local' === $file->file_type ) : ?>
+					<?php if ( 'external' !== $file->file_type ) : ?>
 						<?php echo esc_html( $file->file_name ); ?>
 					<?php else : ?>
 						<a href="<?php echo esc_url( $file->external_url ); ?>" target="_blank" rel="noopener noreferrer">
@@ -155,6 +155,8 @@ defined( 'ABSPATH' ) || exit;
 				<td>
 					<?php if ( 'local' === $file->file_type ) : ?>
 						<span class="isoft-fmf-badge isoft-fmf-badge--local"><?php echo esc_html( strtoupper( pathinfo( $file->file_name ?? '', PATHINFO_EXTENSION ) ) ); ?></span>
+					<?php elseif ( 'remote' === $file->file_type ) : ?>
+						<span class="isoft-fmf-badge isoft-fmf-badge--external"><?php esc_html_e( 'Cloud', 'isoft-fm-foundation' ); ?></span>
 					<?php elseif ( $file->is_mirror ) : ?>
 						<span class="isoft-fmf-badge isoft-fmf-badge--mirror"><?php esc_html_e( 'Mirror', 'isoft-fm-foundation' ); ?></span>
 					<?php else : ?>

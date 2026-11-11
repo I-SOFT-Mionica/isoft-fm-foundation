@@ -2,6 +2,23 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [0.16.0] — 2026-11-11
+
+### New
+
+- **Public API for importers.** `isoft_fmf_create_category()` (feature `create_category`) creates a category and its folder with its access role, license and pending state, and refuses an unknown role instead of leaving the category open. `isoft_fmf_create_draft_download()` takes an optional `slug` (feature `draft_slug`), made unique at creation because WordPress does not do that for drafts. `isoft_fmf_set_download_count()` (feature `set_download_count`) sets a file's counter absolutely and refreshes the download's total without writing log rows. All three do nothing until called.
+- **Needs attention screen.** New `ISOFT_FMF_Attention` and submenu under Downloads: missing files, categories waiting for approval, tasks that stopped early and files marked unavailable, in one place. Other plugins add lists with `isoft_fmf_register_attention_source()` (feature `attention_screen`), with paging, counts and actions. Item text is escaped as plain text, and a callback that throws cannot break the screen. The menu number shows open items and disappears at zero, and replaces the Tools number for people who can open the screen. Unavailable files are listed but not counted.
+- **Remote files.** New `file_type` `remote` (schema change to the `isoft_fmf_files` ENUM): the row holds no path or URL. `isoft_fmf_attach_remote_file()`, `isoft_fmf_update_remote_file()`, and the filter `isoft_fmf_resolve_remote_file`, which runs after every access check and answers with a redirect or a proxied stream (feature `remote_files`). No answer means the unavailable page. A range request past byte 0 is not counted. Remote files stay out of ZIP bundles, and blocked file types are refused by name. Does nothing until a plugin creates such a file.
+- **`isoft_fmf_user_can_write_category()`** is public.
+- **Stopped tasks can be dismissed** on that screen. Site Health keeps the full history (`ISOFT_FMF_Task_Budget::open_stops()`, `dismiss_stop()`).
+
+### Changed
+
+- Tools > Statistics total size counts local files only.
+- The missing-file count (Needs attention, Tools, Broken Links) drops as soon as a missing file is removed in the Files box or resolved in Broken Links. `isoft_fmf_missing_count` was only cleared by the integrity check, so the number could stay for up to 5 minutes.
+- `isoft_fmf_create_draft_download()` recomputes the effective role after writing `access_role`. It was computed before the role was saved.
+- `tests/PublicApiContractTest.php` now exists, as `docs/PUBLIC-API.md` always said it did: every `isoft_fmf_` name in that document must exist in the code.
+
 ## [0.15.1] — 2026-11-09
 
 ### Fixed

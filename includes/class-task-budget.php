@@ -178,6 +178,45 @@ final class ISOFT_FMF_Task_Budget {
 		return is_array( $stops ) ? $stops : array();
 	}
 
+	/**
+	 * Stops nobody has dismissed yet, newest first.
+	 *
+	 * @return array<int, array{task: string, reason: string, detail: string, time: int}>
+	 */
+	public static function open_stops(): array {
+		return array_values( array_filter( self::recent_stops(), static fn( array $stop ): bool => empty( $stop['dismissed'] ) ) );
+	}
+
+	/**
+	 * @param array<string, mixed> $stop A stop from recent_stops().
+	 */
+	public static function stop_id( array $stop ): string {
+		return md5( $stop['task'] . '|' . $stop['reason'] . '|' . $stop['detail'] . '|' . $stop['time'] );
+	}
+
+	/**
+	 * @param array<string, mixed> $stop A stop from recent_stops().
+	 */
+	public static function describe_stop( array $stop ): string {
+		return self::describe( (string) $stop['task'], (string) $stop['reason'] );
+	}
+
+	/**
+	 * Mark a stop as dealt with. It stays in the history Site Health shows,
+	 * which support reads. False when no open stop has this ID.
+	 */
+	public static function dismiss_stop( string $id ): bool {
+		$stops = self::recent_stops();
+		foreach ( $stops as $i => $stop ) {
+			if ( empty( $stop['dismissed'] ) && self::stop_id( $stop ) === $id ) {
+				$stops[ $i ]['dismissed'] = true;
+				update_option( self::STOPS_OPTION, $stops, false );
+				return true;
+			}
+		}
+		return false;
+	}
+
 	private static function message( string $task, string $reason, string $detail ): string {
 		$message = sprintf(
 			/* translators: %s: what happened, e.g. "PDF thumbnail stopped: it ran out of time" */

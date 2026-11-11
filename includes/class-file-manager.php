@@ -302,6 +302,57 @@ class ISOFT_FMF_File_Manager {
 	}
 
 	/**
+	 * Add a file whose content lives elsewhere. No path or URL is stored: the
+	 * plugin that owns it answers isoft_fmf_resolve_remote_file.
+	 *
+	 * @param array{title:string, file_name:string, file_size:int, file_mime:string} $data Already cleaned.
+	 */
+	public function add_remote_file( int $download_id, array $data ): int|false {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table write; cache invalidated below.
+		$result = $wpdb->insert(
+			$this->table,
+			array(
+				'download_id' => $download_id,
+				'file_type'   => 'remote',
+				'title'       => $data['title'],
+				'file_name'   => $data['file_name'],
+				'file_size'   => $data['file_size'],
+				'file_mime'   => $data['file_mime'],
+			),
+			array( '%d', '%s', '%s', '%s', '%d', '%s' )
+		);
+		if ( false === $result ) {
+			return false;
+		}
+
+		$file_id = (int) $wpdb->insert_id;
+		self::bust_cache_for( $download_id, $file_id );
+		do_action( 'isoft_fmf_file_uploaded', $file_id, $download_id );
+		isoft_fmf_content_changed( 'download', $download_id );
+		return $file_id;
+	}
+
+	/**
+	 * Update a remote file's name, title, size or type.
+	 *
+	 * @param array<string, string|int> $data Already cleaned; only these columns change.
+	 */
+	public function update_remote_file( object $file, array $data ): bool {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table write; cache invalidated below.
+		$result = $wpdb->update( $this->table, $data, array( 'id' => (int) $file->id ) );
+		if ( false === $result ) {
+			return false;
+		}
+		self::bust_cache_for( (int) $file->download_id, (int) $file->id );
+		isoft_fmf_content_changed( 'download', (int) $file->download_id );
+		return true;
+	}
+
+	/**
 	 * Update editable metadata on a file record (title + description).
 	 * Does not touch file_path, file_name, file_size, file_hash, or file_mime —
 	 * those are derived from the physical file and must not drift.
@@ -366,6 +417,9 @@ class ISOFT_FMF_File_Manager {
 		$result = $wpdb->delete( $this->table, array( 'id' => $file_id ), array( '%d' ) );
 		if ( false !== $result ) {
 			self::bust_cache_for( (int) $file->download_id, $file_id );
+			if ( ! empty( $file->is_missing ) ) {
+				delete_transient( 'isoft_fmf_missing_count' );
+			}
 			isoft_fmf_content_changed( 'download', (int) $file->download_id );
 		}
 		return false !== $result;
@@ -386,6 +440,37 @@ class ISOFT_FMF_File_Manager {
 			)
 		);
 
+		$this->refresh_total( $download_id, $file_id );
+	}
+
+	/**
+	 * Set a file's download counter to an absolute value. False for a negative
+	 * count or a file that does not exist.
+	 */
+	public function set_count( int $file_id, int $count ): bool {
+		global $wpdb;
+
+		$file = $count >= 0 ? $this->get_file( $file_id ) : null;
+		if ( ! $file ) {
+			return false;
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Counter write on custom table; cache invalidated below.
+		$updated = $wpdb->update( $this->table, array( 'download_count' => $count ), array( 'id' => $file_id ), array( '%d' ), array( '%d' ) );
+		if ( false === $updated ) {
+			return false;
+		}
+
+		$this->refresh_total( (int) $file->download_id, $file_id );
+		return true;
+	}
+
+	/**
+	 * Rewrite a download's cached total from its file rows.
+	 */
+	private function refresh_total( int $download_id, int $file_id ): void {
+		global $wpdb;
+
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Aggregate over custom table immediately after write; freshness required.
 		$total = (int) $wpdb->get_var(
 			$wpdb->prepare(
@@ -396,6 +481,33 @@ class ISOFT_FMF_File_Manager {
 		);
 		update_post_meta( $download_id, '_isoft_fmf_download_count', $total );
 		self::bust_cache_for( $download_id, $file_id );
+	}
+
+	/**
+	 * How many files are marked unavailable.
+	 */
+	public function count_unavailable(): int {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin list; freshness over cache.
+		return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE is_unavailable = 1', $this->table ) );
+	}
+
+	/**
+	 * One page of the files marked unavailable, newest first.
+	 *
+	 * @return object[] Columns: id, download_id, file_name, title (an external link has no file name).
+	 */
+	public function get_unavailable( int $page, int $per_page ): array {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin list; freshness over cache.
+		return (array) $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT id, download_id, file_name, title FROM %i WHERE is_unavailable = 1 ORDER BY id DESC LIMIT %d OFFSET %d',
+				$this->table,
+				$per_page,
+				( max( 1, $page ) - 1 ) * $per_page
+			)
+		);
 	}
 
 	/**

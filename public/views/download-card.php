@@ -49,7 +49,7 @@ $bundle_enabled   = $can_access
 	&& get_option( 'isoft_fmf_enable_zip_bundle', 0 )
 	&& class_exists( 'ZipArchive' );
 $bundleable_files = $bundle_enabled
-	? array_filter( $files, fn( $f ): bool => 'external' !== $f->file_type && empty( $f->is_missing ) && empty( $f->is_unavailable ) )
+	? array_filter( $files, fn( $f ): bool => 'local' === $f->file_type && empty( $f->is_missing ) && empty( $f->is_unavailable ) )
 	: array();
 $bundle_size      = (int) array_sum( array_column( $bundleable_files, 'file_size' ) );
 $show_bundle_btn  = $bundle_enabled

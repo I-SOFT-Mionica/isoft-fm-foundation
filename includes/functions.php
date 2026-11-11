@@ -20,7 +20,7 @@ function isoft_fmf_register_extension( array $args ): bool {
 /**
  * Create a draft download entry. Used by Sentinel and Orbit importers.
  *
- * @param array{title:string, description?:string, category_id?:int, access_role?:string, license_id?:int} $args
+ * @param array{title:string, description?:string, category_id?:int, access_role?:string, license_id?:int, post_date?:string, slug?:string} $args
  * @return int|false  New post ID, or false on failure.
  */
 function isoft_fmf_create_draft_download( array $args ): int|false {
@@ -46,6 +46,16 @@ function isoft_fmf_create_draft_download( array $args ): int|false {
 		}
 	}
 
+	// Optional slug. WordPress does not make a draft's slug unique until it is
+	// published through wp_update_post(), and wp_publish_post() never does, so
+	// it is made unique here: the slug read back after this call is final.
+	if ( ! empty( $args['slug'] ) && is_string( $args['slug'] ) ) {
+		$slug = sanitize_title( isoft_fmf_cyrillic_to_latin( urldecode( $args['slug'] ) ) );
+		if ( '' !== $slug ) {
+			$postarr['post_name'] = wp_unique_post_slug( $slug, 0, 'publish', 'isoft_fmf_file', 0 );
+		}
+	}
+
 	$post_id = wp_insert_post( $postarr );
 
 	if ( is_wp_error( $post_id ) ) {
@@ -57,6 +67,8 @@ function isoft_fmf_create_draft_download( array $args ): int|false {
 	}
 	if ( ! empty( $args['access_role'] ) ) {
 		update_post_meta( $post_id, '_isoft_fmf_access_role', sanitize_text_field( $args['access_role'] ) );
+		// The cached role was worked out before this was written.
+		( new ISOFT_FMF_Access_Control() )->recompute_effective_role( $post_id );
 	}
 	if ( ! empty( $args['license_id'] ) ) {
 		update_post_meta( $post_id, '_isoft_fmf_license_id', absint( $args['license_id'] ) );
@@ -508,6 +520,34 @@ function isoft_fmf_attach_file( int $download_id, string $source_abs, array $arg
 }
 
 /**
+ * Register a file whose content lives elsewhere. PHP only. No path or URL is
+ * stored; the plugin that owns the file answers the
+ * isoft_fmf_resolve_remote_file filter when someone downloads it.
+ *
+ * @param array{file_name:string, title?:string, file_size?:int, file_mime?:string} $args
+ */
+function isoft_fmf_attach_remote_file( int $download_id, array $args ): int|WP_Error {
+	return ( new ISOFT_FMF_Files_Service() )->attach_remote( $download_id, $args );
+}
+
+/**
+ * Change a remote file's name, title, size or type. Only the keys passed change.
+ *
+ * @param array{file_name?:string, title?:string, file_size?:int, file_mime?:string} $args
+ * @return true|WP_Error
+ */
+function isoft_fmf_update_remote_file( int $file_id, array $args ) {
+	return ( new ISOFT_FMF_Files_Service() )->update_remote( $file_id, $args );
+}
+
+/**
+ * Whether a user may add content to a category, by the per-user category rules.
+ */
+function isoft_fmf_user_can_write_category( int $user_id, int $term_id ): bool {
+	return ISOFT_FMF_Category_ACL::can_write_category( $user_id, $term_id );
+}
+
+/**
  * Local file rows in ID order, for extensions that sweep storage in batches.
  * Keep your own cursor (the last ID you saw).
  *
@@ -798,6 +838,11 @@ function isoft_fmf_features(): array {
 		'file_state',
 		'thumbnail_sizes',
 		'task_budget',
+		'create_category',
+		'draft_slug',
+		'set_download_count',
+		'attention_screen',
+		'remote_files',
 	);
 
 	/**
@@ -838,6 +883,105 @@ function isoft_fmf_set_category_pending( int $term_id, bool $pending ): bool {
  */
 function isoft_fmf_category_is_pending( int $term_id ): bool {
 	return ISOFT_FMF_Category_Pending::is_pending( $term_id );
+}
+
+/**
+ * Create a category with its storage folder. PHP only, for importers and
+ * other code that already decided the caller may do this.
+ *
+ * A wrong access role is refused rather than dropped, because dropping it
+ * would leave a category meant to be restricted open to everyone.
+ *
+ * A slug that is already taken gets a suffix, as in the admin. Only a category
+ * with the same name in the same place is refused: `term_exists`, with the
+ * existing term ID as the error data.
+ *
+ * @param array{name:string, parent?:int, slug?:string, description?:string, access_role?:string, license_id?:int, pending?:bool} $args
+ * @return array{term_id:int, slug:string, path:string}|WP_Error
+ */
+function isoft_fmf_create_category( array $args ): array|WP_Error {
+	$name = sanitize_text_field( (string) ( $args['name'] ?? '' ) );
+	if ( '' === $name ) {
+		return new WP_Error( 'isoft_fmf_invalid_category', __( 'A category needs a name.', 'isoft-fm-foundation' ) );
+	}
+
+	$parent = (int) ( $args['parent'] ?? 0 );
+	if ( 0 !== $parent && ! get_term( $parent, 'isoft_fmf_category' ) instanceof WP_Term ) {
+		return new WP_Error( 'isoft_fmf_invalid_category', __( 'The parent category does not exist.', 'isoft-fm-foundation' ) );
+	}
+
+	$role = (string) ( $args['access_role'] ?? '' );
+	if ( ISOFT_FMF_Taxonomy::sanitize_cat_access_role( $role ) !== $role ) {
+		return new WP_Error( 'isoft_fmf_invalid_category', __( 'That access role does not exist.', 'isoft-fm-foundation' ) );
+	}
+
+	$license_id = (int) ( $args['license_id'] ?? 0 );
+	if ( 0 !== $license_id && ! ( new ISOFT_FMF_License_Service() )->get( $license_id ) ) {
+		return new WP_Error( 'isoft_fmf_invalid_category', __( 'That license does not exist.', 'isoft-fm-foundation' ) );
+	}
+
+	// wp_insert_term() expects slashed data.
+	$term_args = array(
+		'parent'      => $parent,
+		'description' => wp_slash( wp_kses_post( (string) ( $args['description'] ?? '' ) ) ),
+	);
+	if ( ! empty( $args['slug'] ) && is_string( $args['slug'] ) ) {
+		$term_args['slug'] = sanitize_title( isoft_fmf_cyrillic_to_latin( urldecode( $args['slug'] ) ) );
+	}
+
+	$created = wp_insert_term( wp_slash( $name ), 'isoft_fmf_category', $term_args );
+	if ( is_wp_error( $created ) ) {
+		return $created;
+	}
+
+	$term_id = (int) $created['term_id'];
+	if ( ! ISOFT_FMF_Category_Folders::ensure( $term_id ) ) {
+		wp_delete_term( $term_id, 'isoft_fmf_category' );
+		return new WP_Error( 'isoft_fmf_category_folder_failed', __( 'The folder for this category could not be created.', 'isoft-fm-foundation' ) );
+	}
+
+	if ( ! empty( $args['pending'] ) ) {
+		ISOFT_FMF_Category_Pending::set( $term_id, true );
+	}
+	if ( '' !== $role ) {
+		update_term_meta( $term_id, '_isoft_fmf_cat_access_role', $role );
+	}
+	if ( 0 !== $license_id ) {
+		update_term_meta( $term_id, '_isoft_fmf_cat_license_id', $license_id );
+	}
+
+	return array(
+		'term_id' => $term_id,
+		'slug'    => (string) get_term_field( 'slug', $term_id, 'isoft_fmf_category' ),
+		'path'    => isoft_fmf_category_folder_path( $term_id ),
+	);
+}
+
+/**
+ * Set a file's download counter to an absolute value and refresh its
+ * download's total. Writes no log rows, so carried-over counts do not show as
+ * downloads in the statistics, and a re-run changes nothing.
+ */
+function isoft_fmf_set_download_count( int $file_id, int $count ): bool {
+	return ( new ISOFT_FMF_File_Manager() )->set_count( $file_id, $count );
+}
+
+/**
+ * Add a list to the Needs attention screen. Call inside the
+ * `isoft_fmf_extensions_init` action. See docs/PUBLIC-API.md.
+ *
+ * @param string               $id   Unique lowercase key.
+ * @param array<string, mixed> $args label, count, items; optional handle_action, capability, in_menu_count.
+ */
+function isoft_fmf_register_attention_source( string $id, array $args ): bool {
+	return ISOFT_FMF_Attention::register_source( $id, $args );
+}
+
+/**
+ * URL of the Needs attention screen, optionally on one list.
+ */
+function isoft_fmf_attention_url( string $source = '' ): string {
+	return ISOFT_FMF_Attention::url( $source );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1141,7 +1285,7 @@ function isoft_fmf_get_stats_overview(): array {
 			"SELECT COUNT(*) FROM {$wpdb->prefix}isoft_fmf_files"
 		),
 		'total_size_bytes'  => (int) $wpdb->get_var(
-			"SELECT COALESCE(SUM(file_size),0) FROM {$wpdb->prefix}isoft_fmf_files"
+			"SELECT COALESCE(SUM(file_size),0) FROM {$wpdb->prefix}isoft_fmf_files WHERE file_type = 'local'"
 		),
 		'total_log_entries' => (int) $wpdb->get_var(
 			"SELECT COUNT(*) FROM {$wpdb->prefix}isoft_fmf_download_log"
@@ -1344,7 +1488,7 @@ function isoft_fmf_bundle_limit_note( array $files ): string {
 	$local = array_filter(
 		$files,
 		static function ( $f ): bool {
-			return 'external' !== ( $f->file_type ?? '' ) && empty( $f->is_missing ) && empty( $f->is_unavailable );
+			return 'local' === ( $f->file_type ?? 'local' ) && empty( $f->is_missing ) && empty( $f->is_unavailable );
 		}
 	);
 	$count = count( $local );

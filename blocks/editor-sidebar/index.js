@@ -329,7 +329,8 @@ const FilesPanel = () => {
 		const total     = list.length;
 		const localList = list.filter( ( f ) => 'local' === f.file_type );
 		const localCnt  = localList.length;
-		const extCnt    = total - localCnt;
+		const extCnt    = list.filter( ( f ) => 'external' === f.file_type ).length;
+		const cloudCnt  = list.filter( ( f ) => 'remote' === f.file_type ).length;
 		const sizeSum   = localList.reduce(
 			( sum, f ) => sum + ( parseInt( f.file_size, 10 ) || 0 ),
 			0
@@ -367,6 +368,13 @@ const FilesPanel = () => {
 							/* translators: %d: external link count */
 							_n( '%d external', '%d external', extCnt, 'isoft-fm-foundation' ),
 							extCnt
+						) }
+					{ ( localCnt > 0 || extCnt > 0 ) && cloudCnt > 0 && ' · ' }
+					{ cloudCnt > 0 &&
+						sprintf(
+							/* translators: %d: count of files stored in the cloud */
+							_n( '%d in the cloud', '%d in the cloud', cloudCnt, 'isoft-fm-foundation' ),
+							cloudCnt
 						) }
 				</p>
 				{ localCnt > 0 && (

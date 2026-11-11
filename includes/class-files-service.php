@@ -61,6 +61,99 @@ class ISOFT_FMF_Files_Service {
 	}
 
 	/**
+	 * Register a file whose content lives elsewhere.
+	 *
+	 * @param array{file_name:string, title?:string, file_size?:int, file_mime?:string} $args
+	 */
+	public function attach_remote( int $download_id, array $args ): int|WP_Error {
+		if ( 'isoft_fmf_file' !== get_post_type( $download_id ) ) {
+			return new WP_Error( 'isoft_fmf_invalid_download', __( 'That download does not exist.', 'isoft-fm-foundation' ) );
+		}
+		$name = $this->remote_name( $args['file_name'] ?? '' );
+		if ( is_wp_error( $name ) ) {
+			return $name;
+		}
+
+		$title   = sanitize_text_field( (string) ( $args['title'] ?? '' ) );
+		$file_id = $this->files->add_remote_file(
+			$download_id,
+			array(
+				'title'     => '' !== $title ? $title : isoft_fmf_autofill_title( pathinfo( $name, PATHINFO_FILENAME ) ),
+				'file_name' => $name,
+				'file_size' => absint( $args['file_size'] ?? 0 ),
+				'file_mime' => sanitize_mime_type( (string) ( $args['file_mime'] ?? '' ) ),
+			)
+		);
+		return false === $file_id
+			? new WP_Error( 'isoft_fmf_db_error', __( 'Database error.', 'isoft-fm-foundation' ) )
+			: $file_id;
+	}
+
+	/**
+	 * Change a remote file's name, title, size or type. Only the keys passed change.
+	 *
+	 * @param array{file_name?:string, title?:string, file_size?:int, file_mime?:string} $args
+	 * @return true|WP_Error
+	 */
+	public function update_remote( int $file_id, array $args ) {
+		$file = $this->files->get_file( $file_id );
+		if ( ! $file || 'remote' !== $file->file_type ) {
+			return new WP_Error( 'isoft_fmf_not_remote', __( 'That is not a remote file.', 'isoft-fm-foundation' ) );
+		}
+
+		$data = array();
+		if ( array_key_exists( 'file_name', $args ) ) {
+			$name = $this->remote_name( $args['file_name'] );
+			if ( is_wp_error( $name ) ) {
+				return $name;
+			}
+			$data['file_name'] = $name;
+		}
+		if ( array_key_exists( 'title', $args ) ) {
+			$data['title'] = sanitize_text_field( (string) $args['title'] );
+		}
+		if ( array_key_exists( 'file_size', $args ) ) {
+			$data['file_size'] = absint( $args['file_size'] );
+		}
+		if ( array_key_exists( 'file_mime', $args ) ) {
+			$data['file_mime'] = sanitize_mime_type( (string) $args['file_mime'] );
+		}
+
+		if ( ! $data ) {
+			return true;
+		}
+		return $this->files->update_remote_file( $file, $data )
+			? true
+			: new WP_Error( 'isoft_fmf_db_error', __( 'Database error.', 'isoft-fm-foundation' ) );
+	}
+
+	/**
+	 * Clean a name that came from outside and refuse a type a server could
+	 * run. Remote files have no local copy for the pre-attach check to read.
+	 *
+	 * @param mixed $name Name as supplied.
+	 * @return string|WP_Error
+	 */
+	private function remote_name( $name ) {
+		$clean = is_string( $name ) ? sanitize_file_name( $name ) : '';
+		if ( '' === $clean ) {
+			return new WP_Error( 'isoft_fmf_invalid_file_name', __( 'A remote file needs a name.', 'isoft-fm-foundation' ) );
+		}
+		$ext = strtolower( pathinfo( $clean, PATHINFO_EXTENSION ) );
+		if ( in_array( $ext, isoft_fmf_blocked_extensions(), true ) ) {
+			return new WP_Error(
+				'isoft_fmf_blocked_file_type',
+				sprintf(
+					/* translators: %s: extension */
+					__( 'File type ".%s" can never be uploaded: a web server could run it.', 'isoft-fm-foundation' ),
+					$ext
+				)
+			);
+		}
+		return $clean;
+	}
+
+	/**
 	 * Remove a deleted file's content from storage. Only a local file inside
 	 * storage, only a regular file, and never one another row still uses.
 	 */

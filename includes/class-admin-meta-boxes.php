@@ -90,6 +90,7 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 					'remove'        => __( 'Remove', 'isoft-fm-foundation' ),
 					'mirror'        => __( 'Mirror', 'isoft-fm-foundation' ),
 					'external'      => __( 'External', 'isoft-fm-foundation' ),
+					'cloud'         => __( 'Cloud', 'isoft-fm-foundation' ),
 					'noFiles'       => __( 'No files attached yet.', 'isoft-fm-foundation' ),
 					'title'         => __( 'Title', 'isoft-fm-foundation' ),
 					'description'   => __( 'Description', 'isoft-fm-foundation' ),
