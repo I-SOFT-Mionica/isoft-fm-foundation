@@ -93,11 +93,17 @@ For releases: after the merge, `cd .. && python build.py` writes the new zip.
 
 Manual trigger via **Actions → Deploy to WordPress.org → Run workflow**:
 
-- Branch: `main` (always)
-- Version: the released version (must match all three version locations)
+- Branch: `main` (any other branch is skipped)
+- Version: the released version, `X.Y.Z` only (must match all three version locations)
 - Dry run: check it the first time you test the pipeline; leave unchecked for real deploys
 
-The workflow uses `10up/action-wordpress-plugin-deploy@stable`, which:
+CLI: `gh workflow run deploy-to-wporg.yml --ref main -f version=X.Y.Z -f dry_run=false`.
+
+Two jobs. `build` runs npm and the version check, with no secrets. `deploy` runs in the `wordpress-org` environment: it **waits for the owner's approval** (Actions run page, "Review deployments", or `gh api` on the run's pending deployments), then restores `blocks/build/` from the build job's artifact and pushes. A run that seems stuck is usually waiting for that approval.
+
+Every `uses:` in every workflow is pinned to a full commit SHA with the version in a comment; never add a tag or branch reference. Dependabot (`.github/dependabot.yml`) proposes updates monthly. Every workflow declares `permissions: contents: read` and checks out with `persist-credentials: false`.
+
+The deploy step uses `10up/action-wordpress-plugin-deploy` (pinned), which:
 
 1. Stages the repo into SVN `trunk/` (respects `.distignore`)
 2. `svn copy trunk tags/X.Y.Z`
@@ -106,7 +112,7 @@ The workflow uses `10up/action-wordpress-plugin-deploy@stable`, which:
 
 WordPress.org's crawler picks new versions up within ~15 minutes. **The `Stable tag` line in `readme.txt` decides which SVN tag WP.org actually serves** — bumping the plugin header alone is not enough. The workflow's pre-flight rejects mismatched versions before any SVN operation.
 
-Secrets required in repo settings (one-time):
+Secrets required in the `wordpress-org` environment, not the repository (one-time):
 
 - `SVN_USERNAME` — wp.org login (case-sensitive)
 - `SVN_PASSWORD` — application password from <https://profiles.wordpress.org/me/profile/edit/group/3/?screen=svn-password> (not the wp.org login password)
