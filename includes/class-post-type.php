@@ -10,6 +10,15 @@ class ISOFT_FMF_Post_Type {
 		add_filter( 'wp_insert_post_data', array( $this, 'latinize_slug' ), 10, 2 );
 		add_action( 'before_delete_post', array( $this, 'cleanup_stats_on_delete' ), 10, 2 );
 		add_action( 'before_delete_post', array( $this, 'delete_files_on_delete' ), 10, 2 );
+		// Tools > Statistics is cached for 5 minutes; any change to what it
+		// counts drops the cache, so the numbers (and Refresh) are current.
+		add_action( 'isoft_fmf_content_changed', array( self::class, 'forget_stats' ) );
+		add_action( 'save_post_isoft_fmf_file', array( self::class, 'forget_stats' ) );
+		add_action( 'deleted_post', array( self::class, 'forget_stats' ) );
+	}
+
+	public static function forget_stats(): void {
+		delete_transient( 'isoft_fmf_stats_overview' );
 	}
 
 	/**
