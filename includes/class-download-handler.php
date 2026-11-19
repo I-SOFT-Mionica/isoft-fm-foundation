@@ -176,6 +176,44 @@ class ISOFT_FMF_Download_Handler {
 		return '' === $range || 1 === preg_match( '/^\s*bytes\s*=\s*0+\s*-/i', $range );
 	}
 
+	/**
+	 * One byte range from a Range header, for a file of $size bytes.
+	 *
+	 * @return array{0:int, 1:int}|null|false Start and end (inclusive); null to
+	 *                                         send the whole file (no header,
+	 *                                         several ranges, or a malformed
+	 *                                         one); false when the range starts
+	 *                                         past the end (416).
+	 */
+	public static function parse_range( string $header, int $size ): array|null|false {
+		if ( $size <= 0 || 1 !== preg_match( '/^\s*bytes\s*=\s*(\d{0,18})\s*-\s*(\d{0,18})\s*$/i', $header, $m ) ) {
+			return null;
+		}
+		if ( '' === $m[1] ) {
+			if ( '' === $m[2] ) {
+				return null;
+			}
+			$suffix = (int) $m[2];
+			return 0 === $suffix ? false : array( max( 0, $size - $suffix ), $size - 1 );
+		}
+		$start = (int) $m[1];
+		if ( $start >= $size ) {
+			return false;
+		}
+		$end = ( '' === $m[2] || (int) $m[2] >= $size ) ? $size - 1 : (int) $m[2];
+		return $end < $start ? null : array( $start, $end );
+	}
+
+	/**
+	 * Whether a resumed request may get a part of the file. A client sends
+	 * If-Range with the Last-Modified it saw: if the file has changed since,
+	 * it gets the whole new file, not a part spliced onto the old one.
+	 */
+	private function if_range_allows( string $last_modified ): bool {
+		$if_range = isset( $_SERVER['HTTP_IF_RANGE'] ) ? trim( sanitize_text_field( wp_unslash( $_SERVER['HTTP_IF_RANGE'] ) ) ) : '';
+		return '' === $if_range || $if_range === $last_modified;
+	}
+
 	private function record_remote( object $file, string $range ): void {
 		if ( self::range_counts( $range ) ) {
 			$log_id = isoft_fmf_record_download( (int) $file->id );
@@ -251,26 +289,48 @@ class ISOFT_FMF_Download_Handler {
 			// render_unavailable_page() exits.
 		}
 
-		$log_id = isoft_fmf_record_download( (int) $file->id );
-		do_action( 'isoft_fmf_after_download', $log_id );
+		$method        = $this->resolve_serve_method();
+		$size          = (int) filesize( $file_path );
+		$last_modified = gmdate( 'D, d M Y H:i:s', (int) filemtime( $file_path ) ) . ' GMT';
+		$range_header  = isset( $_SERVER['HTTP_RANGE'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_RANGE'] ) ) : '';
+
+		// PHP serves one byte range itself, so a broken download of a large
+		// file resumes. X-Sendfile and X-Accel-Redirect leave ranges to the
+		// web server, which handles them.
+		$range = null;
+		if ( 'php' === $method && '' !== $range_header && $this->if_range_allows( $last_modified ) ) {
+			$range = self::parse_range( $range_header, $size );
+			if ( false === $range ) {
+				$this->send_status( 416 );
+				$this->send_headers( array( 'Content-Range' => "bytes */{$size}" ) );
+				$this->finish();
+				return;
+			}
+		}
+
+		// A resumed or segmented request is not a new download.
+		$counts = 'php' === $method ? ( null === $range || 0 === $range[0] ) : self::range_counts( $range_header );
+		if ( $counts ) {
+			$log_id = isoft_fmf_record_download( (int) $file->id );
+			do_action( 'isoft_fmf_after_download', $log_id );
+		}
 
 		$mime      = $file->file_mime ?: 'application/octet-stream';
 		$file_name = $file->file_name ?: basename( $file_path );
 
-		$headers = apply_filters(
-			'isoft_fmf_download_headers',
-			array(
-				'Content-Type'           => $mime,
-				'Content-Disposition'    => isoft_fmf_content_disposition( $file_name ),
-				'Content-Length'         => (string) filesize( $file_path ),
-				'X-Content-Type-Options' => 'nosniff',
-				'Cache-Control'          => 'no-store, no-cache, must-revalidate',
-				'Pragma'                 => 'no-cache',
-			),
-			$file
+		$base = array(
+			'Content-Type'           => $mime,
+			'Content-Disposition'    => isoft_fmf_content_disposition( $file_name ),
+			'Content-Length'         => (string) $size,
+			'X-Content-Type-Options' => 'nosniff',
+			'Cache-Control'          => 'no-store, no-cache, must-revalidate',
+			'Pragma'                 => 'no-cache',
 		);
-
-		$method = $this->resolve_serve_method();
+		if ( 'php' === $method ) {
+			$base['Accept-Ranges'] = 'bytes';
+			$base['Last-Modified'] = $last_modified;
+		}
+		$headers = apply_filters( 'isoft_fmf_download_headers', $base, $file );
 
 		// Tier 1a — Apache X-Sendfile. Reaches here only when admin explicitly
 		// selected 'xsendfile'; auto-mode never picks this until the planned
@@ -292,7 +352,7 @@ class ISOFT_FMF_Download_Handler {
 		}
 
 		// Tier 2 — PHP streaming (works everywhere).
-		$this->php_stream( $file_path, $headers );
+		$this->php_stream( $file_path, $headers, $range, $size );
 	}
 
 	/**
@@ -313,7 +373,10 @@ class ISOFT_FMF_Download_Handler {
 		return 'auto' === $setting ? 'php' : $setting;
 	}
 
-	private function php_stream( string $path, array $headers ): void {
+	/**
+	 * @param array{0:int, 1:int}|null $range One byte range, or null for the whole file.
+	 */
+	private function php_stream( string $path, array $headers, ?array $range, int $size ): void {
 		$this->prepare_stream();
 
 		// Force identity transfer-encoding so server-level gzip (Apache
@@ -321,32 +384,47 @@ class ISOFT_FMF_Download_Handler {
 		// Most servers respect Content-Encoding set by upstream.
 		$headers['Content-Encoding'] = 'identity';
 
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Streaming binary download; WP_Filesystem returns strings, not chunks.
+		$handle = fopen( $path, 'rb' );
+		if ( $handle && null !== $range && 0 !== fseek( $handle, $range[0] ) ) {
+			$range = null; // Cannot seek: send the whole file instead.
+			rewind( $handle );
+		}
+
+		if ( $handle && null !== $range ) {
+			$headers['Content-Range']  = "bytes {$range[0]}-{$range[1]}/{$size}";
+			$headers['Content-Length'] = (string) ( $range[1] - $range[0] + 1 );
+			$this->send_status( 206 );
+		}
 		$this->send_headers( $headers );
+
+		if ( ! $handle ) {
+			// Fallback: try readfile if fopen failed for whatever reason. The
+			// headers above describe the whole file.
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile -- Last-resort fallback when fopen() returned false.
+			readfile( $path );
+			$this->finish();
+			return;
+		}
 
 		// Chunked stream with explicit flush so bytes hit the client as they
 		// come off disk instead of being held by FPM / nginx fastcgi buffer
 		// until the script exits.
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Streaming binary download; WP_Filesystem returns strings, not chunks.
-		$handle = fopen( $path, 'rb' );
-		if ( ! $handle ) {
-			// Fallback: try readfile if fopen failed for whatever reason.
-			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile -- Last-resort fallback when fopen() returned false.
-			readfile( $path );
-			exit;
-		}
-		while ( ! feof( $handle ) ) {
-			$chunk = fread( $handle, 8192 ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fread -- Streaming raw binary file content.
+		$left = null === $range ? PHP_INT_MAX : $range[1] - $range[0] + 1;
+		while ( $left > 0 && ! feof( $handle ) ) {
+			$chunk = fread( $handle, (int) min( 8192, $left ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fread -- Streaming raw binary file content.
 			// fread returns false on read error and '' at EOF; feof() only flips
 			// true AFTER an unsuccessful read, so we'd spin forever on either
 			// failure mode without an explicit break. Guard against both.
 			if ( false === $chunk || '' === $chunk ) {
 				break;
 			}
+			$left -= strlen( $chunk );
 			echo $chunk; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Binary file content; escaping would corrupt the download.
 			flush();
 		}
 		fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Closing the fopen handle from above; matched pair.
-		exit;
+		$this->finish();
 	}
 
 	protected function prepare_stream(): void {

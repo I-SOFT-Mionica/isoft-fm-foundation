@@ -3,12 +3,40 @@ defined( 'ABSPATH' ) || exit;
 
 class ISOFT_FMF_Taxonomy {
 
+	/** The most characters WordPress can store in a term name (`wp_terms.name`). */
+	public const NAME_MAX = 200;
+
 	public function register_hooks(): void {
 		add_action( 'init', array( $this, 'register' ) );
+		add_filter( 'pre_insert_term', array( $this, 'refuse_long_name' ), 10, 2 );
 		add_action( 'isoft_fmf_category_add_form_fields', array( $this, 'add_term_fields' ) );
 		add_action( 'isoft_fmf_category_edit_form_fields', array( $this, 'edit_term_fields' ) );
 		add_action( 'created_isoft_fmf_category', array( $this, 'save_term_fields' ) );
 		add_action( 'edited_isoft_fmf_category', array( $this, 'save_term_fields' ) );
+	}
+
+	/**
+	 * Refuse a category name the database cannot hold, with a message that
+	 * says so, instead of WordPress's "Could not insert term into the
+	 * database." Measured after WordPress's own name sanitizing, as stored.
+	 *
+	 * @param string|WP_Error $term     The name, slashed.
+	 * @param string          $taxonomy Taxonomy.
+	 * @return string|WP_Error
+	 */
+	public function refuse_long_name( $term, $taxonomy ) {
+		if ( 'isoft_fmf_category' !== $taxonomy || ! is_string( $term ) ) {
+			return $term;
+		}
+		$stored = wp_unslash( (string) sanitize_term_field( 'name', $term, 0, $taxonomy, 'db' ) );
+		if ( mb_strlen( $stored ) > self::NAME_MAX ) {
+			return new WP_Error(
+				'isoft_fmf_invalid_category',
+				/* translators: %d: the most characters a category name can have. */
+				sprintf( __( 'A category name can have at most %d characters.', 'isoft-fm-foundation' ), self::NAME_MAX )
+			);
+		}
+		return $term;
 	}
 
 	public function register(): void {

@@ -2,6 +2,19 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [Unreleased] (0.17.0)
+
+### New
+
+- **Licenses and external links for importers.** `isoft_fmf_find_license()` and `isoft_fmf_create_license()` (feature `license_api`): find by slug, title or address, create without ever becoming the default, and a taken slug returns the existing ID. `isoft_fmf_add_external_link()` (feature `external_link`) adds a link row to a download; only http and https addresses with a host.
+- **Resumable downloads.** With the PHP serve method, a single `Range` request gets `206 Partial Content` (feature `range_requests`). Whole downloads send `Accept-Ranges: bytes` and `Last-Modified`; `If-Range` with any other date gets the whole file, so a changed file is never spliced. Several ranges or a malformed header get the whole file; a range past the end gets 416. X-Sendfile and X-Accel-Redirect leave ranges to the web server, as before.
+
+### Changed
+
+- A local download is counted only when it starts at the first byte, as remote files already were. A resumed or segmented request (`Range` past byte 0) was counted as a new download every time.
+- Category names longer than 200 characters as stored are refused with `isoft_fmf_invalid_category` and a message giving the limit, on every path (`pre_insert_term`), instead of WordPress's "Could not insert term into the database."
+- `docs/PUBLIC-API.md`: a Needs attention source's `count` must be the total its `items` can return.
+
 ## [0.16.0] — 2026-11-11
 
 ### New

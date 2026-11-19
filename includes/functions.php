@@ -843,6 +843,9 @@ function isoft_fmf_features(): array {
 		'set_download_count',
 		'attention_screen',
 		'remote_files',
+		'license_api',
+		'external_link',
+		'range_requests',
 	);
 
 	/**
@@ -955,6 +958,111 @@ function isoft_fmf_create_category( array $args ): array|WP_Error {
 		'slug'    => (string) get_term_field( 'slug', $term_id, 'isoft_fmf_category' ),
 		'path'    => isoft_fmf_category_folder_path( $term_id ),
 	);
+}
+
+/**
+ * Find a license by `slug`, `title` or `url`. Returns its ID, or 0. Every key
+ * given must match. Titles match without regard to case; addresses match
+ * without a trailing slash.
+ *
+ * @param array{slug?:string, title?:string, url?:string} $by
+ */
+function isoft_fmf_find_license( array $by ): int {
+	$slug  = isset( $by['slug'] ) ? sanitize_title( (string) $by['slug'] ) : null;
+	$title = isset( $by['title'] ) ? mb_strtolower( sanitize_text_field( (string) $by['title'] ) ) : null;
+	$url   = isset( $by['url'] ) ? untrailingslashit( esc_url_raw( (string) $by['url'] ) ) : null;
+	if ( ( null === $slug || '' === $slug ) && ( null === $title || '' === $title ) && ( null === $url || '' === $url ) ) {
+		return 0;
+	}
+
+	foreach ( ( new ISOFT_FMF_License_Service() )->list() as $license ) {
+		if ( null !== $slug && (string) $license->slug !== $slug ) {
+			continue;
+		}
+		if ( null !== $title && mb_strtolower( (string) $license->title ) !== $title ) {
+			continue;
+		}
+		if ( null !== $url && untrailingslashit( (string) $license->url ) !== $url ) {
+			continue;
+		}
+		return (int) $license->id;
+	}
+	return 0;
+}
+
+/**
+ * Create a license: `title` (required), optional `slug`, `url`, `description`,
+ * `full_text`. It never becomes the site's default license. A slug that is
+ * taken is refused with `isoft_fmf_license_exists` and the existing ID as the
+ * error data, so a re-run can reuse it.
+ *
+ * @param array{title:string, slug?:string, url?:string, description?:string, full_text?:string} $args
+ */
+function isoft_fmf_create_license( array $args ): int|WP_Error {
+	$title = sanitize_text_field( (string) ( $args['title'] ?? '' ) );
+	if ( '' === $title ) {
+		return new WP_Error( 'isoft_fmf_invalid_license', __( 'A license needs a title.', 'isoft-fm-foundation' ) );
+	}
+	$slug = sanitize_title( (string) ( $args['slug'] ?? '' ) );
+	if ( '' === $slug ) {
+		$slug = sanitize_title( $title );
+	}
+	$service  = new ISOFT_FMF_License_Service();
+	$existing = $service->get_by_slug( $slug );
+	if ( $existing ) {
+		return new WP_Error( 'isoft_fmf_license_exists', __( 'A license with that slug already exists.', 'isoft-fm-foundation' ), (int) $existing->id );
+	}
+
+	// The service unslashes its input.
+	$id = $service->create(
+		wp_slash(
+			array(
+				'title'       => $title,
+				'slug'        => $slug,
+				'url'         => (string) ( $args['url'] ?? '' ),
+				'description' => (string) ( $args['description'] ?? '' ),
+				'full_text'   => (string) ( $args['full_text'] ?? '' ),
+				'is_default'  => false,
+			)
+		)
+	);
+	if ( ! $id ) {
+		return new WP_Error( 'isoft_fmf_license_failed', __( 'The license could not be saved.', 'isoft-fm-foundation' ) );
+	}
+	return $id;
+}
+
+/**
+ * Add an external link to a download: a file row that sends the visitor to
+ * `$url` when they click Download, counted like any download. Only http and
+ * https addresses are accepted. `$args`: `title` (default the address),
+ * `is_mirror`, `sort_order`.
+ *
+ * @param array{title?:string, is_mirror?:bool, sort_order?:int} $args
+ */
+function isoft_fmf_add_external_link( int $download_id, string $url, array $args = array() ): int|WP_Error {
+	if ( 'isoft_fmf_file' !== get_post_type( $download_id ) ) {
+		return new WP_Error( 'isoft_fmf_invalid_download', __( 'That download does not exist.', 'isoft-fm-foundation' ) );
+	}
+	$url = esc_url_raw( trim( $url ), array( 'http', 'https' ) );
+	if ( '' === $url || '' === (string) wp_parse_url( $url, PHP_URL_HOST ) ) {
+		return new WP_Error( 'isoft_fmf_invalid_link', __( 'An external link needs an http or https address.', 'isoft-fm-foundation' ) );
+	}
+
+	$title   = sanitize_text_field( (string) ( $args['title'] ?? '' ) );
+	$file_id = ( new ISOFT_FMF_File_Manager() )->add_external_link(
+		$download_id,
+		$url,
+		array(
+			'title'      => '' !== $title ? $title : $url,
+			'is_mirror'  => empty( $args['is_mirror'] ) ? 0 : 1,
+			'sort_order' => absint( $args['sort_order'] ?? 0 ),
+		)
+	);
+	if ( ! $file_id ) {
+		return new WP_Error( 'isoft_fmf_external_add_failed', __( 'Could not add link.', 'isoft-fm-foundation' ) );
+	}
+	return (int) $file_id;
 }
 
 /**
