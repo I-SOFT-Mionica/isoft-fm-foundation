@@ -2,6 +2,13 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [Unreleased]
+
+### Fixed
+
+- **Tools > Statistics showed old numbers.** The overview is cached for 5 minutes (`isoft_fmf_stats_overview`), and only a logged download or a permanent delete cleared it, so adding, removing or publishing files left it stale and Refresh read the same cache. It is now cleared on `isoft_fmf_content_changed`, `save_post_isoft_fmf_file` and `deleted_post` (`ISOFT_FMF_Post_Type::forget_stats()`).
+- Total files and total size count only rows whose download still exists.
+
 ## [0.17.0] — 2026-11-19
 
 ### New

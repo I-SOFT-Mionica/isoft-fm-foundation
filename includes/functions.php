@@ -1389,11 +1389,16 @@ function isoft_fmf_get_stats_overview(): array {
 		'total_downloads'   => (int) $wpdb->get_var(
 			"SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'isoft_fmf_file' AND post_status = 'publish'"
 		),
+		// Files of every download that still exists (any status). A row whose
+		// download is gone is not a file of the site.
 		'total_files'       => (int) $wpdb->get_var(
-			"SELECT COUNT(*) FROM {$wpdb->prefix}isoft_fmf_files"
+			"SELECT COUNT(*) FROM {$wpdb->prefix}isoft_fmf_files f
+			   INNER JOIN {$wpdb->posts} p ON p.ID = f.download_id AND p.post_type = 'isoft_fmf_file'"
 		),
 		'total_size_bytes'  => (int) $wpdb->get_var(
-			"SELECT COALESCE(SUM(file_size),0) FROM {$wpdb->prefix}isoft_fmf_files WHERE file_type = 'local'"
+			"SELECT COALESCE(SUM(f.file_size),0) FROM {$wpdb->prefix}isoft_fmf_files f
+			   INNER JOIN {$wpdb->posts} p ON p.ID = f.download_id AND p.post_type = 'isoft_fmf_file'
+			  WHERE f.file_type = 'local'"
 		),
 		'total_log_entries' => (int) $wpdb->get_var(
 			"SELECT COUNT(*) FROM {$wpdb->prefix}isoft_fmf_download_log"
