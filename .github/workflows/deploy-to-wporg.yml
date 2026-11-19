@@ -100,7 +100,9 @@ jobs:
           name: blocks-build
           path: blocks/build
           if-no-files-found: error
-          retention-days: 1
+          # As long as GitHub lets the deploy job wait for approval (30 days),
+          # so a late approval still finds the build.
+          retention-days: 30
 
   deploy:
     name: Push to WP.org SVN
