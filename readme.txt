@@ -32,43 +32,6 @@ Unlike standard media plugins that dump every upload into a single dated folder,
 
 **Small fixes.** The missing-file number updates as soon as you remove or fix the file, instead of a few minutes later, and Tools > Statistics counts only the space used on your own server.
 
-= What's new in 0.15.1 =
-
-**A setup reminder that knows when you are done.** The reminder about your site sitting behind a proxy now goes away by itself as soon as you choose where visitor addresses come from in Settings. If you have not chosen yet, Settings now says so plainly, and listing your proxy addresses selects the right option for you.
-
-= What's new in 0.15.0 =
-
-**Heavy work no longer slows your site down.** Tasks that can take a lot of time or memory now work within safe limits and stop cleanly instead of failing half-way:
-
-* **PDF thumbnails are made in the background,** so uploading a large or complicated PDF is as quick as any other upload. A PDF that is too heavy to draw simply gets no thumbnail, and you get a notice saying which one; the file itself is never affected.
-* **The integrity check works through big libraries in steps,** continuing in the background until every file is checked, instead of running into the server's time limit.
-* **"Download all" ZIPs have a sensible size limit,** and are built faster because PDFs, images and Office files are packed without recompressing. When a download's files are over the limit, visitors get each file on its own, and the download's edit screen tells you why "Download all" is not offered.
-* If anything does stop early, you see a short notice, and **Tools > Site Health > Info** lists what stopped and why.
-
-**Download lists look right wherever you place them.** Lists, buttons and the licence agreement dialog are now styled and working when you show them through a page builder's saved templates, global widgets, theme templates (header, footer, single post, archive), loop items or popups, not only when the shortcode sits directly on the page. Pages without downloads still load nothing extra.
-
-**Notices you can act on, and fewer of them.** The notice about a file missing from disk now links straight to the Broken Links screen, and when a task stops more than once while you are away, you get one notice that says how many times.
-
-**Deleting a download really deletes its files.** When you delete a download permanently, its files are now removed from the server too, the same as removing them one by one. Moving it to the Trash still keeps everything. A file left behind by an earlier version can now be linked to a download and removed. And when a category cannot be deleted from the list, you now see why.
-
-= What's new in 0.14.3 =
-
-**Licence agreements work again.** On downloads that ask visitors to agree to a licence, ticking the box and clicking Download now starts the download; in recent versions it did nothing. The agreement also opens on top, and leaves the popup open, when the download sits inside a page builder popup.
-
-**Delete now really deletes.** Deleting a file removes it from the download folder too, not only from the list, so a file uploaded by mistake (one with personal data, say) is really gone. A category can be deleted once nothing is left in it, and its folder goes with it; while anything remains, the message tells you what. If you keep the download folder in sync with another place, see "I keep the download folder in sync with rclone or a similar tool" in the FAQ.
-
-= What's new in 0.14.0 =
-
-**A security update, recommended for every site.** Editors who are limited to certain categories can now only change, reorder or import files inside the downloads and folders they are allowed to work in. Script and server-configuration files are refused on every upload, whatever the allowed-file-types setting says. The download storage folder is closed on Apache, LiteSpeed and IIS automatically, and **Tools > Site Health** now checks it is closed on nginx and other servers too, showing the one line to add if it is not.
-
-Also new:
-
-* **Pending categories.** A category can be held back from the public until someone approves it; its downloads stay hidden in the meantime.
-* **Hold a file without deleting it.** A file can be marked unavailable: it stays listed with a short message you choose (default "Temporarily unavailable") instead of a download button.
-* **Ready for add-ons and headless sites.** One clear rule for what counts as public, one change signal for page caches and static builds, image sizes in the public data API, and a documented set of functions add-ons can rely on.
-
-Since 0.12, Foundation also gained optional cache-friendly download links, an optional public read-only data API, counting of downloads served by a CDN or edge server, and protection against faked visitor addresses (see 0.13.0 in the changelog).
-
 = Key features =
 
 * **True folder organization.** Every category you create maps 1:1 to a real folder on disk under `wp-content/uploads/isoft-fmf-files/`. Rename a category and the folder renames itself; every file path in the database updates instantly.
