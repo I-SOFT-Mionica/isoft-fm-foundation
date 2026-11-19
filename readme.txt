@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.1
 Requires PHP: 8.4
-Stable tag: 0.16.0
+Stable tag: 0.17.0
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -15,6 +15,14 @@ Document and download manager with real on-disk folder organization, per-departm
 **I-Soft File Manager: Foundation** is a modular download manager built for modern WordPress.
 
 Unlike standard media plugins that dump every upload into a single dated folder, Foundation is designed for municipalities, universities, libraries, and any team that needs to manage thousands of public documents, maintain a strict category tree, and give different departments their own secure upload spaces.
+
+= What's new in 0.17.0 =
+
+**Large downloads pick up where they stopped.** If a visitor's connection drops halfway through a big file, their browser or download manager now continues from that point instead of starting again from zero. A continued download is not counted as a new one, and a download manager that fetches a file over several connections counts once. If the file was replaced in the meantime, the visitor gets the new file whole, never a mix of old and new.
+
+**Clearer message for very long category names.** A category name can hold up to 200 characters. A longer one now gets a message saying so, instead of a database error.
+
+**Ready for importing licences and links.** Importers can now find or create licences and add external links to downloads. Nothing changes on your site until a plugin uses them.
 
 = What's new in 0.16.0 =
 
@@ -354,6 +362,13 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 
 == Changelog ==
 
+= 0.17.0 =
+
+* **New:** interrupted downloads resume from where they stopped, when files are served by PHP (the default).
+* **New:** importers can find or create licences and add external links.
+* **Changed:** a resumed download, or one fetched over several connections, is counted once.
+* **Fixed:** a category name over 200 characters failed with a database error. It now says the limit.
+
 = 0.16.0 =
 
 * **New:** the Needs attention screen under Downloads lists everything waiting on you in one place: missing files, categories waiting for approval, tasks that stopped early and unavailable files. Stopped tasks can be dismissed there.
@@ -511,6 +526,9 @@ Existing data (downloads, categories, files, licenses, logs, per-user category p
 * **Inline metadata editing** directly from the file list.
 
 == Upgrade Notice ==
+
+= 0.17.0 =
+Interrupted downloads of large files now resume instead of starting again, and are counted once. No database changes.
 
 = 0.16.0 =
 A new Needs attention screen gathers everything waiting on you, and Foundation is ready for cloud-stored files and importers. Updates one column of the files table; no data is changed.
