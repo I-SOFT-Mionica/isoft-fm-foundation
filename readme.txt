@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.1
 Requires PHP: 8.4
-Stable tag: 0.17.1-dev
+Stable tag: 0.17.1
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -16,6 +16,14 @@ Document and download manager with real on-disk folder organization, per-departm
 
 Unlike standard media plugins that dump every upload into a single dated folder, Foundation is designed for municipalities, universities, libraries, and any team that needs to manage thousands of public documents, maintain a strict category tree, and give different departments their own secure upload spaces.
 
+= What's new in 0.17.1 =
+
+**Statistics are always current.** Tools > Statistics now shows new numbers as soon as you add, remove or publish files, instead of up to five minutes later.
+
+**A friendlier page for files on hold.** When a file is temporarily held back, visitors see the same "temporarily unavailable" page as for a missing file, with a way to contact you and a link back to your downloads, instead of a short refusal.
+
+**Link checks no longer count as downloads.** Link checkers and the link previews in chat apps only ask whether a file is there. Those requests no longer raise your download counts, and they no longer make the server read the whole file.
+
 = What's new in 0.17.0 =
 
 **Large downloads pick up where they stopped.** If a visitor's connection drops halfway through a big file, their browser or download manager now continues from that point instead of starting again from zero. A continued download is not counted as a new one, and a download manager that fetches a file over several connections counts once. If the file was replaced in the meantime, the visitor gets the new file whole, never a mix of old and new.
@@ -23,14 +31,6 @@ Unlike standard media plugins that dump every upload into a single dated folder,
 **Clearer message for very long category names.** A category name can hold up to 200 characters. A longer one now gets a message saying so, instead of a database error.
 
 **Ready for importing licences and links.** Importers can now find or create licences and add external links to downloads. Nothing changes on your site until a plugin uses them.
-
-= What's new in 0.16.0 =
-
-**One place for everything that is waiting on you.** The new **Needs attention** screen under Downloads gathers files missing from the server, categories waiting for approval, tasks that stopped early and files you marked unavailable, each with a link or a button to deal with it. The menu shows how many things are waiting, and the number goes away when there is nothing left. A task that stopped early can be dismissed once you have seen it; Site Health still keeps the full history.
-
-**Ready for importers and cloud storage.** Foundation can now hold files whose content lives in cloud storage and is delivered through a plugin you choose, behind the same access rules, password protection, download limits and counters as any other file. Importers can create categories with their access rules, keep each download's old web address and carry over its download counts. Nothing changes on your site until a plugin uses these.
-
-**Small fixes.** The missing-file number updates as soon as you remove or fix the file, instead of a few minutes later, and Tools > Statistics counts only the space used on your own server.
 
 = Key features =
 
@@ -325,6 +325,13 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 
 == Changelog ==
 
+= 0.17.1 =
+
+* **Fixed:** Tools > Statistics showed numbers up to five minutes old, even after Refresh.
+* **Fixed:** Statistics counted files left behind by downloads that no longer exist.
+* **Fixed:** a file on hold showed a short "forbidden" message. It now shows the "temporarily unavailable" page.
+* **Fixed:** link checkers and link previews were counted as downloads.
+
 = 0.17.0 =
 
 * **New:** interrupted downloads resume from where they stopped, when files are served by PHP (the default).
@@ -489,6 +496,9 @@ Existing data (downloads, categories, files, licenses, logs, per-user category p
 * **Inline metadata editing** directly from the file list.
 
 == Upgrade Notice ==
+
+= 0.17.1 =
+Statistics stay current, files on hold get a friendly page, and link checks are no longer counted as downloads. No database changes.
 
 = 0.17.0 =
 Interrupted downloads of large files now resume instead of starting again, and are counted once. No database changes.
