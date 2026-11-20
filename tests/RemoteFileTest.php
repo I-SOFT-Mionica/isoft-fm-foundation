@@ -23,7 +23,7 @@ class Remote_File_Test_Handler extends ISOFT_FMF_Download_Handler {
 
 	protected function finish(): void {}
 
-	protected function remote_unavailable( int $download_id ): void {
+	protected function show_unavailable( int $download_id ): void {
 		$this->unavailable = $download_id;
 	}
 }
@@ -64,7 +64,7 @@ class RemoteFileTest extends WP_UnitTestCase {
 		remove_all_filters( 'isoft_fmf_bundle_limits' );
 		delete_option( 'isoft_fmf_enable_zip_bundle' );
 		delete_option( 'isoft_fmf_public_api_enabled' );
-		unset( $_GET['nonce'], $_SERVER['HTTP_RANGE'] );
+		unset( $_GET['nonce'], $_SERVER['HTTP_RANGE'], $_SERVER['REQUEST_METHOD'] );
 		set_query_var( 'isoft_fmf_download', 0 );
 		parent::tear_down();
 	}
@@ -398,16 +398,46 @@ class RemoteFileTest extends WP_UnitTestCase {
 		$this->assertSame( 0, $this->times_counted() );
 	}
 
-	public function test_an_unavailable_file_never_reaches_the_filter(): void {
+	public function test_an_unavailable_file_gets_the_unavailable_page_not_the_filter(): void {
 		isoft_fmf_set_file_unavailable( $this->file, true );
 		$this->answer( $this->proxy() );
 
-		$this->expectException( WPDieException::class );
-		try {
-			$this->run_handler();
-		} finally {
-			$this->assertSame( 0, $this->filter_calls );
-		}
+		$this->assertSame( '', $this->run_handler() );
+		$this->assertSame( $this->download, $this->handler->unavailable );
+		$this->assertSame( 0, $this->filter_calls );
+		$this->assertSame( 0, $this->times_counted() );
+	}
+
+	public function test_head_gets_headers_without_the_stream_and_is_not_counted(): void {
+		$_SERVER['REQUEST_METHOD'] = 'HEAD';
+		$context                   = null;
+		add_filter(
+			'isoft_fmf_resolve_remote_file',
+			function ( $resolution, $file, $ctx ) use ( &$context ) {
+				$context = $ctx;
+				return $this->proxy( array( 'headers' => array( 'Content-Length' => '2048' ) ) );
+			},
+			10,
+			3
+		);
+
+		$this->assertSame( '', $this->run_handler() );
+		$this->assertTrue( $context['head'] );
+		$this->assertSame( '2048', $this->handler->sent['Content-Length'] );
+		$this->assertSame( 0, $this->times_counted() );
+	}
+
+	public function test_head_on_a_redirect_is_not_counted(): void {
+		$_SERVER['REQUEST_METHOD'] = 'HEAD';
+		$this->answer(
+			array(
+				'mode' => 'redirect',
+				'url'  => 'https://cloud.example.org/plan.pdf',
+			)
+		);
+
+		$this->assertSame( 'https://cloud.example.org/plan.pdf', $this->redirected_to() );
+		$this->assertSame( 0, $this->times_counted() );
 	}
 
 	public function test_a_draft_never_reaches_the_filter(): void {

@@ -60,7 +60,7 @@ class RangeDownloadTest extends WP_UnitTestCase {
 	}
 
 	public function tear_down(): void {
-		unset( $_GET['nonce'], $_SERVER['HTTP_RANGE'], $_SERVER['HTTP_IF_RANGE'] );
+		unset( $_GET['nonce'], $_SERVER['HTTP_RANGE'], $_SERVER['HTTP_IF_RANGE'], $_SERVER['REQUEST_METHOD'] );
 		set_query_var( 'isoft_fmf_download', 0 );
 		delete_option( 'isoft_fmf_serve_method' );
 		wp_delete_file( $this->abs );
@@ -182,6 +182,32 @@ class RangeDownloadTest extends WP_UnitTestCase {
 
 		$this->expectException( WPDieException::class );
 		$this->fetch( 'bytes=10-' );
+	}
+
+	public function test_head_gets_the_headers_without_the_body_and_is_not_counted(): void {
+		$_SERVER['REQUEST_METHOD'] = 'HEAD';
+
+		$this->assertSame( '', $this->fetch() );
+		$this->assertSame( 200, $this->handler->status );
+		$this->assertSame( '20', $this->handler->sent['Content-Length'] );
+		$this->assertSame( 'bytes', $this->handler->sent['Accept-Ranges'] );
+		$this->assertSame( 0, $this->times_counted() );
+	}
+
+	public function test_a_held_file_gets_the_unavailable_page(): void {
+		isoft_fmf_set_file_unavailable( $this->file, true );
+		$handler = new class() extends Range_Test_Handler {
+			public int $shown = 0;
+
+			protected function show_unavailable( int $download_id ): void {
+				$this->shown = $download_id;
+			}
+		};
+		$this->handler = $handler;
+
+		$this->assertSame( '', $this->fetch() );
+		$this->assertSame( $this->download, $handler->shown );
+		$this->assertSame( 0, $this->times_counted() );
 	}
 
 	public function test_the_feature_is_announced(): void {
