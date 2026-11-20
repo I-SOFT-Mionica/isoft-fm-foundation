@@ -85,8 +85,11 @@ class ISOFT_FMF_Download_Handler {
 		}
 
 		// Held back by an administrator or an extension: listed, not served.
+		// The same "temporarily unavailable" page (503) as a missing file:
+		// the visitor may come back, so it is not a 403.
 		if ( ! empty( $file->is_unavailable ) ) {
-			wp_die( esc_html( isoft_fmf_unavailable_label() ), 403 );
+			$this->show_unavailable( $download_id );
+			return;
 		}
 
 		do_action( 'isoft_fmf_before_download', $file_id, $download_id, get_current_user_id() );
@@ -99,8 +102,10 @@ class ISOFT_FMF_Download_Handler {
 			if ( ! $target ) {
 				wp_die( esc_html__( 'This external link is invalid.', 'isoft-fm-foundation' ), 400 );
 			}
-			$log_id = isoft_fmf_record_download( $file_id );
-			do_action( 'isoft_fmf_after_download', $log_id );
+			if ( ! self::is_head() ) {
+				$log_id = isoft_fmf_record_download( $file_id );
+				do_action( 'isoft_fmf_after_download', $log_id );
+			}
 			// phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- External-link downloads point off-site; wp_safe_redirect() rejects them. $target is validated via esc_url_raw() above. See changelog 0.4.3.
 			wp_redirect( $target );
 			exit;
@@ -130,7 +135,9 @@ class ISOFT_FMF_Download_Handler {
 			 *                                        array( 'mode' => 'redirect', 'url' => ... ), or
 			 *                                        array( 'mode' => 'proxy', 'stream' => callable, 'headers' => array(), 'status' => 200|206 ).
 			 * @param object              $file       The file row.
-			 * @param array               $context    'download_id', and 'range': the Range header or ''.
+			 * @param array               $context    'download_id'; 'range': the Range header or '';
+			 *                                        'head': true for a HEAD request (headers only,
+			 *                                        the stream is not called).
 			 */
 			$resolution = apply_filters(
 				'isoft_fmf_resolve_remote_file',
@@ -139,6 +146,7 @@ class ISOFT_FMF_Download_Handler {
 				array(
 					'download_id' => $download_id,
 					'range'       => $range,
+					'head'        => self::is_head(),
 				)
 			);
 		} catch ( Throwable $e ) {
@@ -165,7 +173,15 @@ class ISOFT_FMF_Download_Handler {
 			return;
 		}
 
-		$this->remote_unavailable( $download_id );
+		$this->show_unavailable( $download_id );
+	}
+
+	/**
+	 * A HEAD request asks for the headers only: link checkers and link
+	 * previews send it. It gets no body and is never counted.
+	 */
+	public static function is_head(): bool {
+		return isset( $_SERVER['REQUEST_METHOD'] ) && 'HEAD' === strtoupper( sanitize_key( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) );
 	}
 
 	/**
@@ -215,7 +231,7 @@ class ISOFT_FMF_Download_Handler {
 	}
 
 	private function record_remote( object $file, string $range ): void {
-		if ( self::range_counts( $range ) ) {
+		if ( ! self::is_head() && self::range_counts( $range ) ) {
 			$log_id = isoft_fmf_record_download( (int) $file->id );
 			do_action( 'isoft_fmf_after_download', $log_id );
 		}
@@ -261,15 +277,17 @@ class ISOFT_FMF_Download_Handler {
 		}
 		$this->send_headers( $headers );
 
-		try {
-			call_user_func( $resolution['stream'] );
-		} catch ( Throwable $e ) {
-			unset( $e ); // The response has started; all that is left is to end it.
+		if ( ! self::is_head() ) {
+			try {
+				call_user_func( $resolution['stream'] );
+			} catch ( Throwable $e ) {
+				unset( $e ); // The response has started; all that is left is to end it.
+			}
 		}
 		$this->finish();
 	}
 
-	protected function remote_unavailable( int $download_id ): void {
+	protected function show_unavailable( int $download_id ): void {
 		ISOFT_FMF_File_Integrity::render_unavailable_page( $download_id, 'partial' );
 	}
 
@@ -310,7 +328,7 @@ class ISOFT_FMF_Download_Handler {
 
 		// A resumed or segmented request is not a new download.
 		$counts = 'php' === $method ? ( null === $range || 0 === $range[0] ) : self::range_counts( $range_header );
-		if ( $counts ) {
+		if ( $counts && ! self::is_head() ) {
 			$log_id = isoft_fmf_record_download( (int) $file->id );
 			do_action( 'isoft_fmf_after_download', $log_id );
 		}
@@ -397,6 +415,14 @@ class ISOFT_FMF_Download_Handler {
 			$this->send_status( 206 );
 		}
 		$this->send_headers( $headers );
+
+		if ( self::is_head() ) {
+			if ( $handle ) {
+				fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Pairs the fopen() above.
+			}
+			$this->finish();
+			return;
+		}
 
 		if ( ! $handle ) {
 			// Fallback: try readfile if fopen failed for whatever reason. The

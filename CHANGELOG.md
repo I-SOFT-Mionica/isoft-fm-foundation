@@ -8,6 +8,8 @@ All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads
 
 - **Tools > Statistics showed old numbers.** The overview is cached for 5 minutes (`isoft_fmf_stats_overview`), and only a logged download or a permanent delete cleared it, so adding, removing or publishing files left it stale and Refresh read the same cache. It is now cleared on `isoft_fmf_content_changed`, `save_post_isoft_fmf_file` and `deleted_post` (`ISOFT_FMF_Post_Type::forget_stats()`).
 - Total files and total size count only rows whose download still exists.
+- **A held file gave a bare 403.** A file marked unavailable (`isoft_fmf_set_file_unavailable()`, by an administrator or an extension) now gets the same "temporarily unavailable" page as a missing file, with 503 and `Retry-After: 3600`, instead of `wp_die()` with the label and 403. The overridable method `remote_unavailable()` is now `show_unavailable()`.
+- **HEAD requests counted as downloads.** Link checkers and link previews raised the counter. A HEAD request is never counted (local, remote or external). PHP serving sends the headers without the body; for a remote proxy the `stream` callable is not called, and `isoft_fmf_resolve_remote_file` gets `$context['head']`.
 
 ## [0.17.0] — 2026-11-19
 

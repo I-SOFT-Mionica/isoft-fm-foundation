@@ -267,6 +267,9 @@ class ISOFT_FMF_File_Integrity {
 	public static function render_unavailable_page( int $download_id, string $mode ): void {
 		status_header( 503 );
 		nocache_headers();
+		if ( ! headers_sent() ) {
+			header( 'Retry-After: 3600' );
+		}
 
 		// phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped -- Template handles its own escaping.
 		if ( ! headers_sent() ) {
