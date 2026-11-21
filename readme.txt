@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.1
 Requires PHP: 8.4
-Stable tag: 0.17.1
+Stable tag: 0.18.0
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -16,6 +16,16 @@ Document and download manager with real on-disk folder organization, per-departm
 
 Unlike standard media plugins that dump every upload into a single dated folder, Foundation is designed for municipalities, universities, libraries, and any team that needs to manage thousands of public documents, maintain a strict category tree, and give different departments their own secure upload spaces.
 
+= What's new in 0.18.0 =
+
+**The download settings in the editor work again.** The Version & License, Access and other panels in the block editor's sidebar showed default values and quietly dropped your changes when you saved. They now show what is stored and save what you choose. If you set a license, an access level, a version or "featured" there since version 0.12 and it did not stick, please set it once more.
+
+**Imported downloads can follow their category's license.** Importers can now set each download's license, including "Inherit from category", so a site moved from another download manager shows the right license on every download without editing them one by one.
+
+**Ready for cloud files on headless sites.** A headless front end that serves downloads itself can now ask Foundation whether a visitor may have a cloud-stored file and how to deliver it. It follows exactly the same rules as your own site's download links.
+
+Nothing changes on your site until a plugin uses these.
+
 = What's new in 0.17.1 =
 
 **Statistics are always current.** Tools > Statistics now shows new numbers as soon as you add, remove or publish files, instead of up to five minutes later.
@@ -23,14 +33,6 @@ Unlike standard media plugins that dump every upload into a single dated folder,
 **A friendlier page for files on hold.** When a file is temporarily held back, visitors see the same "temporarily unavailable" page as for a missing file, with a way to contact you and a link back to your downloads, instead of a short refusal.
 
 **Link checks no longer count as downloads.** Link checkers and the link previews in chat apps only ask whether a file is there. Those requests no longer raise your download counts, and they no longer make the server read the whole file.
-
-= What's new in 0.17.0 =
-
-**Large downloads pick up where they stopped.** If a visitor's connection drops halfway through a big file, their browser or download manager now continues from that point instead of starting again from zero. A continued download is not counted as a new one, and a download manager that fetches a file over several connections counts once. If the file was replaced in the meantime, the visitor gets the new file whole, never a mix of old and new.
-
-**Clearer message for very long category names.** A category name can hold up to 200 characters. A longer one now gets a message saying so, instead of a database error.
-
-**Ready for importing licences and links.** Importers can now find or create licences and add external links to downloads. Nothing changes on your site until a plugin uses them.
 
 = Key features =
 
@@ -325,6 +327,13 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 
 == Changelog ==
 
+= 0.18.0 =
+
+* **New:** importers can set a download's license, or have it follow its category.
+* **New:** headless sites can deliver cloud-stored files under the same rules as the site's own download links.
+* **Fixed:** the download settings in the editor's sidebar (license, access, version, featured and the rest) were not shown or saved.
+* **Fixed:** a download created by an importer to follow its category's license got the wrong license.
+
 = 0.17.1 =
 
 * **Fixed:** Tools > Statistics showed numbers up to five minutes old, even after Refresh.
@@ -496,6 +505,9 @@ Existing data (downloads, categories, files, licenses, logs, per-user category p
 * **Inline metadata editing** directly from the file list.
 
 == Upgrade Notice ==
+
+= 0.18.0 =
+The download settings in the editor's sidebar are shown and saved again; please re-check any you changed there since 0.12. Also new functions for importers and headless sites. No database changes.
 
 = 0.17.1 =
 Statistics stay current, files on hold get a friendly page, and link checks are no longer counted as downloads. No database changes.
