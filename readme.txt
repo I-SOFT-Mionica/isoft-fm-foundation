@@ -16,6 +16,14 @@ Document and download manager with real on-disk folder organization, per-departm
 
 Unlike standard media plugins that dump every upload into a single dated folder, Foundation is designed for municipalities, universities, libraries, and any team that needs to manage thousands of public documents, maintain a strict category tree, and give different departments their own secure upload spaces.
 
+= What's new in 0.18.0 =
+
+**Imported downloads can follow their category's license.** Importers can now set each download's license, including "Inherit from category", so a site moved from another download manager shows the right license on every download without editing them one by one.
+
+**Ready for cloud files on headless sites.** A headless front end that serves downloads itself can now ask Foundation whether a visitor may have a cloud-stored file and how to deliver it. It follows exactly the same rules as your own site's download links.
+
+Nothing changes on your site until a plugin uses these.
+
 = What's new in 0.17.1 =
 
 **Statistics are always current.** Tools > Statistics now shows new numbers as soon as you add, remove or publish files, instead of up to five minutes later.
@@ -23,14 +31,6 @@ Unlike standard media plugins that dump every upload into a single dated folder,
 **A friendlier page for files on hold.** When a file is temporarily held back, visitors see the same "temporarily unavailable" page as for a missing file, with a way to contact you and a link back to your downloads, instead of a short refusal.
 
 **Link checks no longer count as downloads.** Link checkers and the link previews in chat apps only ask whether a file is there. Those requests no longer raise your download counts, and they no longer make the server read the whole file.
-
-= What's new in 0.17.0 =
-
-**Large downloads pick up where they stopped.** If a visitor's connection drops halfway through a big file, their browser or download manager now continues from that point instead of starting again from zero. A continued download is not counted as a new one, and a download manager that fetches a file over several connections counts once. If the file was replaced in the meantime, the visitor gets the new file whole, never a mix of old and new.
-
-**Clearer message for very long category names.** A category name can hold up to 200 characters. A longer one now gets a message saying so, instead of a database error.
-
-**Ready for importing licences and links.** Importers can now find or create licences and add external links to downloads. Nothing changes on your site until a plugin uses them.
 
 = Key features =
 
@@ -325,6 +325,12 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 
 == Changelog ==
 
+= 0.18.0 =
+
+* **New:** importers can set a download's license, or have it follow its category.
+* **New:** headless sites can deliver cloud-stored files under the same rules as the site's own download links.
+* **Fixed:** a download created by an importer to follow its category's license got the wrong license.
+
 = 0.17.1 =
 
 * **Fixed:** Tools > Statistics showed numbers up to five minutes old, even after Refresh.
@@ -496,6 +502,9 @@ Existing data (downloads, categories, files, licenses, logs, per-user category p
 * **Inline metadata editing** directly from the file list.
 
 == Upgrade Notice ==
+
+= 0.18.0 =
+New functions for importers and headless sites; nothing changes until a plugin uses them. No database changes.
 
 = 0.17.1 =
 Statistics stay current, files on hold get a friendly page, and link checks are no longer counted as downloads. No database changes.
