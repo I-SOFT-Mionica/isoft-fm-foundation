@@ -11,6 +11,7 @@ All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads
 
 ### Fixed
 
+- **The editor's download fields were never shown or saved (since 0.12.0).** The block editor's sidebar (Version & License, Access, Featured, external links only, author, licence agreement) reads and writes post meta over REST, but `isoft_fmf_file` did not support `custom-fields`, so WordPress left `meta` out of the REST response and ignored it on save: editors saw defaults, and their choices were dropped with a 200. The post type now supports `custom-fields`. After a REST save (`rest_after_insert_isoft_fmf_file`) the effective access role and license are worked out again and `isoft_fmf_content_changed` fires, since meta is written after `save_post`. The fields now have sanitizers (text, `wp_kses_post`, `esc_url_raw`; the access role must be one of `ISOFT_FMF_Meta_Fields::ACCESS_ROLES`, else it is stored as `administrator` (an unknown role already let no visitor in); the license must be an ID, -1 or 0), and writing one needs `edit_post` on that download. `_isoft_fmf_download_count` and `_isoft_fmf_is_hot` can be written over REST only with `isoft_fmf_manage_settings`.
 - `isoft_fmf_create_draft_download()` turned `license_id` -1 (inherit) into license 1, and left the cached effective license stale when `license_id` was given.
 
 ## [0.17.1] — 2026-11-20

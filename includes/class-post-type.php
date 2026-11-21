@@ -163,7 +163,12 @@ class ISOFT_FMF_Post_Type {
 				// is retired in this phase; post_content is now edited via
 				// the block canvas. Legacy classic-editor content renders as
 				// a single "Classic" block on first open.
-				'supports'           => array( 'title', 'editor', 'thumbnail', 'excerpt', 'revisions', 'author' ),
+				// 'custom-fields': without it WordPress leaves `meta` out of
+				// the REST response and ignores it on save, so the editor
+				// sidebar (Version & License, Access, ...) could neither show
+				// nor store its fields. The fields are protected (leading
+				// underscore), so the core Custom Fields panel never lists them.
+				'supports'           => array( 'title', 'editor', 'thumbnail', 'excerpt', 'revisions', 'author', 'custom-fields' ),
 				'show_in_rest'       => true,
 				'rest_base'          => 'isoft-fmf-downloads',
 			)
