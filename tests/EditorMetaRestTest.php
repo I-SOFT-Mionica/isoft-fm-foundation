@@ -140,6 +140,49 @@ class EditorMetaRestTest extends WP_UnitTestCase {
 		$this->assertSame( '7', get_post_meta( $this->download, '_isoft_fmf_download_count', true ) );
 	}
 
+	/** The whole meta object, as the block editor sends it on every save. */
+	private function editor_meta( array $changes ): array {
+		return array_merge( $this->get()->get_data()['meta'], $changes );
+	}
+
+	public function test_an_editor_saves_the_whole_meta_object_and_access_applies(): void {
+		$meta = $this->editor_meta(
+			array(
+				'_isoft_fmf_version'     => '6.0',
+				'_isoft_fmf_access_role' => 'subscriber',
+			)
+		);
+		$this->assertArrayHasKey( '_isoft_fmf_download_count', $meta );
+		$this->assertSame( '', get_post_meta( $this->download, '_isoft_fmf_download_count', true ), 'no count row yet' );
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'editor' ) ) );
+
+		$response = $this->save( $meta );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( '6.0', get_post_meta( $this->download, '_isoft_fmf_version', true ) );
+		$this->assertSame( 'subscriber', ( new ISOFT_FMF_Access_Control() )->effective_role_for( $this->download ) );
+		$this->assertSame( '', get_post_meta( $this->download, '_isoft_fmf_download_count', true ), 'the count is not written' );
+	}
+
+	public function test_an_editor_changing_hot_is_still_refused(): void {
+		$meta = $this->editor_meta( array( '_isoft_fmf_is_hot' => true ) );
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'editor' ) ) );
+
+		$this->assertSame( 403, $this->save( $meta )->get_status() );
+		$this->assertSame( '', get_post_meta( $this->download, '_isoft_fmf_is_hot', true ) );
+	}
+
+	public function test_a_license_that_does_not_exist_is_refused(): void {
+		$response = $this->save( array( '_isoft_fmf_license_id' => 999999 ) );
+
+		$this->assertSame( 400, $response->get_status() );
+		$this->assertSame( '', get_post_meta( $this->download, '_isoft_fmf_license_id', true ) );
+
+		// A stored one (say of a deleted license) does not block other edits.
+		update_post_meta( $this->download, '_isoft_fmf_license_id', 999999 );
+		$this->assertSame( 200, $this->save( $this->editor_meta( array( '_isoft_fmf_version' => '7.0' ) ) )->get_status() );
+	}
+
 	public function test_an_editor_saves_the_ordinary_fields(): void {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'editor' ) ) );
 
