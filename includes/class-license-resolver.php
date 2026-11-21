@@ -36,6 +36,8 @@ class ISOFT_FMF_License_Resolver {
 
 	public function register_hooks(): void {
 		add_action( 'save_post_isoft_fmf_file', array( $this, 'on_download_saved' ), 20, 1 );
+		// The block editor saves meta after save_post; work it out again then.
+		add_action( 'rest_after_insert_isoft_fmf_file', array( $this, 'on_rest_saved' ), 20, 1 );
 		add_action( 'set_object_terms', array( $this, 'on_terms_set' ), 20, 4 );
 		// Category-edit cache-bust is fired directly from class-taxonomy.php's
 		// save_term_fields(), not via a generic hook, because we want to scope
@@ -131,6 +133,10 @@ class ISOFT_FMF_License_Resolver {
 	// ---------------------------------------------------------------------
 	// Cache busters
 	// ---------------------------------------------------------------------
+
+	public function on_rest_saved( WP_Post $post ): void {
+		$this->on_download_saved( (int) $post->ID );
+	}
 
 	public function on_download_saved( int $download_id ): void {
 		if ( wp_is_post_revision( $download_id ) ) {

@@ -22,6 +22,8 @@ class ISOFT_FMF_Change_Announcer {
 
 	public function register_hooks(): void {
 		add_action( 'save_post_isoft_fmf_file', array( $this, 'on_download_saved' ), 20, 2 );
+		// Meta from the block editor lands after save_post: announce again.
+		add_action( 'rest_after_insert_isoft_fmf_file', array( $this, 'on_rest_saved' ), 20, 1 );
 		add_action( 'deleted_post', array( $this, 'on_post_deleted' ), 10, 2 );
 		add_action( 'set_object_terms', array( $this, 'on_terms_assigned' ), 20, 4 );
 		foreach ( array( 'created_term', 'edited_term', 'delete_term' ) as $hook ) {
@@ -36,6 +38,10 @@ class ISOFT_FMF_Change_Announcer {
 	 * @param int     $post_id Post ID.
 	 * @param WP_Post $post    Post.
 	 */
+	public function on_rest_saved( WP_Post $post ): void {
+		$this->on_download_saved( (int) $post->ID, $post );
+	}
+
 	public function on_download_saved( $post_id, $post ): void {
 		if ( wp_is_post_revision( $post_id ) || wp_is_post_autosave( $post_id ) || 'auto-draft' === ( $post->post_status ?? '' ) ) {
 			return;
