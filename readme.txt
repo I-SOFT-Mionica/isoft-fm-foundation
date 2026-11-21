@@ -18,6 +18,8 @@ Unlike standard media plugins that dump every upload into a single dated folder,
 
 = What's new in 0.18.0 =
 
+**The download settings in the editor work again.** The Version & License, Access and other panels in the block editor's sidebar showed default values and quietly dropped your changes when you saved. They now show what is stored and save what you choose. If you set a license, an access level, a version or "featured" there since version 0.12 and it did not stick, please set it once more.
+
 **Imported downloads can follow their category's license.** Importers can now set each download's license, including "Inherit from category", so a site moved from another download manager shows the right license on every download without editing them one by one.
 
 **Ready for cloud files on headless sites.** A headless front end that serves downloads itself can now ask Foundation whether a visitor may have a cloud-stored file and how to deliver it. It follows exactly the same rules as your own site's download links.
@@ -329,6 +331,7 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 
 * **New:** importers can set a download's license, or have it follow its category.
 * **New:** headless sites can deliver cloud-stored files under the same rules as the site's own download links.
+* **Fixed:** the download settings in the editor's sidebar (license, access, version, featured and the rest) were not shown or saved.
 * **Fixed:** a download created by an importer to follow its category's license got the wrong license.
 
 = 0.17.1 =
@@ -504,7 +507,7 @@ Existing data (downloads, categories, files, licenses, logs, per-user category p
 == Upgrade Notice ==
 
 = 0.18.0 =
-New functions for importers and headless sites; nothing changes until a plugin uses them. No database changes.
+The download settings in the editor's sidebar are shown and saved again; please re-check any you changed there since 0.12. Also new functions for importers and headless sites. No database changes.
 
 = 0.17.1 =
 Statistics stay current, files on hold get a friendly page, and link checks are no longer counted as downloads. No database changes.
