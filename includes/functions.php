@@ -71,7 +71,11 @@ function isoft_fmf_create_draft_download( array $args ): int|false {
 		( new ISOFT_FMF_Access_Control() )->recompute_effective_role( $post_id );
 	}
 	if ( ! empty( $args['license_id'] ) ) {
-		update_post_meta( $post_id, '_isoft_fmf_license_id', absint( $args['license_id'] ) );
+		// -1 (ISOFT_FMF_License_Resolver::INHERIT): follow the category.
+		$license_id = (int) $args['license_id'];
+		update_post_meta( $post_id, '_isoft_fmf_license_id', ISOFT_FMF_License_Resolver::INHERIT === $license_id ? $license_id : absint( $license_id ) );
+		// The cached license was worked out before this was written.
+		( new ISOFT_FMF_License_Resolver() )->recompute_effective_license( $post_id );
 	}
 
 	return $post_id;
@@ -846,6 +850,7 @@ function isoft_fmf_features(): array {
 		'license_api',
 		'external_link',
 		'range_requests',
+		'download_license',
 	);
 
 	/**
@@ -1030,6 +1035,30 @@ function isoft_fmf_create_license( array $args ): int|WP_Error {
 		return new WP_Error( 'isoft_fmf_license_failed', __( 'The license could not be saved.', 'isoft-fm-foundation' ) );
 	}
 	return $id;
+}
+
+/**
+ * Set a download's license, the same choice as the editor's License box:
+ * a license ID, `ISOFT_FMF_License_Resolver::INHERIT` (-1) to follow the
+ * category (and its parents), or 0 for none. The license the download
+ * resolves to is worked out at once and returned.
+ *
+ * @return int|WP_Error The effective license ID (0: none), or an error when
+ *                      the download or the license does not exist.
+ */
+function isoft_fmf_set_download_license( int $download_id, int $license_id ): int|WP_Error {
+	if ( 'isoft_fmf_file' !== get_post_type( $download_id ) ) {
+		return new WP_Error( 'isoft_fmf_invalid_download', __( 'There is no such download.', 'isoft-fm-foundation' ) );
+	}
+	if ( $license_id < ISOFT_FMF_License_Resolver::INHERIT || ( $license_id > 0 && ! ( new ISOFT_FMF_License_Service() )->get( $license_id ) ) ) {
+		return new WP_Error( 'isoft_fmf_invalid_license', __( 'There is no such license.', 'isoft-fm-foundation' ) );
+	}
+
+	update_post_meta( $download_id, '_isoft_fmf_license_id', $license_id );
+	$effective = ( new ISOFT_FMF_License_Resolver() )->recompute_effective_license( $download_id );
+	isoft_fmf_content_changed( 'download', $download_id );
+
+	return $effective;
 }
 
 /**

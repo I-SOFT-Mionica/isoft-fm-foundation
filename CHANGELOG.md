@@ -2,6 +2,16 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [Unreleased]
+
+### Added
+
+- `isoft_fmf_set_download_license( $download_id, $license_id )`: set a download's license (an ID, `ISOFT_FMF_License_Resolver::INHERIT` to follow the category, or 0), validated, with the effective license recomputed and returned. Feature `download_license`.
+
+### Fixed
+
+- `isoft_fmf_create_draft_download()` turned `license_id` -1 (inherit) into license 1, and left the cached effective license stale when `license_id` was given.
+
 ## [0.17.1] — 2026-11-20
 
 ### Fixed
