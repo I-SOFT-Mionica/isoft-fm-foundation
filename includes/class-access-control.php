@@ -19,6 +19,8 @@ class ISOFT_FMF_Access_Control {
 		// that determine it: the per-download role meta, the download's
 		// category assignment, and the category's own role meta.
 		add_action( 'save_post_isoft_fmf_file', array( $this, 'on_download_saved' ), 20, 1 );
+		// The block editor saves meta after save_post; work it out again then.
+		add_action( 'rest_after_insert_isoft_fmf_file', array( $this, 'on_rest_saved' ), 20, 1 );
 		add_action( 'set_object_terms', array( $this, 'on_terms_set' ), 20, 4 );
 		add_action( 'edited_isoft_fmf_category', array( $this, 'on_category_edited' ), 20, 1 );
 	}
@@ -112,6 +114,10 @@ class ISOFT_FMF_Access_Control {
 	// -------------------------------------------------------------------------
 	// Effective-role denormalisation hooks
 	// -------------------------------------------------------------------------
+
+	public function on_rest_saved( WP_Post $post ): void {
+		$this->on_download_saved( (int) $post->ID );
+	}
 
 	public function on_download_saved( int $post_id ): void {
 		if ( wp_is_post_revision( $post_id ) || wp_is_post_autosave( $post_id ) ) {
