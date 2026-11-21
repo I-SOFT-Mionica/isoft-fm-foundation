@@ -816,6 +816,50 @@ function isoft_fmf_public_file( int $file_id ): ?array {
 }
 
 /**
+ * How to deliver a remote file to an anonymous visitor, for a gateway that
+ * serves downloads itself (a headless site). Applies the anonymous-visitor
+ * rule (the download is public and not "external links only", the file is a
+ * remote one and not held back), then asks the owning plugin through
+ * `isoft_fmf_resolve_remote_file` as user 0, the same way the download
+ * handler does. Does not count: record with isoft_fmf_record_download() once
+ * served (isoft_fmf_range_counts() says whether a range is a new download).
+ * Rate limits, the user-agent blocklist and hotlink protection need the real
+ * visitor and are the gateway's own.
+ *
+ * @param string $range The visitor's Range header, or ''.
+ * @param bool   $head  True for a HEAD request: do not call 'stream'.
+ * @return array|null array( 'mode' => 'redirect', 'url' ) or
+ *                    array( 'mode' => 'proxy', 'stream', 'headers', 'status' );
+ *                    null when the file may not or cannot be delivered.
+ */
+function isoft_fmf_resolve_public_remote_file( int $file_id, string $range = '', bool $head = false ): ?array {
+	$file = ( new ISOFT_FMF_File_Manager() )->get_file( $file_id );
+	if ( ! $file || 'remote' !== $file->file_type || ! empty( $file->is_unavailable ) ) {
+		return null;
+	}
+	$download_id = (int) $file->download_id;
+	if ( get_post_meta( $download_id, '_isoft_fmf_external_only', true ) || ! isoft_fmf_download_is_public( $download_id ) ) {
+		return null;
+	}
+
+	$user = get_current_user_id();
+	wp_set_current_user( 0 );
+	try {
+		return ISOFT_FMF_Download_Handler::resolve_remote( $file, $download_id, $range, $head );
+	} finally {
+		wp_set_current_user( $user );
+	}
+}
+
+/**
+ * Whether a request with this Range header is a new download (no Range, or
+ * one that starts at byte 0). Resumed and segmented requests are not.
+ */
+function isoft_fmf_range_counts( string $range ): bool {
+	return ISOFT_FMF_Download_Handler::range_counts( $range );
+}
+
+/**
  * What this Foundation can do, as stable feature identifiers. Code running in
  * the same WordPress (a headless module, an extension) checks these instead
  * of function_exists() or version numbers; clients outside WordPress read the
@@ -851,6 +895,7 @@ function isoft_fmf_features(): array {
 		'external_link',
 		'range_requests',
 		'download_license',
+		'public_remote_file',
 	);
 
 	/**
