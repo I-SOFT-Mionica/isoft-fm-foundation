@@ -42,6 +42,7 @@ class EditorMetaRestTest extends WP_UnitTestCase {
 		$data = $this->get()->get_data();
 
 		$this->assertArrayHasKey( 'meta', $data );
+		$this->assertArrayHasKey( '_isoft_fmf_license_id', (array) $data['meta'], 'DIAG meta=' . wp_json_encode( array_keys( (array) $data['meta'] ) ) . ' registered=' . wp_json_encode( array_keys( get_registered_meta_keys( 'post', 'isoft_fmf_file' ) ) ) . ' supports=' . wp_json_encode( post_type_supports( 'isoft_fmf_file', 'custom-fields' ) ) . ' did_init=' . did_action( 'init' ) );
 		$this->assertSame( 8, $data['meta']['_isoft_fmf_license_id'] );
 		$this->assertSame( '2.1', $data['meta']['_isoft_fmf_version'] );
 	}
