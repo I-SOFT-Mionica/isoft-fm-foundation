@@ -125,8 +125,37 @@ class ISOFT_FMF_Download_Handler {
 	 * ends on the unavailable page and is not counted.
 	 */
 	private function serve_remote_file( object $file, int $download_id ): void {
-		$range = isset( $_SERVER['HTTP_RANGE'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_RANGE'] ) ) : '';
+		$range      = isset( $_SERVER['HTTP_RANGE'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_RANGE'] ) ) : '';
+		$resolution = self::resolve_remote( $file, $download_id, $range, self::is_head() );
 
+		if ( null === $resolution ) {
+			$this->show_unavailable( $download_id );
+			return;
+		}
+
+		$this->record_remote( $file, $range );
+		if ( 'redirect' === $resolution['mode'] ) {
+			// A signed cloud address must not be kept by a cache.
+			nocache_headers();
+			// phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- The cloud host is not in WordPress's allowlist; the URL is validated in resolve_remote().
+			wp_redirect( $resolution['url'] );
+			$this->finish();
+			return;
+		}
+		$this->proxy_remote( $file, $resolution );
+	}
+
+	/**
+	 * Ask the plugin that owns a remote file how to deliver it, and keep only
+	 * a usable answer. No visitor checks and no counting: the caller does both.
+	 * Shared by the download handler and isoft_fmf_resolve_public_remote_file().
+	 *
+	 * @return array{mode:string, url?:string, stream?:callable, headers?:array<string,string>, status?:int}|null
+	 *         redirect: 'url' (http or https); proxy: 'stream', 'headers' (only
+	 *         the ones that describe the body), 'status' (200 or 206); null
+	 *         when there is no usable answer.
+	 */
+	public static function resolve_remote( object $file, int $download_id, string $range, bool $head ): ?array {
 		try {
 			/**
 			 * How to deliver a remote file.
@@ -146,34 +175,41 @@ class ISOFT_FMF_Download_Handler {
 				array(
 					'download_id' => $download_id,
 					'range'       => $range,
-					'head'        => self::is_head(),
+					'head'        => $head,
 				)
 			);
 		} catch ( Throwable $e ) {
 			unset( $e );
-			$resolution = null;
+			return null;
 		}
 
 		$mode = is_array( $resolution ) ? ( $resolution['mode'] ?? '' ) : '';
 
 		if ( 'redirect' === $mode ) {
 			$target = esc_url_raw( (string) ( $resolution['url'] ?? '' ), array( 'https', 'http' ) );
-			if ( '' !== $target ) {
-				$this->record_remote( $file, $range );
-				// A signed cloud address must not be kept by a cache.
-				nocache_headers();
-				// phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- The cloud host is not in WordPress's allowlist; $target is validated above.
-				wp_redirect( $target );
-				$this->finish();
-				return;
-			}
-		} elseif ( 'proxy' === $mode && is_callable( $resolution['stream'] ?? null ) ) {
-			$this->record_remote( $file, $range );
-			$this->proxy_remote( $file, $resolution );
-			return;
+			return '' === $target ? null : array(
+				'mode' => 'redirect',
+				'url'  => $target,
+			);
 		}
 
-		$this->show_unavailable( $download_id );
+		if ( 'proxy' === $mode && is_callable( $resolution['stream'] ?? null ) ) {
+			$describing = array( 'content-length', 'content-range', 'accept-ranges', 'etag', 'last-modified' );
+			$headers    = array();
+			foreach ( (array) ( $resolution['headers'] ?? array() ) as $name => $value ) {
+				if ( in_array( strtolower( (string) $name ), $describing, true ) && is_scalar( $value ) ) {
+					$headers[ (string) $name ] = str_replace( array( "\r", "\n" ), '', (string) $value );
+				}
+			}
+			return array(
+				'mode'    => 'proxy',
+				'stream'  => $resolution['stream'],
+				'headers' => $headers,
+				'status'  => 206 === (int) ( $resolution['status'] ?? 200 ) ? 206 : 200,
+			);
+		}
+
+		return null;
 	}
 
 	/**
@@ -257,12 +293,8 @@ class ISOFT_FMF_Download_Handler {
 			$file
 		);
 
-		$describing = array( 'content-length', 'content-range', 'accept-ranges', 'etag', 'last-modified' );
-		foreach ( (array) ( $resolution['headers'] ?? array() ) as $name => $value ) {
-			if ( in_array( strtolower( (string) $name ), $describing, true ) && is_scalar( $value ) ) {
-				$headers[ (string) $name ] = str_replace( array( "\r", "\n" ), '', (string) $value );
-			}
-		}
+		// Already reduced to the headers that describe the body (resolve_remote()).
+		$headers = array_merge( $headers, $resolution['headers'] );
 
 		$this->prepare_stream();
 		$headers['Content-Encoding'] = 'identity';
@@ -272,7 +304,7 @@ class ISOFT_FMF_Download_Handler {
 			@set_time_limit( 0 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,Squiz.PHP.DiscouragedFunctions.Discouraged -- A long proxied download; the @ guards against hosts that forbid it.
 		}
 
-		if ( 206 === (int) ( $resolution['status'] ?? 200 ) ) {
+		if ( 206 === $resolution['status'] ) {
 			$this->send_status( 206 );
 		}
 		$this->send_headers( $headers );

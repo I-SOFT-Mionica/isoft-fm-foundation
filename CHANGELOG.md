@@ -7,6 +7,7 @@ All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads
 ### Added
 
 - `isoft_fmf_set_download_license( $download_id, $license_id )`: set a download's license (an ID, `ISOFT_FMF_License_Resolver::INHERIT` to follow the category, or 0), validated, with the effective license recomputed and returned. Feature `download_license`.
+- `isoft_fmf_resolve_public_remote_file( $file_id, $range, $head )` and `isoft_fmf_range_counts( $range )`, for a headless gateway that serves remote files: the anonymous-visitor rule plus `isoft_fmf_resolve_remote_file` as user 0, with the answer cleaned the same way as in the download handler (`ISOFT_FMF_Download_Handler::resolve_remote()`, now shared). Does not count. Feature `public_remote_file`.
 
 ### Fixed
 
