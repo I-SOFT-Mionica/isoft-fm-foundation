@@ -71,7 +71,7 @@ class ISOFT_FMF_Rest_Files {
 						'url'       => array(
 							'required'          => true,
 							'type'              => 'string',
-							'sanitize_callback' => 'esc_url_raw',
+							'sanitize_callback' => static fn( $v ) => esc_url_raw( (string) $v ),
 						),
 						'title'     => array(
 							'required'          => false,

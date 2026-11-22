@@ -325,6 +325,10 @@ JS
 		if ( 'isoft_fmf_category' !== $taxonomy ) {
 			return;
 		}
+		// Uninstall deletes every category and then the whole storage folder.
+		if ( defined( 'WP_UNINSTALL_PLUGIN' ) && ISOFT_FMF_PLUGIN_BASENAME === WP_UNINSTALL_PLUGIN ) {
+			return;
+		}
 
 		$message = $this->delete_blocker( $term_id );
 		if ( '' === $message ) {
