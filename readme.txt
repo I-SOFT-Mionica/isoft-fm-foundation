@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.1
 Requires PHP: 8.4
-Stable tag: 0.18.0
+Stable tag: 0.19.0-dev
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -16,6 +16,12 @@ Document and download manager with real on-disk folder organization, per-departm
 
 Unlike standard media plugins that dump every upload into a single dated folder, Foundation is designed for municipalities, universities, libraries, and any team that needs to manage thousands of public documents, maintain a strict category tree, and give different departments their own secure upload spaces.
 
+= What's new in 0.19.0 =
+
+**Lighter and tidier.** This release removes code left over from the admin screens that were replaced in version 0.12, and some one-time upgrade steps that no site can need any more. Activating or updating the plugin does a little less work, and uninstalling it now removes three settings it used to leave behind.
+
+Nothing changes in how your site looks or works.
+
 = What's new in 0.18.0 =
 
 **The download settings in the editor work again.** The Version & License, Access and other panels in the block editor's sidebar showed default values and quietly dropped your changes when you saved. They now show what is stored and save what you choose. If you set a license, an access level, a version or "featured" there since version 0.12 and it did not stick, please set it once more.
@@ -25,14 +31,6 @@ Unlike standard media plugins that dump every upload into a single dated folder,
 **Ready for cloud files on headless sites.** A headless front end that serves downloads itself can now ask Foundation whether a visitor may have a cloud-stored file and how to deliver it. It follows exactly the same rules as your own site's download links.
 
 Nothing changes on your site until a plugin uses these.
-
-= What's new in 0.17.1 =
-
-**Statistics are always current.** Tools > Statistics now shows new numbers as soon as you add, remove or publish files, instead of up to five minutes later.
-
-**A friendlier page for files on hold.** When a file is temporarily held back, visitors see the same "temporarily unavailable" page as for a missing file, with a way to contact you and a link back to your downloads, instead of a short refusal.
-
-**Link checks no longer count as downloads.** Link checkers and the link previews in chat apps only ask whether a file is there. Those requests no longer raise your download counts, and they no longer make the server read the whole file.
 
 = Key features =
 
@@ -327,6 +325,11 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 
 == Changelog ==
 
+= 0.19.0 =
+
+* **Improved:** leftover code from the pre-0.12 admin screens and old upgrade steps removed; activation and updates do less work.
+* **Fixed:** uninstalling now also removes three settings it left behind.
+
 = 0.18.0 =
 
 * **New:** importers can set a download's license, or have it follow its category.
@@ -505,6 +508,9 @@ Existing data (downloads, categories, files, licenses, logs, per-user category p
 * **Inline metadata editing** directly from the file list.
 
 == Upgrade Notice ==
+
+= 0.19.0 =
+Cleanup release: leftover code removed, nothing changes in how your site works. No database changes.
 
 = 0.18.0 =
 The download settings in the editor's sidebar are shown and saved again; please re-check any you changed there since 0.12. Also new functions for importers and headless sites. No database changes.
