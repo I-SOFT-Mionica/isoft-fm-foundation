@@ -18,9 +18,9 @@ Unlike standard media plugins that dump every upload into a single dated folder,
 
 = What's new in 0.19.0 =
 
-**Lighter and tidier.** This release removes code left over from the admin screens that were replaced in version 0.12, and some one-time upgrade steps that no site can need any more. Activating or updating the plugin does a little less work, and uninstalling it now removes three settings it used to leave behind.
+**Lighter and tidier.** This release removes code left over from the admin screens that were replaced in version 0.12, and some one-time upgrade steps that no site can need any more. Activating or updating the plugin does a little less work.
 
-Nothing changes in how your site looks or works.
+**A few long-standing rough edges fixed.** Adding a license with the slug left blank works again (it is made from the title, as the screen promises). Adding an external link to a download no longer reloads the editor, so nothing you were typing is lost. The Tools screens stop writing a warning to the debug log on every visit. And when you choose to delete all plugin data, uninstalling now really removes everything: categories, tags and the last few settings included.
 
 = What's new in 0.18.0 =
 
@@ -328,7 +328,10 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 = 0.19.0 =
 
 * **Improved:** leftover code from the pre-0.12 admin screens and old upgrade steps removed; activation and updates do less work.
-* **Fixed:** uninstalling now also removes three settings it left behind.
+* **Fixed:** adding or editing a license with an empty slug caused an error.
+* **Fixed:** adding an external link in the Files box reloaded the editor.
+* **Fixed:** the Tools screens logged a PHP deprecation notice on each visit.
+* **Fixed:** uninstalling with "Delete all plugin data" left categories, tags and a few settings behind, or stopped halfway when run from WP-CLI.
 
 = 0.18.0 =
 
@@ -510,7 +513,7 @@ Existing data (downloads, categories, files, licenses, logs, per-user category p
 == Upgrade Notice ==
 
 = 0.19.0 =
-Cleanup release: leftover code removed, nothing changes in how your site works. No database changes.
+Cleanup and fixes: leftover code removed, adding a license with a blank slug works again, and uninstalling removes everything. No database changes.
 
 = 0.18.0 =
 The download settings in the editor's sidebar are shown and saved again; please re-check any you changed there since 0.12. Also new functions for importers and headless sites. No database changes.
