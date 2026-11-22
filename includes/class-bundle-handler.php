@@ -26,7 +26,7 @@ class ISOFT_FMF_Bundle_Handler {
 		 * - before_delete_post fires immediate cleanup when an admin
 		 *   permanently deletes a download (cache for trashed posts is
 		 *   intentionally kept in case of untrash).
-		 * - admin-post action backs the "Clear bundle cache" button.
+		 * - A manual clear goes through REST DELETE /maintenance/bundle-cache.
 		 */
 		add_action( 'isoft_fmf_integrity_check_complete', array( $this, 'sweep_cache' ) );
 		add_action( 'init', array( $this, 'maybe_schedule_sweep' ) );

@@ -87,6 +87,33 @@ class RestLicensesTest extends WP_UnitTestCase {
 		$this->assertGreaterThan( 0, $data['id'] );
 	}
 
+	public function test_create_with_empty_slug_makes_one_from_the_title(): void {
+		$this->login_as_admin();
+		$req = new WP_REST_Request( 'POST', self::NS . '/licenses' );
+		$req->set_header( 'Content-Type', 'application/json' );
+		$req->set_body( (string) wp_json_encode( array( 'title' => 'Empty Slug License', 'slug' => '', 'description' => '', 'full_text' => '', 'url' => '' ) ) );
+
+		$response = $this->server->dispatch( $req );
+
+		$this->assertSame( 201, $response->get_status() );
+		$this->assertSame( 'empty-slug-license', $response->get_data()['slug'] );
+		$this->assertSame( '', $response->get_data()['url'] );
+	}
+
+	public function test_update_with_empty_slug_succeeds(): void {
+		$this->login_as_admin();
+		$id = $this->seed_license( 'Keeps Working' );
+
+		$req = new WP_REST_Request( 'PUT', self::NS . "/licenses/{$id}" );
+		$req->set_header( 'Content-Type', 'application/json' );
+		$req->set_body( (string) wp_json_encode( array( 'title' => 'Keeps Working', 'slug' => '', 'url' => '' ) ) );
+
+		$response = $this->server->dispatch( $req );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( 'keeps-working', $response->get_data()['slug'] );
+	}
+
 	public function test_create_returns_400_without_title(): void {
 		$this->login_as_admin();
 		$req = new WP_REST_Request( 'POST', self::NS . '/licenses' );

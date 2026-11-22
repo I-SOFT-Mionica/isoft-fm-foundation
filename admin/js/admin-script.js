@@ -484,8 +484,11 @@
 					is_mirror:   isMirror,
 				},
 				function ( res ) {
-					if ( res.success ) {
-						// Fetch fresh row by reloading — external add does not return full row.
+					if ( res.success && res.data && res.data.file ) {
+						appendFileRow( res.data.file );
+						$( '#isoft-fmf-ext-url, #isoft-fmf-ext-title' ).val( '' );
+						$( '#isoft-fmf-ext-mirror' ).prop( 'checked', false );
+					} else if ( res.success ) {
 						location.reload();
 					} else {
 						alert( res.data && res.data.message ? res.data.message : ISOFT_FMF.i18n.error );

@@ -18,6 +18,11 @@ Code left from the admin screens that 0.12 replaced, and upgrade steps no wordpr
 ### Fixed
 
 - Uninstall now also deletes `isoft_fmf_external_link_target`, `isoft_fmf_hot_window` and `isoft_fmf_install_errors`.
+- Adding or editing a license with an empty slug was a fatal error: REST calls a `sanitize_callback` with `( $value, $request, $param )`, and `sanitize_title()` returned the request object as its fallback. The slug and URL arguments of `/licenses` and the URL of `/downloads/{id}/files/external` now take the value only. An empty slug is made from the title again.
+- Visiting Tools or Broken Links logged `strip_tags(): Passing null` from `admin-header.php`: the hidden Tools sub-pages (`isoft-fmf-stats`, `-log`, `-broken-links`) had no page title. `ISOFT_FMF_Settings::consolidate_tools_menu()` sets it on their `load-` hooks.
+- The Files box's Add Link reloaded the whole editor. `wp_ajax_isoft_fmf_add_external` now also returns the new `file`, and the row is added in place.
+- Uninstall left the categories and tags (and their term meta) when the plugin was inactive, because the taxonomies were not registered; `uninstall.php` registers them first.
+- An uninstall with the plugin still loaded (`wp plugin uninstall --deactivate`) stopped at the category-delete guard after the tables were gone. `ISOFT_FMF_Category_Folders::on_pre_delete()` stands down while WordPress uninstalls Foundation.
 
 ## [0.18.0] — 2026-11-21
 

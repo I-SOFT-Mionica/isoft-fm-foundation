@@ -257,7 +257,8 @@ class ISOFT_FMF_Rest_Licenses {
 			'slug'        => array(
 				'required'          => false,
 				'type'              => 'string',
-				'sanitize_callback' => 'sanitize_title',
+				// REST passes ( $value, $request, $param ): sanitize_title() would return the request as its fallback for an empty slug.
+				'sanitize_callback' => static fn( $v ) => sanitize_title( (string) $v ),
 			),
 			'description' => array(
 				'required'          => false,
@@ -272,7 +273,7 @@ class ISOFT_FMF_Rest_Licenses {
 			'url'         => array(
 				'required'          => false,
 				'type'              => 'string',
-				'sanitize_callback' => 'esc_url_raw',
+				'sanitize_callback' => static fn( $v ) => esc_url_raw( (string) $v ),
 			),
 			'is_default'  => array(
 				'required' => false,
