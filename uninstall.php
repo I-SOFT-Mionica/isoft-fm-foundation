@@ -43,7 +43,11 @@ foreach ( array_unique( array_merge( $post_ids, $demo_ids ) ) as $post_id ) {
 
 // Delete the categories and tags with their term meta. An inactive plugin
 // has not registered its taxonomies, and get_terms() refuses an unknown one.
-foreach ( array( 'isoft_fmf_category' => true, 'isoft_fmf_tag' => false ) as $taxonomy => $hierarchical ) {
+$taxonomies = array(
+	'isoft_fmf_category' => true,
+	'isoft_fmf_tag'      => false,
+);
+foreach ( $taxonomies as $taxonomy => $hierarchical ) {
 	if ( ! taxonomy_exists( $taxonomy ) ) {
 		register_taxonomy(
 			$taxonomy,
