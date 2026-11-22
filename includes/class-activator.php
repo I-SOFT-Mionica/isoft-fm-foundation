@@ -37,7 +37,6 @@ class ISOFT_FMF_Activator {
 		// previous failed attempt, then run the rest of the install.
 		delete_option( 'isoft_fmf_install_errors' );
 
-		self::drop_legacy_columns();
 		self::register_capabilities();
 		self::seed_licenses();
 		self::create_file_storage();
@@ -138,9 +137,6 @@ class ISOFT_FMF_Activator {
 	 * any version older than its target.
 	 */
 	private static function run_migrations( string $from_version ): void {
-		if ( version_compare( $from_version, '0.10.0', '<' ) ) {
-			self::backfill_effective_access_role();
-		}
 		if ( version_compare( $from_version, '0.12.1', '<' ) ) {
 			self::reduce_to_single_category();
 		}
@@ -211,27 +207,6 @@ class ISOFT_FMF_Activator {
 				),
 				MONTH_IN_SECONDS
 			);
-		}
-	}
-
-	/**
-	 * 0.10.0: populate `_isoft_fmf_effective_access_role` for every existing
-	 * download so the SQL filter in ISOFT_FMF_Access_Control has a value to
-	 * JOIN against without falling through the NULL branch. The hooks keep
-	 * it fresh going forward.
-	 */
-	private static function backfill_effective_access_role(): void {
-		$access = new ISOFT_FMF_Access_Control();
-		$ids    = get_posts(
-			array(
-				'post_type'      => 'isoft_fmf_file',
-				'post_status'    => 'any',
-				'posts_per_page' => -1,
-				'fields'         => 'ids',
-			)
-		);
-		foreach ( $ids as $id ) {
-			$access->recompute_effective_role( (int) $id );
 		}
 	}
 
@@ -376,41 +351,6 @@ class ISOFT_FMF_Activator {
 		// option still updated, masking the install failure forever.
 	}
 
-	/**
-	 * Remove columns/options that are no longer used (dead weight from the
-	 * media-library era). dbDelta() never drops columns on its own, so this
-	 * runs explicitly on every activation / version bump.
-	 */
-	private static function drop_legacy_columns(): void {
-		global $wpdb;
-
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange -- Activator: one-shot schema/upgrade cleanup; dbDelta does not drop columns.
-		$has_column = $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
-			  WHERE TABLE_SCHEMA = DATABASE()
-			    AND TABLE_NAME   = %s
-			    AND COLUMN_NAME  = 'attachment_id'",
-				"{$wpdb->prefix}isoft_fmf_files"
-			)
-		);
-		if ( $has_column ) {
-			$wpdb->query( "ALTER TABLE {$wpdb->prefix}isoft_fmf_files DROP COLUMN attachment_id" );
-		}
-
-		// Obsolete options from the media-library mode.
-		delete_option( 'isoft_fmf_storage_mode' );
-		delete_option( 'isoft_fmf_custom_folder' );
-
-		// Removed in 0.6.1: arbitrary CSS injection is disallowed by the WP.org
-		// plugin guidelines.
-		delete_option( 'isoft_fmf_custom_css' );
-
-		// Obsolete per-download storage-mode post meta.
-		$wpdb->query( "DELETE FROM {$wpdb->postmeta} WHERE meta_key = '_isoft_fmf_storage_mode'" );
-		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange
-	}
-
 	private static function register_capabilities(): void {
 		$role_caps = array(
 			'subscriber'    => array( 'isoft_fmf_view_downloads' ),
@@ -438,6 +378,6 @@ class ISOFT_FMF_Activator {
 		// after manual deletion repopulates only what's missing. Add-only,
 		// never overwrites existing rows — that's load-bearing for legal
 		// defensibility (see [[notary-addon]] for the proof chain).
-		( new ISOFT_FMF_License_Manager() )->install_missing_seeds();
+		( new ISOFT_FMF_License_Service() )->install_missing_seeds();
 	}
 }

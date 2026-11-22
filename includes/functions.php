@@ -1865,7 +1865,7 @@ function isoft_fmf_agreement_for( int $download_id ): ?array {
 	}
 
 	$license_id = (int) get_post_meta( $download_id, '_isoft_fmf_license_id', true );
-	$license    = $license_id > 0 ? ( new ISOFT_FMF_License_Manager() )->get( $license_id ) : null;
+	$license    = $license_id > 0 ? ( new ISOFT_FMF_License_Service() )->get( $license_id ) : null;
 
 	// Cast to string: full_text is a nullable LONGTEXT; wp_kses_post( null ) is deprecated since PHP 8.1.
 	return array(

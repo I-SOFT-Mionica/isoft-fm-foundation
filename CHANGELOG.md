@@ -2,6 +2,23 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [Unreleased]
+
+### Removed
+
+Code left from the admin screens that 0.12 replaced, and upgrade steps no wordpress.org install can need (the first release there was 0.10.17). No change to what sites see or store.
+
+- `admin/css/tinymce-modal.css` (nothing loaded it) and the `admin-style.css` rules for the old recover dialog, theming help, log filters, inline external-link form and file action row.
+- The `admin_post_isoft_fmf_export_csv` / `_export_json` handlers (`ISOFT_FMF_Export::export_csv()` / `export_json()`). The log screen exports through the `isoft_fmf_action=export_csv|export_json` links, which stay.
+- The `admin_post_isoft_fmf_clear_bundle_cache` handler (`ISOFT_FMF_Bundle_Handler::handle_manual_clear()`). Settings uses `DELETE /maintenance/bundle-cache`.
+- `ISOFT_FMF_Settings::sanitize_time()`, `::sanitize_link_target()` (use `ISOFT_FMF_Settings_Service`) and `::handle_flush_rewrite()` (use `POST /settings/flush-rewrite`).
+- The pre-0.12.0 delegators on `ISOFT_FMF_License_Manager` (`get()`, `get_all()`, `install_missing_seeds()`, `seed_defaults()`, `bust_cache()`, `CACHE_GROUP`). Use `ISOFT_FMF_License_Service` (`get()`, `list()`, ...) or the public `isoft_fmf_*_license()` functions. The class now only adds the Licenses menu.
+- Activation no longer checks for the media-library-era `attachment_id` column and options on every version update, and no longer has the pre-0.10.0 access-role backfill.
+
+### Fixed
+
+- Uninstall now also deletes `isoft_fmf_external_link_target`, `isoft_fmf_hot_window` and `isoft_fmf_install_errors`.
+
 ## [0.18.0] — 2026-11-21
 
 ### Added

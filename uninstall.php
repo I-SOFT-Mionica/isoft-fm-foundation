@@ -121,6 +121,10 @@ $options = array(
 	'isoft_fmf_pdf_notice_dismissed',
 	// WordPress's hierarchy cache for the category taxonomy.
 	'isoft_fmf_category_children',
+	// Written outside the settings screens
+	'isoft_fmf_external_link_target',
+	'isoft_fmf_hot_window',
+	'isoft_fmf_install_errors',
 	// Legacy (removed in earlier versions; cleaned for upgrade safety)
 	'isoft_fmf_custom_css',
 	'isoft_fmf_custom_folder',

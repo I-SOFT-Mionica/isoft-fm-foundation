@@ -67,7 +67,7 @@ class ISOFT_FMF_License_Resolver {
 		if ( $id <= 0 ) {
 			return null;
 		}
-		return ( new ISOFT_FMF_License_Manager() )->get( $id );
+		return ( new ISOFT_FMF_License_Service() )->get( $id );
 	}
 
 	/**
