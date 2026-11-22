@@ -95,12 +95,27 @@ class ISOFT_FMF_Settings {
 	 * "Tools" entry instead of Statistics + Download Log + Broken
 	 * Links. `remove_submenu_page` only drops the sidebar row — the
 	 * `$_registered_pages` entry survives, so the URLs still load.
+	 *
+	 * Without the row, get_admin_page_title() finds no title and the admin
+	 * header passes null to strip_tags() (a deprecation per visit), so each
+	 * hidden page gets its title back on its load- hook.
 	 */
 	public function consolidate_tools_menu(): void {
 		$parent = 'edit.php?post_type=isoft_fmf_file';
-		remove_submenu_page( $parent, 'isoft-fmf-stats' );
-		remove_submenu_page( $parent, 'isoft-fmf-log' );
-		remove_submenu_page( $parent, 'isoft-fmf-broken-links' );
+		foreach ( array( 'isoft-fmf-stats', 'isoft-fmf-log', 'isoft-fmf-broken-links' ) as $slug ) {
+			$item = remove_submenu_page( $parent, $slug );
+			if ( ! is_array( $item ) || ! isset( $item[3] ) ) {
+				continue;
+			}
+			$page_title = (string) $item[3];
+			add_action(
+				'load-' . get_plugin_page_hookname( $slug, $parent ),
+				static function () use ( $page_title ): void {
+					// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- The admin header reads the page title from this global.
+					$GLOBALS['title'] = $page_title;
+				}
+			);
+		}
 	}
 
 	public function render_tools(): void {

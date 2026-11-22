@@ -41,16 +41,34 @@ foreach ( array_unique( array_merge( $post_ids, $demo_ids ) ) as $post_id ) {
 	wp_delete_post( (int) $post_id, true );
 }
 
-// Delete all isoft_fmf_category terms
-$terms = get_terms(
-	array(
-		'taxonomy'   => 'isoft_fmf_category',
-		'hide_empty' => false,
-	)
+// Delete the categories and tags with their term meta. An inactive plugin
+// has not registered its taxonomies, and get_terms() refuses an unknown one.
+$taxonomies = array(
+	'isoft_fmf_category' => true,
+	'isoft_fmf_tag'      => false,
 );
-if ( is_array( $terms ) ) {
-	foreach ( $terms as $term ) {
-		wp_delete_term( $term->term_id, 'isoft_fmf_category' );
+foreach ( $taxonomies as $taxonomy => $hierarchical ) {
+	if ( ! taxonomy_exists( $taxonomy ) ) {
+		register_taxonomy(
+			$taxonomy,
+			'isoft_fmf_file',
+			array(
+				'hierarchical' => $hierarchical,
+				'public'       => false,
+				'rewrite'      => false,
+			)
+		);
+	}
+	$terms = get_terms(
+		array(
+			'taxonomy'   => $taxonomy,
+			'hide_empty' => false,
+		)
+	);
+	if ( is_array( $terms ) ) {
+		foreach ( $terms as $term ) {
+			wp_delete_term( $term->term_id, $taxonomy );
+		}
 	}
 }
 

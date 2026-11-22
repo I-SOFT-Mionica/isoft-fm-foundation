@@ -196,7 +196,12 @@ class ISOFT_FMF_Admin_Meta_Boxes {
 		if ( is_wp_error( $result ) ) {
 			wp_send_json_error( array( 'message' => $result->get_error_message() . self::db_error_suffix() ) );
 		}
-		wp_send_json_success( array( 'file_id' => $result ) );
+		wp_send_json_success(
+			array(
+				'file_id' => $result,
+				'file'    => ( new ISOFT_FMF_Files_Service() )->get( (int) $result ),
+			)
+		);
 	}
 
 	/**
