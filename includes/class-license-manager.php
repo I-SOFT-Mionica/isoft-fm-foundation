@@ -1,9 +1,8 @@
 <?php
 /**
- * Admin UI shell for the Licenses page: registers the submenu, renders
- * the React mount, and preserves the pre-0.12.0 public API (`get()`,
- * `get_all()`, `install_missing_seeds()`, `seed_defaults()`,
- * `bust_cache()`) as thin delegators onto [[ISOFT_FMF_License_Service]].
+ * Admin UI shell for the Licenses page: registers the submenu and renders
+ * the React mount. The data layer is ISOFT_FMF_License_Service (the
+ * pre-0.12.0 delegators here were removed in 0.19.0).
  *
  * All CRUD is served by [[ISOFT_FMF_Rest_Licenses]] and driven by the
  * React app in `blocks/licenses-page/`. The legacy `admin_init` POST
@@ -14,41 +13,8 @@ defined( 'ABSPATH' ) || exit;
 
 class ISOFT_FMF_License_Manager {
 
-	public const CACHE_GROUP = ISOFT_FMF_License_Service::CACHE_GROUP;
-
-	private ISOFT_FMF_License_Service $service;
-
-	public function __construct() {
-		$this->service = new ISOFT_FMF_License_Service();
-	}
-
 	public function register_hooks(): void {
 		add_action( 'admin_menu', array( $this, 'register_menu' ) );
-	}
-
-	// ---------------------------------------------------------------------
-	// Delegators — preserve the pre-0.12.0 public API.
-	// ---------------------------------------------------------------------
-
-	public static function seed_defaults(): array {
-		return ISOFT_FMF_License_Service::seed_defaults();
-	}
-
-	public static function bust_cache( ?int $id = null ): void {
-		ISOFT_FMF_License_Service::bust_cache( $id );
-	}
-
-	public function install_missing_seeds(): int {
-		return $this->service->install_missing_seeds();
-	}
-
-	/** @return object[] */
-	public function get_all(): array {
-		return $this->service->list();
-	}
-
-	public function get( int $id ): ?object {
-		return $this->service->get( $id );
 	}
 
 	// ---------------------------------------------------------------------

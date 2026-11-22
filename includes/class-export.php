@@ -3,8 +3,7 @@
  * CSV / JSON export for the download log — Phase 4.
  *
  * Hooks:
- *   admin_post_isoft_fmf_export_csv   → streams a CSV file
- *   admin_post_isoft_fmf_export_json  → streams a JSON file
+ *   admin_init (GET isoft_fmf_action=export_csv|export_json) → streams the log
  *   admin_post_isoft_fmf_purge_logs   → deletes old log entries, redirects back
  *
  * All actions require the isoft_fmf_export_logs capability (Admins only).
@@ -15,8 +14,6 @@ defined( 'ABSPATH' ) || exit;
 class ISOFT_FMF_Export {
 
 	public function register_hooks(): void {
-		add_action( 'admin_post_isoft_fmf_export_csv', array( $this, 'export_csv' ) );
-		add_action( 'admin_post_isoft_fmf_export_json', array( $this, 'export_json' ) );
 		add_action( 'admin_post_isoft_fmf_purge_logs', array( $this, 'purge_logs' ) );
 
 		// Handle inline export links from the log viewer (not admin-post, GET-based with nonce).
@@ -49,22 +46,6 @@ class ISOFT_FMF_Export {
 	// -------------------------------------------------------------------------
 	// admin-post handlers (POST-based, with nonce)
 	// -------------------------------------------------------------------------
-
-	public function export_csv(): void {
-		check_admin_referer( 'isoft_fmf_export' );
-		if ( ! current_user_can( 'isoft_fmf_export_logs' ) ) {
-			wp_die( esc_html__( 'Insufficient permissions.', 'isoft-fm-foundation' ) );
-		}
-		$this->stream_csv( $this->fetch_rows() );
-	}
-
-	public function export_json(): void {
-		check_admin_referer( 'isoft_fmf_export' );
-		if ( ! current_user_can( 'isoft_fmf_export_logs' ) ) {
-			wp_die( esc_html__( 'Insufficient permissions.', 'isoft-fm-foundation' ) );
-		}
-		$this->stream_json( $this->fetch_rows() );
-	}
 
 	public function purge_logs(): void {
 		check_admin_referer( 'isoft_fmf_purge_logs' );

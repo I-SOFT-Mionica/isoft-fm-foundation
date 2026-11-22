@@ -32,7 +32,6 @@ class ISOFT_FMF_Bundle_Handler {
 		add_action( 'init', array( $this, 'maybe_schedule_sweep' ) );
 		add_action( self::SWEEP_HOOK, array( $this, 'sweep_cache' ) );
 		add_action( 'before_delete_post', array( $this, 'delete_cache_for_post' ), 10, 1 );
-		add_action( 'admin_post_isoft_fmf_clear_bundle_cache', array( $this, 'handle_manual_clear' ) );
 		add_action( 'isoft_fmf_deactivate', array( $this, 'unschedule_sweep' ) );
 	}
 
@@ -572,32 +571,5 @@ class ISOFT_FMF_Bundle_Handler {
 				wp_delete_file( $path );
 			}
 		}
-	}
-
-	/**
-	 * Admin-post handler for the "Clear bundle cache" button in
-	 * Settings → Display. Nukes the entire .bundle-cache/ directory
-	 * regardless of age or orphan status.
-	 */
-	public function handle_manual_clear(): void {
-		if ( ! current_user_can( 'isoft_fmf_manage_settings' ) ) {
-			wp_die( esc_html__( 'You do not have permission to clear the bundle cache.', 'isoft-fm-foundation' ) );
-		}
-		check_admin_referer( 'isoft_fmf_clear_bundle_cache' );
-
-		$result = ( new ISOFT_FMF_Maintenance_Service() )->clear_bundle_cache();
-
-		wp_safe_redirect(
-			add_query_arg(
-				array(
-					'post_type'               => 'isoft_fmf_file',
-					'page'                    => 'isoft-fmf-settings',
-					'tab'                     => 'display',
-					'isoft_fmf_cache_cleared' => (int) $result['deleted'],
-				),
-				admin_url( 'edit.php' )
-			)
-		);
-		exit;
 	}
 }

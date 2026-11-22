@@ -11,7 +11,6 @@ class ISOFT_FMF_Settings {
 		// bookmarks and inbound links keep working.
 		add_action( 'admin_menu', array( $this, 'consolidate_tools_menu' ), 999 );
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
-		add_action( 'admin_init', array( $this, 'handle_flush_rewrite' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue' ) );
 	}
 
@@ -154,30 +153,6 @@ class ISOFT_FMF_Settings {
 			foreach ( $options as $option => $sanitize ) {
 				register_setting( $group, $option, array( 'sanitize_callback' => $sanitize ) );
 			}
-		}
-	}
-
-	// Backward-compat delegators — pre-0.12.0 these were instance methods on
-	// this class. The schema references the static versions on the service
-	// now; these stay so any external caller passing array( $settings,
-	// 'sanitize_time' ) keeps working until 0.12.5 demolition.
-
-	public function sanitize_time( $value ): string {
-		return ISOFT_FMF_Settings_Service::sanitize_time( $value );
-	}
-
-	public function sanitize_link_target( $value ): string {
-		return ISOFT_FMF_Settings_Service::sanitize_link_target( $value );
-	}
-
-	public function handle_flush_rewrite(): void {
-		if ( isset( $_POST['isoft_fmf_flush_rewrite'] ) && current_user_can( 'isoft_fmf_manage_settings' ) ) {
-			// The Advanced tab's form posts to options.php with the
-			// isoft_fmf_advanced group, so settings_fields() generates a
-			// nonce keyed to that group name.
-			check_admin_referer( 'isoft_fmf_advanced-options' );
-			( new ISOFT_FMF_Settings_Service() )->flush_rewrite();
-			add_settings_error( 'isoft_fmf_settings', 'flushed', __( 'Rewrite rules flushed.', 'isoft-fm-foundation' ), 'updated' );
 		}
 	}
 }

@@ -4,9 +4,7 @@
  *
  * Replaces the pre-0.12.0 LicenseManagerCacheTest — the cache surface
  * lived on License_Manager when it owned the data layer. Now the data
- * layer is License_Service; the Manager is a thin delegator. Tests
- * target the canonical home so they survive the 0.12.5 Manager
- * demolition unchanged.
+ * layer is License_Service; the Manager only adds the admin menu.
  */
 
 class LicenseServiceCacheTest extends WP_UnitTestCase {

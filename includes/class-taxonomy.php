@@ -296,7 +296,7 @@ class ISOFT_FMF_Taxonomy {
 	 * one is added later).
 	 */
 	private function render_license_select( int $selected, string $name, string $id ): void {
-		$licenses = ( new ISOFT_FMF_License_Manager() )->get_all();
+		$licenses = ( new ISOFT_FMF_License_Service() )->list();
 		echo '<select name="' . esc_attr( $name ) . '" id="' . esc_attr( $id ) . '">';
 		printf(
 			'<option value="0"%s>%s</option>',
