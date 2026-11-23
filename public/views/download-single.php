@@ -14,8 +14,8 @@ $changelog   = get_post_meta( $post->ID, '_isoft_fmf_changelog', true );
 $author_name = get_post_meta( $post->ID, '_isoft_fmf_author_name', true );
 $author_url  = get_post_meta( $post->ID, '_isoft_fmf_author_url', true );
 $date_pub    = get_post_meta( $post->ID, '_isoft_fmf_date_published', true );
-$license_id  = (int) get_post_meta( $post->ID, '_isoft_fmf_license_id', true );
-$license     = $license_id ? ( new ISOFT_FMF_License_Manager() )->get( $license_id ) : null;
+// The effective license, as on the download card: the download's own or its category's.
+$license     = ( new ISOFT_FMF_License_Resolver() )->effective_license_row_for( $post->ID );
 ?>
 <div class="isoft-fmf-single-download">
 

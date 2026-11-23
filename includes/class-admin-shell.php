@@ -281,7 +281,8 @@ class ISOFT_FMF_Admin_Shell {
 
 	private static function licenses_slice(): array {
 		return array(
-			'initialItems' => ( new ISOFT_FMF_License_Service() )->list(),
+			// Same shape as GET /licenses: raw rows carry is_default as "0", which JavaScript reads as true.
+			'initialItems' => array_map( array( 'ISOFT_FMF_Rest_Licenses', 'prepare_item' ), ( new ISOFT_FMF_License_Service() )->list() ),
 		);
 	}
 

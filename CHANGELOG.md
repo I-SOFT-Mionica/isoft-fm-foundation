@@ -23,6 +23,9 @@ Code left from the admin screens that 0.12 replaced, and upgrade steps no wordpr
 - The Files box's Add Link reloaded the whole editor. `wp_ajax_isoft_fmf_add_external` now also returns the new `file`, and the row is added in place.
 - Uninstall left the categories and tags (and their term meta) when the plugin was inactive, because the taxonomies were not registered; `uninstall.php` registers them first.
 - An uninstall with the plugin still loaded (`wp plugin uninstall --deactivate`) stopped at the category-delete guard after the tables were gone. `ISOFT_FMF_Category_Folders::on_pre_delete()` stands down while WordPress uninstalls Foundation.
+- A download's own page (`/downloads/<slug>/`, classic themes) showed only a license set on the download itself, not one inherited from its category. `public/views/download-single.php` now uses `ISOFT_FMF_License_Resolver::effective_license_row_for()`, like the download card.
+- The Licenses screen showed every license as the default, and saving an edit made that license the default: its first list came from raw rows, where `is_default` is the string `"0"`. It now has the REST shape (`ISOFT_FMF_Rest_Licenses::prepare_item()`, now public static).
+- An uninstall with the plugin loaded logged a database error per download: the tables were dropped before the downloads were deleted. They are dropped after.
 
 ## [0.18.0] — 2026-11-21
 

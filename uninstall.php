@@ -22,12 +22,6 @@ if ( ! get_option( 'isoft_fmf_delete_data_on_uninstall' ) ) {
 
 global $wpdb;
 
-// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange -- Uninstall runs once; table drop cannot go through higher-level APIs.
-$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}isoft_fmf_files" );
-$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}isoft_fmf_download_log" );
-$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}isoft_fmf_download_daily" );
-$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}isoft_fmf_licenses" );
-
 // Delete all isoft_fmf_file posts and their meta, PLUS any posts of any
 // type that carry the _isoft_fmf_demo_content meta key — the demo
 // content installer creates a regular Page that explains the blocks,
@@ -40,6 +34,15 @@ $demo_ids = $wpdb->get_col( "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_ke
 foreach ( array_unique( array_merge( $post_ids, $demo_ids ) ) as $post_id ) {
 	wp_delete_post( (int) $post_id, true );
 }
+
+// Drop the tables only now: with the plugin still loaded, deleting a post
+// runs Foundation's own clean-up, which reads and writes these tables.
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange -- Uninstall runs once; table drop cannot go through higher-level APIs.
+$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}isoft_fmf_files" );
+$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}isoft_fmf_download_log" );
+$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}isoft_fmf_download_daily" );
+$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}isoft_fmf_licenses" );
+// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange
 
 // Delete the categories and tags with their term meta. An inactive plugin
 // has not registered its taxonomies, and get_terms() refuses an unknown one.
