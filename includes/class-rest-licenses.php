@@ -125,7 +125,7 @@ class ISOFT_FMF_Rest_Licenses {
 
 	public function list(): WP_REST_Response {
 		$rows = $this->service->list();
-		$data = array_map( array( $this, 'prepare_item' ), $rows );
+		$data = array_map( array( self::class, 'prepare_item' ), $rows );
 		return new WP_REST_Response( $data, 200 );
 	}
 
@@ -135,7 +135,7 @@ class ISOFT_FMF_Rest_Licenses {
 		if ( null === $row ) {
 			return $this->not_found( $id );
 		}
-		return new WP_REST_Response( $this->prepare_item( $row ), 200 );
+		return new WP_REST_Response( self::prepare_item( $row ), 200 );
 	}
 
 	public function create( WP_REST_Request $request ): WP_REST_Response|WP_Error {
@@ -156,7 +156,7 @@ class ISOFT_FMF_Rest_Licenses {
 			);
 		}
 		$row = $this->service->get( $id );
-		return new WP_REST_Response( $this->prepare_item( $row ), 201 );
+		return new WP_REST_Response( self::prepare_item( $row ), 201 );
 	}
 
 	public function update( WP_REST_Request $request ): WP_REST_Response|WP_Error {
@@ -174,7 +174,7 @@ class ISOFT_FMF_Rest_Licenses {
 			);
 		}
 		$row = $this->service->get( $id );
-		return new WP_REST_Response( $this->prepare_item( $row ), 200 );
+		return new WP_REST_Response( self::prepare_item( $row ), 200 );
 	}
 
 	public function delete( WP_REST_Request $request ): WP_REST_Response|WP_Error {
@@ -202,10 +202,13 @@ class ISOFT_FMF_Rest_Licenses {
 	// ---------------------------------------------------------------------
 
 	/**
+	 * The JSON shape of a license row, typed (the raw row has strings).
+	 * Also used for the Licenses screen's first list.
+	 *
 	 * @param object $row
 	 * @return array<string,mixed>
 	 */
-	private function prepare_item( $row ): array {
+	public static function prepare_item( $row ): array {
 		return array(
 			'id'          => (int) $row->id,
 			'title'       => (string) $row->title,
