@@ -4,7 +4,7 @@ Tags: downloads, file manager, document management, categories, download counter
 Requires at least: 6.7
 Tested up to: 7.1
 Requires PHP: 8.4
-Stable tag: 0.19.0
+Stable tag: 0.19.1-dev
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -16,21 +16,15 @@ Document and download manager with real on-disk folder organization, per-departm
 
 Unlike standard media plugins that dump every upload into a single dated folder, Foundation is designed for municipalities, universities, libraries, and any team that needs to manage thousands of public documents, maintain a strict category tree, and give different departments their own secure upload spaces.
 
+= What's new in 0.19.1 =
+
+**The Files box behaves.** In the block editor, the "Manage files" button in the sidebar now opens the panel below the editor when it is collapsed, and takes you straight to the Files box. Adding a link no longer risks adding it twice: the button waits until the link is saved, and the new link appears in the list right away without reloading the page.
+
 = What's new in 0.19.0 =
 
 **Lighter and tidier.** This release removes code left over from the admin screens that were replaced in version 0.12, and some one-time upgrade steps that no site can need any more. Activating or updating the plugin does a little less work.
 
 **A few long-standing rough edges fixed.** Adding a license with the slug left blank works again (it is made from the title, as the screen promises), and the Licenses screen no longer marks every license as the default, so editing one can't quietly change the default for new downloads. A download's own page now also shows a license it inherits from its category. Adding an external link to a download no longer reloads the editor, so nothing you were typing is lost. The Tools screens stop writing a warning to the debug log on every visit. And when you choose to delete all plugin data, uninstalling now really removes everything: categories, tags and the last few settings included.
-
-= What's new in 0.18.0 =
-
-**The download settings in the editor work again.** The Version & License, Access and other panels in the block editor's sidebar showed default values and quietly dropped your changes when you saved. They now show what is stored and save what you choose. If you set a license, an access level, a version or "featured" there since version 0.12 and it did not stick, please set it once more.
-
-**Imported downloads can follow their category's license.** Importers can now set each download's license, including "Inherit from category", so a site moved from another download manager shows the right license on every download without editing them one by one.
-
-**Ready for cloud files on headless sites.** A headless front end that serves downloads itself can now ask Foundation whether a visitor may have a cloud-stored file and how to deliver it. It follows exactly the same rules as your own site's download links.
-
-Nothing changes on your site until a plugin uses these.
 
 = Key features =
 
@@ -325,6 +319,11 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 
 == Changelog ==
 
+= 0.19.1 =
+
+* **Fixed:** the "Manage files" button did nothing when the panel below the block editor was collapsed.
+* **Fixed:** clicking "Add Link" twice could add the same link twice.
+
 = 0.19.0 =
 
 * **Improved:** leftover code from the pre-0.12 admin screens and old upgrade steps removed; activation and updates do less work.
@@ -513,6 +512,9 @@ Existing data (downloads, categories, files, licenses, logs, per-user category p
 * **Inline metadata editing** directly from the file list.
 
 == Upgrade Notice ==
+
+= 0.19.1 =
+Fixes the "Manage files" button in the block editor and stops links being added twice. No database changes.
 
 = 0.19.0 =
 Cleanup and fixes: leftover code removed, adding a license with a blank slug works again, and uninstalling removes everything. No database changes.
