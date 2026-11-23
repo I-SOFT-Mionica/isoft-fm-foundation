@@ -302,7 +302,39 @@ const FilesPanel = () => {
 
 	const scrollToMetaBox = () => {
 		const target = document.getElementById( FILES_METABOX_ID );
-		if ( target ) {
+		if ( ! target ) {
+			dispatch( 'core/notices' ).createWarningNotice(
+				__( 'The Files box is not on this screen. Save the download and reload the page to manage its files.', 'isoft-fm-foundation' ),
+				{ type: 'snackbar' }
+			);
+			return;
+		}
+
+		// Make the box reachable first; otherwise there is nothing to scroll to.
+		// 1. Switched off under Preferences > Panels.
+		const panel = `meta-box-${ FILES_METABOX_ID }`;
+		const editorSelect = select( 'core/editor' );
+		if ( editorSelect?.isEditorPanelEnabled && ! editorSelect.isEditorPanelEnabled( panel ) ) {
+			dispatch( 'core/editor' ).toggleEditorPanelEnabled( panel );
+		}
+		// 2. The meta box pane below the canvas is collapsed (WordPress 6.7+
+		//    keeps it hidden until opened; the state is a user preference).
+		const prefs = select( 'core/preferences' );
+		if ( prefs && ! prefs.get( 'core/edit-post', 'metaBoxesMainIsOpen' ) ) {
+			dispatch( 'core/preferences' ).set( 'core/edit-post', 'metaBoxesMainIsOpen', true );
+		}
+		// 3. The box itself is folded shut (its own toggle saves the state).
+		if ( target.classList.contains( 'closed' ) ) {
+			const handle = target.querySelector( '.handlediv' );
+			if ( handle ) {
+				handle.click();
+			} else {
+				target.classList.remove( 'closed' );
+			}
+		}
+
+		// Scroll after the pane has rendered open.
+		setTimeout( () => {
 			target.scrollIntoView( { behavior: 'smooth', block: 'start' } );
 			// Briefly highlight so the user's eye lands on the right
 			// section after the scroll completes. Removes itself.
@@ -311,7 +343,7 @@ const FilesPanel = () => {
 			setTimeout( () => {
 				target.style.boxShadow = '';
 			}, 1200 );
-		}
+		}, 100 );
 	};
 
 	const renderBody = () => {

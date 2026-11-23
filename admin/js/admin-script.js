@@ -473,6 +473,14 @@
 				return;
 			}
 
+			// One save at a time: a second click while the first is on its way
+			// would add the same link twice.
+			var $btn = $( this );
+			if ( $btn.prop( 'disabled' ) ) {
+				return;
+			}
+			$btn.prop( 'disabled', true );
+
 			$.post(
 				ISOFT_FMF.ajaxUrl,
 				{
@@ -484,15 +492,31 @@
 					is_mirror:   isMirror,
 				},
 				function ( res ) {
-					if ( res.success && res.data && res.data.file ) {
-						appendFileRow( res.data.file );
+					if ( res.success ) {
+						// Never reload: the editor may hold unsaved changes. Older
+						// servers return only the ID; build the row from the form.
+						appendFileRow(
+							res.data && res.data.file ? res.data.file : {
+								id:           res.data ? res.data.file_id : '',
+								title:        title || url,
+								external_url: url,
+								file_type:    'external',
+								is_mirror:    isMirror,
+							}
+						);
 						$( '#isoft-fmf-ext-url, #isoft-fmf-ext-title' ).val( '' );
 						$( '#isoft-fmf-ext-mirror' ).prop( 'checked', false );
-					} else if ( res.success ) {
-						location.reload();
 					} else {
 						alert( res.data && res.data.message ? res.data.message : ISOFT_FMF.i18n.error );
 					}
+				}
+			).fail(
+				function () {
+					alert( ISOFT_FMF.i18n.error );
+				}
+			).always(
+				function () {
+					$btn.prop( 'disabled', false );
 				}
 			);
 		}
