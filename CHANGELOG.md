@@ -2,6 +2,12 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [Unreleased]
+
+### Fixed
+
+- The block editor's Files panel "Manage files" button did nothing when the meta box pane below the editor was collapsed (WordPress 6.7+ hides it until opened and remembers that per user), when the Files box was folded shut, or when it was switched off under Preferences > Panels. The button now switches the box on, opens the pane (`core/edit-post` preference `metaBoxesMainIsOpen`) and the box, then scrolls to it. If the box is not on the screen at all, it says so in a snackbar.
+
 ## [0.19.0] — 2026-11-23
 
 ### Removed
