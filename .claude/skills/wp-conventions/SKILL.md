@@ -170,6 +170,13 @@ When adding a new prefix family or a new directory to scan, update `phpcs.xml.di
 - Prefix list under `WordPress.NamingConventions.PrefixAllGlobals`
 - Exclude patterns for view / template files where local vars look like globals
 
+## Removing a method, hook or class
+
+- Search the **whole plugin** for callers, not just `includes/`: `public/views/`, `admin/views/`, `templates/`, `blocks/*/render.php`, `uninstall.php`, tests. 0.19 dev removed `ISOFT_FMF_License_Manager::get()` and missed `public/views/download-single.php`: a fatal on every classic-theme download page with a license, invisible on the headless test clone and in PHPUnit.
+- Also grep the built zip's PHP files before handing it to test.
+- REST `sanitize_callback` is called as `( $value, $request, $param )`. Never pass a core function whose second parameter means something (`sanitize_title` fallback, `esc_url_raw` protocols); wrap it: `static fn( $v ) => sanitize_title( (string) $v )`.
+- Data inlined into an admin page must have the same shape as the REST answer (map through the REST class's `prepare_item()`); raw `$wpdb` rows carry `"0"`, which JavaScript reads as true.
+
 ## Cross-cutting
 
 - Sanitisation, escaping, nonces, capability checks → `security` skill
