@@ -20,7 +20,7 @@ Unlike standard media plugins that dump every upload into a single dated folder,
 
 **Lighter and tidier.** This release removes code left over from the admin screens that were replaced in version 0.12, and some one-time upgrade steps that no site can need any more. Activating or updating the plugin does a little less work.
 
-**A few long-standing rough edges fixed.** Adding a license with the slug left blank works again (it is made from the title, as the screen promises). Adding an external link to a download no longer reloads the editor, so nothing you were typing is lost. The Tools screens stop writing a warning to the debug log on every visit. And when you choose to delete all plugin data, uninstalling now really removes everything: categories, tags and the last few settings included.
+**A few long-standing rough edges fixed.** Adding a license with the slug left blank works again (it is made from the title, as the screen promises), and the Licenses screen no longer marks every license as the default, so editing one can't quietly change the default for new downloads. A download's own page now also shows a license it inherits from its category. Adding an external link to a download no longer reloads the editor, so nothing you were typing is lost. The Tools screens stop writing a warning to the debug log on every visit. And when you choose to delete all plugin data, uninstalling now really removes everything: categories, tags and the last few settings included.
 
 = What's new in 0.18.0 =
 
@@ -329,6 +329,8 @@ The build script reads `webpack.config.js`, compiles each block's `index.js` ent
 
 * **Improved:** leftover code from the pre-0.12 admin screens and old upgrade steps removed; activation and updates do less work.
 * **Fixed:** adding or editing a license with an empty slug caused an error.
+* **Fixed:** the Licenses screen showed every license as the default, and saving an edit made it the default.
+* **Improved:** a download's own page shows the license inherited from its category.
 * **Fixed:** adding an external link in the Files box reloaded the editor.
 * **Fixed:** the Tools screens logged a PHP deprecation notice on each visit.
 * **Fixed:** uninstalling with "Delete all plugin data" left categories, tags and a few settings behind, or stopped halfway when run from WP-CLI.
