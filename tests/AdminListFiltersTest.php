@@ -113,7 +113,7 @@ class AdminListFiltersTest extends WP_UnitTestCase {
 		$this->columns->render_filters( 'isoft_fmf_file', 'top' );
 		$html = (string) ob_get_clean();
 
-		$this->assertStringContainsString( 'name="isoft_fmf_category"', $html );
+		$this->assertMatchesRegularExpression( '/name=[\'"]isoft_fmf_category[\'"]/', $html );
 		$this->assertStringContainsString( 'name="isoft_fmf_format"', $html );
 		$this->assertStringContainsString( '<option value="pdf"', $html );
 		$this->assertStringContainsString( 'name="isoft_fmf_kind"', $html );
