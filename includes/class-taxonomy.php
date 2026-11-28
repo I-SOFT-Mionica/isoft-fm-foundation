@@ -60,7 +60,9 @@ class ISOFT_FMF_Taxonomy {
 				'hierarchical'        => true,
 				'public'              => true,
 				'show_ui'             => true,
-				'show_admin_column'   => true,
+				// Foundation adds its own Category column (ISOFT_FMF_Admin_Columns);
+				// the taxonomy's column would show the same terms twice.
+				'show_admin_column'   => false,
 				'show_in_rest'        => true,
 				// Suppress the classic-editor multi-checkbox meta box AND
 				// the Quick Edit checkbox panel. The block editor reads

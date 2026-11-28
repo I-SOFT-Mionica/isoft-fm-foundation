@@ -2,6 +2,17 @@
 
 All notable changes to **I-Soft File Manager: Foundation** (formerly i-Downloads). Format loosely based on [Keep a Changelog](https://keepachangelog.com/). Versions follow [Semantic Versioning](https://semver.org/) once we hit 1.0.0; pre-1.0 bumps are incremental and freely breaking.
 
+## [Unreleased]
+
+### Added
+
+- Downloads list (`edit.php?post_type=isoft_fmf_file`): filter dropdowns for category (subcategories included; a restricted user sees only their categories), file format (the extensions present in the files table) and file kind (uploaded, external link, remote). A download matches when one of its files has that format and kind. URL parameters `isoft_fmf_category` (slug), `isoft_fmf_format`, `isoft_fmf_kind`; `ISOFT_FMF_Admin_Columns::render_filters()`, `filter_by_files()`.
+
+### Fixed
+
+- The Downloads column was never sortable: the sortable-columns filter was registered as `manage_edit-isoft_fmf_sortable_columns` instead of `manage_edit-isoft_fmf_file_sortable_columns`. It now sorts by `_isoft_fmf_download_count` (downloads without the meta sort as 0), without pinning featured downloads on top.
+- The Downloads list showed the category twice: Foundation's Category column and the taxonomy's own "Download Categories" column. `isoft_fmf_category` is registered with `show_admin_column` false.
+
 ## [0.19.1] — 2026-11-24
 
 ### Fixed
